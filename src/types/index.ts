@@ -89,6 +89,7 @@ export interface TrendData {
     sheep: number;
     pigs: number;
     poultry: number;
+    [key: string]: string | number; // Index signature for CSV export compatibility
 }
 
 export interface SpeciesDistribution {

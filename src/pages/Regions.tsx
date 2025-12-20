@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import {
     MapPin,
-    Users,
     Building2,
     Beef,
     Search,
     Eye,
-    TrendingUp,
     BarChart3,
 } from 'lucide-react';
 import {

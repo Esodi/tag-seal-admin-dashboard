@@ -3,7 +3,6 @@ import {
     MapPin,
     Users,
     Building2,
-    Beef,
     Search,
     Eye,
     Map,

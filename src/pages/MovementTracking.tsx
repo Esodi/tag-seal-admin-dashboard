@@ -5,9 +5,6 @@ import {
     MapPin,
     Calendar,
     Search,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
     Eye,
     AlertTriangle,
     CheckCircle2,
@@ -120,12 +117,9 @@ const recentMovements = [
     },
 ];
 
-const ITEMS_PER_PAGE = 5;
-
 export function MovementTracking() {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [currentPage, setCurrentPage] = useState(1);
     const [selectedMovement, setSelectedMovement] = useState<typeof recentMovements[0] | null>(null);
 
     const filteredMovements = recentMovements.filter((item) => {

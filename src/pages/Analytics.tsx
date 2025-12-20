@@ -3,11 +3,8 @@ import {
     Download,
     FileText,
     TrendingUp,
-    PieChart as PieChartIcon,
     BarChart as BarChartIcon,
     Activity,
-    Calendar,
-    Filter,
 } from 'lucide-react';
 import {
     AreaChart,
@@ -17,8 +14,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    PieChart,
-    Pie,
     Cell,
     BarChart,
     Bar,
@@ -33,7 +28,7 @@ import {
     mockVaccinationStats,
     mockRegions,
 } from '../data/mockData';
-import { formatNumber, formatPercentage, cn } from '../lib/utils';
+import { formatNumber, cn } from '../lib/utils';
 
 // Tab Button Component
 function TabButton({
@@ -119,7 +114,7 @@ const farmSizeData = [
 ];
 
 // Export Handlers
-function exportToCSV(data: Record<string, unknown>[], filename: string) {
+function exportToCSV(data: { [key: string]: unknown }[], filename: string) {
     if (data.length === 0) return;
 
     const headers = Object.keys(data[0]);

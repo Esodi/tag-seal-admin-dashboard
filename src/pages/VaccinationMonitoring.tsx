@@ -18,7 +18,7 @@ import {
     PieChart,
     Pie,
 } from 'recharts';
-import { mockVaccinationStats, mockRegions } from '../data/mockData';
+import { mockVaccinationStats } from '../data/mockData';
 import { formatNumber, cn } from '../lib/utils';
 
 // Summary stats
@@ -29,14 +29,7 @@ const summaryStats = {
     avgRate: Math.round(mockVaccinationStats.reduce((sum, s) => sum + s.rate, 0) / mockVaccinationStats.length),
 };
 
-// Vaccination by species data
-const speciesVaccination = [
-    { species: 'Cattle', vaccinated: 89, target: 95 },
-    { species: 'Goats', vaccinated: 72, target: 85 },
-    { species: 'Sheep', vaccinated: 78, target: 85 },
-    { species: 'Pigs', vaccinated: 65, target: 80 },
-    { species: 'Poultry', vaccinated: 82, target: 90 },
-];
+
 
 // Compliance pie data
 const complianceData = [
