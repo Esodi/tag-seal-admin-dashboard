@@ -8,6 +8,7 @@ import {
     ArrowUpRight,
     Beef,
 } from 'lucide-react';
+import { useMemo } from 'react';
 import {
     AreaChart,
     Area,
@@ -23,13 +24,10 @@ import {
     Bar,
     Legend,
 } from 'recharts';
-import {
-    mockDashboardStats,
-    mockLivestockTrend,
-    mockSpeciesDistribution,
-    mockRegionalComparison,
-    mockAlerts,
-} from '../data/mockData';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, formatPercentage, getAlertColor, cn } from '../lib/utils';
 
 // Stat Card Component
@@ -116,6 +114,135 @@ function AlertCard({ type, title, message, region, createdAt }: {
 }
 
 export function Dashboard() {
+    const { data, loading, error, refetch } = useApi(async () => {
+        const [livestock, farms, farmers, vaccinations, medications] = await Promise.all([
+            api.livestock.list(),
+            api.farms.list(),
+            api.farmers.list(),
+            api.vaccinations.list(),
+            api.medications.list()
+        ]);
+        return { livestock, farms, farmers, vaccinations, medications };
+    }, []);
+
+    const stats = useMemo(() => {
+        if (!data) return null;
+        const { livestock, farms, farmers, vaccinations, medications } = data;
+
+        // Dashboard Stats
+        const totalLivestock = livestock.length;
+        const activeLivestock = livestock.filter((l: any) => l.status === 'Alive' || l.status === 'Active').length;
+        const totalFarms = farms.length;
+        const activeFarms = farms.filter((f: any) => f.status === 'Active').length;
+        const totalFarmers = farmers.length;
+        const uniqueVaccinatedLivestock = new Set(vaccinations.map((v: any) => v.livestockId)).size;
+        const vaccinationCoverage = totalLivestock > 0 ? (uniqueVaccinatedLivestock / totalLivestock) * 100 : 0;
+
+        // Species Distribution
+        const speciesCounts: Record<string, number> = {};
+        livestock.forEach((l: any) => {
+            const species = l.species || 'Unknown';
+            speciesCounts[species] = (speciesCounts[species] || 0) + 1;
+        });
+
+        const speciesColors: Record<string, string> = {
+            'Cattle': '#3b82f6',
+            'Goats': '#10b981',
+            'Sheep': '#f59e0b',
+            'Pigs': '#ec4899',
+            'Poultry': '#8b5cf6',
+            'Donkeys': '#64748b'
+        };
+
+        const speciesDistribution = Object.entries(speciesCounts)
+            .map(([name, value]) => ({
+                name,
+                value,
+                color: speciesColors[name] || '#94a3b8'
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        // Regional Comparison
+        const regionStats: Record<string, { livestock: number, vaccinated: number }> = {};
+        livestock.forEach((l: any) => {
+            const region = l.region || 'Unknown';
+            if (!regionStats[region]) regionStats[region] = { livestock: 0, vaccinated: 0 };
+            regionStats[region].livestock++;
+        });
+
+        vaccinations.forEach((v: any) => {
+            const region = v.region || 'Unknown';
+            if (regionStats[region]) {
+                regionStats[region].vaccinated++; // Approximate since vaccination record has region
+            } else {
+                // Should fetch region from livestock if not in vaccination, but assuming vaccination has it
+                if (!regionStats[region]) regionStats[region] = { livestock: 0, vaccinated: 0 };
+                regionStats[region].vaccinated++;
+            }
+        });
+
+        const regionalComparison = Object.entries(regionStats)
+            .map(([region, stat]) => ({
+                region,
+                livestock: stat.livestock,
+                vaccinationRate: stat.livestock > 0 ? Math.round((stat.vaccinated / stat.livestock) * 100) : 0
+            }))
+            .sort((a, b) => b.livestock - a.livestock)
+            .slice(0, 10);
+
+        // Livestock Trend (Monthly)
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const trendMap: Record<string, { cattle: number, goats: number }> = {};
+        months.forEach(m => trendMap[m] = { cattle: 0, goats: 0 });
+
+        livestock.forEach((l: any) => {
+            const date = new Date(l.registrationDate || l.created_at || new Date());
+            const month = months[date.getMonth()];
+            if (l.species === 'Cattle') trendMap[month].cattle++;
+            else if (l.species === 'Goats') trendMap[month].goats++;
+        });
+
+        const livestockTrend = months.map(month => ({
+            month,
+            cattle: trendMap[month].cattle,
+            goats: trendMap[month].goats
+        }));
+
+        // Alerts (High Severity Medications/Events)
+        const alerts = medications
+            .filter((m: any) => m.severity === 'critical' || m.severity === 'high')
+            .map((m: any) => ({
+                id: m.id,
+                type: m.severity === 'critical' ? 'danger' : 'warning',
+                title: m.disease || 'Health Alert',
+                message: `${m.type} reported in ${m.farmName || 'Unknown Farm'}`,
+                region: m.region,
+                createdAt: m.reportedDate || m.created_at || new Date().toISOString()
+            }))
+            .slice(0, 5) as any[];
+
+        return {
+            dashboardStats: { totalLivestock, activeLivestock, totalFarms, activeFarms, totalFarmers, vaccinationCoverage },
+            livestockTrend,
+            speciesDistribution,
+            regionalComparison,
+            alerts
+        };
+    }, [data]);
+
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
+
+    // In case no data yet
+    if (!stats) return null;
+
+    const { dashboardStats, livestockTrend, speciesDistribution, regionalComparison, alerts } = stats;
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -132,30 +259,30 @@ export function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     title="Total Livestock"
-                    value={formatNumber(mockDashboardStats.totalLivestock)}
-                    subtitle={`${formatNumber(mockDashboardStats.activeLivestock)} active`}
+                    value={formatNumber(dashboardStats.totalLivestock)}
+                    subtitle={`${formatNumber(dashboardStats.activeLivestock)} active`}
                     icon={Beef}
                     trend={{ value: 5.2, label: 'vs last month' }}
                     color="primary"
                 />
                 <StatCard
                     title="Registered Farms"
-                    value={formatNumber(mockDashboardStats.totalFarms)}
-                    subtitle={`${formatNumber(mockDashboardStats.activeFarms)} active`}
+                    value={formatNumber(dashboardStats.totalFarms)}
+                    subtitle={`${formatNumber(dashboardStats.activeFarms)} active`}
                     icon={Building2}
                     trend={{ value: 3.1, label: 'vs last month' }}
                     color="secondary"
                 />
                 <StatCard
                     title="Registered Farmers"
-                    value={formatNumber(mockDashboardStats.totalFarmers)}
+                    value={formatNumber(dashboardStats.totalFarmers)}
                     icon={Users}
                     trend={{ value: 2.8, label: 'vs last month' }}
                     color="accent"
                 />
                 <StatCard
                     title="Vaccination Coverage"
-                    value={formatPercentage(mockDashboardStats.vaccinationCoverage)}
+                    value={formatPercentage(dashboardStats.vaccinationCoverage)}
                     subtitle="Nationwide average"
                     icon={Syringe}
                     color="success"
@@ -177,7 +304,7 @@ export function Dashboard() {
                     <div className="card-body">
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={mockLivestockTrend}>
+                                <AreaChart data={livestockTrend}>
                                     <defs>
                                         <linearGradient id="colorCattle" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -234,7 +361,7 @@ export function Dashboard() {
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
-                                        data={mockSpeciesDistribution}
+                                        data={speciesDistribution}
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={60}
@@ -242,7 +369,7 @@ export function Dashboard() {
                                         paddingAngle={2}
                                         dataKey="value"
                                     >
-                                        {mockSpeciesDistribution.map((entry, index) => (
+                                        {speciesDistribution.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
@@ -259,7 +386,7 @@ export function Dashboard() {
                             </ResponsiveContainer>
                         </div>
                         <div className="mt-4 space-y-2">
-                            {mockSpeciesDistribution.map((item) => (
+                            {speciesDistribution.map((item) => (
                                 <div key={item.name} className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <div
@@ -293,7 +420,7 @@ export function Dashboard() {
                     <div className="card-body">
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockRegionalComparison} layout="vertical">
+                                <BarChart data={regionalComparison} layout="vertical">
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis type="number" stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
                                     <YAxis dataKey="region" type="category" stroke="#94a3b8" fontSize={11} width={80} />
@@ -325,9 +452,13 @@ export function Dashboard() {
                         </h2>
                     </div>
                     <div className="card-body space-y-4">
-                        {mockAlerts.slice(0, 4).map((alert) => (
-                            <AlertCard key={alert.id} {...alert} />
-                        ))}
+                        {alerts.length > 0 ? (
+                            alerts.map((alert) => (
+                                <AlertCard key={alert.id} {...alert} />
+                            ))
+                        ) : (
+                            <p className="text-sm text-slate-500 text-center py-4">No active alerts</p>
+                        )}
                     </div>
                 </div>
             </div>

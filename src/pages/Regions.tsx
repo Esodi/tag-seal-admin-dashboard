@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     MapPin,
     Building2,
@@ -16,53 +16,62 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from 'recharts';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, cn } from '../lib/utils';
 
-// Mock data for Tanzania regions
-const regionStats = {
-    totalRegions: 31,
-    totalDistricts: 184,
-    totalFarms: 45230,
-    totalLivestock: 1234567,
-};
-
-const regionsData = [
-    { id: 1, name: 'Arusha', code: 'AR', districts: 7, farms: 3450, livestock: 125000, farmers: 2800, vaccinationRate: 85.2, status: 'active' },
-    { id: 2, name: 'Dar es Salaam', code: 'DS', districts: 5, farms: 1250, livestock: 45000, farmers: 980, vaccinationRate: 92.1, status: 'active' },
-    { id: 3, name: 'Dodoma', code: 'DO', districts: 7, farms: 4200, livestock: 165000, farmers: 3500, vaccinationRate: 78.5, status: 'active' },
-    { id: 4, name: 'Geita', code: 'GE', districts: 5, farms: 2800, livestock: 98000, farmers: 2200, vaccinationRate: 71.3, status: 'active' },
-    { id: 5, name: 'Iringa', code: 'IR', districts: 5, farms: 3100, livestock: 142000, farmers: 2650, vaccinationRate: 82.7, status: 'active' },
-    { id: 6, name: 'Kagera', code: 'KA', districts: 8, farms: 3800, livestock: 156000, farmers: 3100, vaccinationRate: 76.8, status: 'active' },
-    { id: 7, name: 'Katavi', code: 'KT', districts: 3, farms: 1200, livestock: 52000, farmers: 950, vaccinationRate: 68.4, status: 'active' },
-    { id: 8, name: 'Kigoma', code: 'KI', districts: 6, farms: 2100, livestock: 78000, farmers: 1750, vaccinationRate: 72.1, status: 'active' },
-    { id: 9, name: 'Kilimanjaro', code: 'KL', districts: 7, farms: 2950, livestock: 118000, farmers: 2450, vaccinationRate: 89.3, status: 'active' },
-    { id: 10, name: 'Lindi', code: 'LI', districts: 6, farms: 1800, livestock: 62000, farmers: 1400, vaccinationRate: 65.2, status: 'active' },
-    { id: 11, name: 'Manyara', code: 'MA', districts: 6, farms: 3250, livestock: 138000, farmers: 2700, vaccinationRate: 79.6, status: 'active' },
-    { id: 12, name: 'Mara', code: 'MR', districts: 6, farms: 2600, livestock: 112000, farmers: 2150, vaccinationRate: 74.8, status: 'active' },
-    { id: 13, name: 'Mbeya', code: 'MB', districts: 7, farms: 3650, livestock: 152000, farmers: 3050, vaccinationRate: 81.4, status: 'active' },
-    { id: 14, name: 'Morogoro', code: 'MO', districts: 7, farms: 3900, livestock: 168000, farmers: 3250, vaccinationRate: 77.9, status: 'active' },
-    { id: 15, name: 'Mtwara', code: 'MT', districts: 5, farms: 1650, livestock: 58000, farmers: 1300, vaccinationRate: 69.5, status: 'active' },
-    { id: 16, name: 'Mwanza', code: 'MW', districts: 7, farms: 3400, livestock: 145000, farmers: 2850, vaccinationRate: 75.2, status: 'active' },
-    { id: 17, name: 'Njombe', code: 'NJ', districts: 4, farms: 1950, livestock: 82000, farmers: 1600, vaccinationRate: 84.6, status: 'active' },
-    { id: 18, name: 'Pwani', code: 'PW', districts: 6, farms: 2200, livestock: 76000, farmers: 1800, vaccinationRate: 73.1, status: 'active' },
-    { id: 19, name: 'Rukwa', code: 'RK', districts: 4, farms: 1750, livestock: 72000, farmers: 1450, vaccinationRate: 70.8, status: 'active' },
-    { id: 20, name: 'Ruvuma', code: 'RV', districts: 5, farms: 2350, livestock: 94000, farmers: 1950, vaccinationRate: 78.2, status: 'active' },
-    { id: 21, name: 'Shinyanga', code: 'SH', districts: 5, farms: 2850, livestock: 124000, farmers: 2350, vaccinationRate: 72.9, status: 'active' },
-];
-
-const topRegionsChart = regionsData
-    .sort((a, b) => b.livestock - a.livestock)
-    .slice(0, 10)
-    .map((r) => ({ name: r.name, livestock: r.livestock, farms: r.farms }));
+// Region data interface
+interface RegionData {
+    id: number;
+    name: string;
+    code?: string;
+    districts?: number;
+    farms?: number;
+    livestock?: number;
+    farmers?: number;
+    vaccinationRate?: number;
+    status?: string;
+    [key: string]: unknown;
+}
 
 export function Regions() {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedRegion, setSelectedRegion] = useState<typeof regionsData[0] | null>(null);
+    const { data: regionsData, loading, error, refetch } = useApi<RegionData[]>(
+        () => api.regions.list() as Promise<RegionData[]>,
+        []
+    );
 
-    const filteredRegions = regionsData.filter((region) =>
-        searchQuery === '' ||
-        region.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        region.code.toLowerCase().includes(searchQuery.toLowerCase())
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedRegion, setSelectedRegion] = useState<RegionData | null>(null);
+
+    // Use API data or empty array
+    const regions = regionsData ?? [];
+
+    // Compute stats from data
+    const regionStats = useMemo(() => ({
+        totalRegions: regions.length,
+        totalDistricts: regions.reduce((sum, r) => sum + (r.districts ?? 0), 0),
+        totalFarms: regions.reduce((sum, r) => sum + (r.farms ?? 0), 0),
+        totalLivestock: regions.reduce((sum, r) => sum + (r.livestock ?? 0), 0),
+    }), [regions]);
+
+    // Chart data for top regions
+    const topRegionsChart = useMemo(() =>
+        [...regions]
+            .sort((a, b) => (b.livestock ?? 0) - (a.livestock ?? 0))
+            .slice(0, 10)
+            .map((r) => ({ name: r.name, livestock: r.livestock ?? 0, farms: r.farms ?? 0 })),
+        [regions]
+    );
+
+    const filteredRegions = useMemo(() =>
+        regions.filter((region) =>
+            searchQuery === '' ||
+            region.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (region.code ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+        ),
+        [regions, searchQuery]
     );
 
     const getVaccinationColor = (rate: number) => {
@@ -70,6 +79,16 @@ export function Regions() {
         if (rate >= 70) return 'text-amber-600 dark:text-amber-400';
         return 'text-red-600 dark:text-red-400';
     };
+
+    // Loading state
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    // Error state
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -196,13 +215,13 @@ export function Regions() {
                                     <td className="py-3 px-4 text-center">
                                         <span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{region.code}</span>
                                     </td>
-                                    <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-300">{region.districts}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farms)}</td>
-                                    <td className="py-3 px-4 text-right text-slate-900 dark:text-white font-medium">{formatNumber(region.livestock)}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farmers)}</td>
+                                    <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-300">{region.districts ?? 0}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farms ?? 0)}</td>
+                                    <td className="py-3 px-4 text-right text-slate-900 dark:text-white font-medium">{formatNumber(region.livestock ?? 0)}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farmers ?? 0)}</td>
                                     <td className="py-3 px-4 text-center">
-                                        <span className={cn('font-medium', getVaccinationColor(region.vaccinationRate))}>
-                                            {region.vaccinationRate}%
+                                        <span className={cn('font-medium', getVaccinationColor(region.vaccinationRate ?? 0))}>
+                                            {region.vaccinationRate ?? 0}%
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
@@ -232,31 +251,31 @@ export function Regions() {
                         <div className="p-6 grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Districts</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{selectedRegion.districts}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{selectedRegion.districts ?? 0}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farmers</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farmers)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farmers ?? 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farms</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farms)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farms ?? 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.livestock)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.livestock ?? 0)}</p>
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Vaccination Rate</label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div
-                                            className={cn('h-full rounded-full', selectedRegion.vaccinationRate >= 80 ? 'bg-green-500' : selectedRegion.vaccinationRate >= 70 ? 'bg-amber-500' : 'bg-red-500')}
-                                            style={{ width: `${selectedRegion.vaccinationRate}%` }}
+                                            className={cn('h-full rounded-full', (selectedRegion.vaccinationRate ?? 0) >= 80 ? 'bg-green-500' : (selectedRegion.vaccinationRate ?? 0) >= 70 ? 'bg-amber-500' : 'bg-red-500')}
+                                            style={{ width: `${selectedRegion.vaccinationRate ?? 0}%` }}
                                         />
                                     </div>
-                                    <span className={cn('font-bold', getVaccinationColor(selectedRegion.vaccinationRate))}>
-                                        {selectedRegion.vaccinationRate}%
+                                    <span className={cn('font-bold', getVaccinationColor(selectedRegion.vaccinationRate ?? 0))}>
+                                        {selectedRegion.vaccinationRate ?? 0}%
                                     </span>
                                 </div>
                             </div>

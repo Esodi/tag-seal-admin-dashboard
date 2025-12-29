@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     Activity,
     Syringe,
@@ -22,118 +22,101 @@ import {
     Pie,
     Cell,
 } from 'recharts';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, formatDate, cn } from '../lib/utils';
 
-// Mock data for health events
-const healthStats = {
-    totalEvents: 3240,
-    diseaseOutbreaks: 12,
-    mortalityCount: 856,
-    recoveryRate: 94.2,
-};
-
-const eventsByType = [
-    { type: 'Vaccination', count: 1850, color: '#3b82f6' },
-    { type: 'Treatment', count: 720, color: '#10b981' },
-    { type: 'Disease Report', count: 340, color: '#f59e0b' },
-    { type: 'Mortality', count: 230, color: '#ef4444' },
-    { type: 'Quarantine', count: 100, color: '#8b5cf6' },
-];
-
-const monthlyEvents = [
-    { month: 'Jan', disease: 28, mortality: 65, treatment: 120 },
-    { month: 'Feb', disease: 22, mortality: 58, treatment: 135 },
-    { month: 'Mar', disease: 35, mortality: 72, treatment: 145 },
-    { month: 'Apr', disease: 18, mortality: 48, treatment: 110 },
-    { month: 'May', disease: 42, mortality: 85, treatment: 160 },
-    { month: 'Jun', disease: 30, mortality: 62, treatment: 125 },
-    { month: 'Jul', disease: 25, mortality: 55, treatment: 115 },
-    { month: 'Aug', disease: 38, mortality: 78, treatment: 155 },
-    { month: 'Sep', disease: 20, mortality: 52, treatment: 105 },
-    { month: 'Oct', disease: 32, mortality: 68, treatment: 140 },
-    { month: 'Nov', disease: 28, mortality: 60, treatment: 130 },
-    { month: 'Dec', disease: 22, mortality: 53, treatment: 115 },
-];
-
-const recentEvents = [
-    {
-        id: 'HE-2024-001',
-        type: 'Disease Report',
-        severity: 'high',
-        disease: 'Foot and Mouth Disease',
-        livestockAffected: 45,
-        species: 'Cattle',
-        farmName: 'Moshi Highland Farm',
-        region: 'Kilimanjaro',
-        reportedDate: '2024-12-18',
-        status: 'active',
-    },
-    {
-        id: 'HE-2024-002',
-        type: 'Mortality',
-        severity: 'medium',
-        disease: 'East Coast Fever',
-        livestockAffected: 12,
-        species: 'Cattle',
-        farmName: 'Arusha Dairy Co.',
-        region: 'Arusha',
-        reportedDate: '2024-12-17',
-        status: 'investigating',
-    },
-    {
-        id: 'HE-2024-003',
-        type: 'Treatment',
-        severity: 'low',
-        disease: 'Pneumonia',
-        livestockAffected: 25,
-        species: 'Goats',
-        farmName: 'Dodoma Goat Farm',
-        region: 'Dodoma',
-        reportedDate: '2024-12-19',
-        status: 'resolved',
-    },
-    {
-        id: 'HE-2024-004',
-        type: 'Disease Report',
-        severity: 'critical',
-        disease: 'African Swine Fever',
-        livestockAffected: 180,
-        species: 'Pigs',
-        farmName: 'Tanga Pig Farm',
-        region: 'Tanga',
-        reportedDate: '2024-12-20',
-        status: 'quarantine',
-    },
-    {
-        id: 'HE-2024-005',
-        type: 'Vaccination',
-        severity: 'low',
-        disease: 'Newcastle Disease',
-        livestockAffected: 500,
-        species: 'Poultry',
-        farmName: 'Dar es Salaam Poultry Ltd',
-        region: 'Dar es Salaam',
-        reportedDate: '2024-12-16',
-        status: 'completed',
-    },
-];
+// Health event interface
+interface HealthEventRecord {
+    id: number | string;
+    type?: string;
+    severity?: string;
+    disease?: string;
+    diseaseName?: string;
+    livestockAffected?: number;
+    species?: string;
+    farmName?: string;
+    region?: string;
+    regionName?: string;
+    reportedDate?: string;
+    created_at?: string;
+    status?: string;
+    [key: string]: unknown;
+}
 
 export function HealthEvents() {
+    const { data: medicationsData, loading, error, refetch } = useApi<HealthEventRecord[]>(
+        () => api.medications.list() as Promise<HealthEventRecord[]>,
+        []
+    );
+
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState('All');
-    const [selectedEvent, setSelectedEvent] = useState<typeof recentEvents[0] | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<HealthEventRecord | null>(null);
 
-    const filteredEvents = recentEvents.filter((item) => {
+    const events = medicationsData ?? [];
+
+    // Compute stats from data
+    const healthStats = useMemo(() => ({
+        totalEvents: events.length,
+        diseaseOutbreaks: events.filter(e => e.type === 'Disease Report').length,
+        mortalityCount: events.filter(e => e.type === 'Mortality').length,
+        recoveryRate: 94.2, // Static for now
+    }), [events]);
+
+    // Events by type for pie chart
+    const eventsByType = useMemo(() => {
+        const types: Record<string, number> = {};
+        events.forEach(e => {
+            const type = e.type ?? 'Other';
+            types[type] = (types[type] ?? 0) + 1;
+        });
+        const colors: Record<string, string> = {
+            'Vaccination': '#3b82f6',
+            'Treatment': '#10b981',
+            'Disease Report': '#f59e0b',
+            'Mortality': '#ef4444',
+            'Quarantine': '#8b5cf6',
+            'Other': '#94a3b8',
+        };
+        return Object.entries(types).map(([type, count]) => ({
+            type,
+            count,
+            color: colors[type] ?? '#94a3b8',
+        }));
+    }, [events]);
+
+    // Monthly events chart data
+    const monthlyEvents = useMemo(() => {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const months: Record<string, { disease: number; mortality: number; treatment: number }> = {};
+        monthNames.forEach(m => { months[m] = { disease: 0, mortality: 0, treatment: 0 }; });
+        events.forEach(e => {
+            const date = e.reportedDate ?? e.created_at ?? '';
+            if (!date) return;
+            const month = monthNames[new Date(date).getMonth()];
+            if (e.type === 'Disease Report') months[month].disease++;
+            else if (e.type === 'Mortality') months[month].mortality++;
+            else if (e.type === 'Treatment') months[month].treatment++;
+        });
+        return monthNames.map(month => ({ month, ...months[month] }));
+    }, [events]);
+
+    const filteredEvents = useMemo(() => events.filter((item) => {
+        const disease = item.disease ?? item.diseaseName ?? '';
+        const farmName = item.farmName ?? '';
         const matchesSearch =
             searchQuery === '' ||
-            item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.disease.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.farmName.toLowerCase().includes(searchQuery.toLowerCase());
+            String(item.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
+            disease.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            farmName.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesType = typeFilter === 'All' || item.type === typeFilter;
         return matchesSearch && matchesType;
-    });
+    }), [events, searchQuery, typeFilter]);
 
-    const getSeverityBadge = (severity: string) => {
+    const getSeverityBadge = (severity: string | undefined) => {
         switch (severity) {
             case 'critical':
                 return 'bg-red-600 text-white';
@@ -148,7 +131,7 @@ export function HealthEvents() {
         }
     };
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadge = (status: string | undefined) => {
         switch (status) {
             case 'active':
                 return 'badge-danger';
@@ -163,6 +146,14 @@ export function HealthEvents() {
                 return 'badge-info';
         }
     };
+
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -356,13 +347,13 @@ export function HealthEvents() {
                                     <td className="py-3 px-4 font-mono text-xs text-slate-600 dark:text-slate-400">{item.id}</td>
                                     <td className="py-3 px-4 text-slate-900 dark:text-white font-medium">{item.type}</td>
                                     <td className="py-3 px-4">
-                                        <div className="text-slate-900 dark:text-white">{item.disease}</div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400">{item.livestockAffected} {item.species}</div>
+                                        <div className="text-slate-900 dark:text-white">{item.disease ?? item.diseaseName ?? 'Unknown'}</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400">{formatNumber(item.livestockAffected ?? 0)} {item.species}</div>
                                     </td>
                                     <td className="py-3 px-4">
                                         <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
                                             <MapPin className="w-3 h-3" />
-                                            {item.region}
+                                            {item.region ?? item.regionName}
                                         </div>
                                     </td>
                                     <td className="py-3 px-4 text-center">
@@ -406,7 +397,7 @@ export function HealthEvents() {
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Disease/Condition</label>
-                                <p className="text-slate-900 dark:text-white">{selectedEvent.disease}</p>
+                                <p className="text-slate-900 dark:text-white">{selectedEvent.disease ?? selectedEvent.diseaseName ?? 'Unknown'}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Severity</label>
@@ -414,11 +405,11 @@ export function HealthEvents() {
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock Affected</label>
-                                <p className="text-slate-900 dark:text-white">{selectedEvent.livestockAffected} {selectedEvent.species}</p>
+                                <p className="text-slate-900 dark:text-white">{formatNumber(selectedEvent.livestockAffected ?? 0)} {selectedEvent.species}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Reported Date</label>
-                                <p className="text-slate-900 dark:text-white">{formatDate(selectedEvent.reportedDate)}</p>
+                                <p className="text-slate-900 dark:text-white">{formatDate(selectedEvent.reportedDate ?? selectedEvent.created_at ?? '')}</p>
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farm</label>
@@ -426,7 +417,7 @@ export function HealthEvents() {
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Region</label>
-                                <p className="text-slate-900 dark:text-white">{selectedEvent.region}</p>
+                                <p className="text-slate-900 dark:text-white">{selectedEvent.region ?? selectedEvent.regionName}</p>
                             </div>
                         </div>
                         <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">

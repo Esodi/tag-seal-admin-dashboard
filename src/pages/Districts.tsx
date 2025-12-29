@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     MapPin,
     Users,
@@ -16,73 +16,107 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from 'recharts';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, cn } from '../lib/utils';
 
-// Mock data for Tanzania districts
-const districtStats = {
-    totalDistricts: 184,
-    urbanDistricts: 42,
-    ruralDistricts: 142,
-    totalWards: 3956,
-};
+// District data interface
+interface DistrictData {
+    id: number;
+    name: string;
+    region?: string;
+    regionName?: string;
+    type?: 'Urban' | 'Rural' | string;
+    wards?: number;
+    farms?: number;
+    livestock?: number;
+    farmers?: number;
+    vaccinationRate?: number;
+    [key: string]: unknown;
+}
 
-const districtsData = [
-    { id: 1, name: 'Arusha City', region: 'Arusha', type: 'Urban', wards: 25, farms: 320, livestock: 12500, farmers: 280, vaccinationRate: 91.2 },
-    { id: 2, name: 'Arusha District', region: 'Arusha', type: 'Rural', wards: 20, farms: 850, livestock: 35000, farmers: 720, vaccinationRate: 84.5 },
-    { id: 3, name: 'Karatu', region: 'Arusha', type: 'Rural', wards: 18, farms: 680, livestock: 28000, farmers: 580, vaccinationRate: 82.1 },
-    { id: 4, name: 'Longido', region: 'Arusha', type: 'Rural', wards: 15, farms: 420, livestock: 18500, farmers: 360, vaccinationRate: 78.3 },
-    { id: 5, name: 'Meru', region: 'Arusha', type: 'Rural', wards: 22, farms: 720, livestock: 28500, farmers: 620, vaccinationRate: 86.7 },
-    { id: 6, name: 'Monduli', region: 'Arusha', type: 'Rural', wards: 16, farms: 380, livestock: 16000, farmers: 320, vaccinationRate: 79.8 },
-    { id: 7, name: 'Ngorongoro', region: 'Arusha', type: 'Rural', wards: 12, farms: 180, livestock: 8500, farmers: 150, vaccinationRate: 72.4 },
-    { id: 8, name: 'Ilala', region: 'Dar es Salaam', type: 'Urban', wards: 34, farms: 180, livestock: 6500, farmers: 150, vaccinationRate: 94.2 },
-    { id: 9, name: 'Kinondoni', region: 'Dar es Salaam', type: 'Urban', wards: 38, farms: 220, livestock: 8200, farmers: 190, vaccinationRate: 93.5 },
-    { id: 10, name: 'Temeke', region: 'Dar es Salaam', type: 'Urban', wards: 36, farms: 280, livestock: 10500, farmers: 240, vaccinationRate: 91.8 },
-    { id: 11, name: 'Ubungo', region: 'Dar es Salaam', type: 'Urban', wards: 28, farms: 150, livestock: 5800, farmers: 130, vaccinationRate: 92.1 },
-    { id: 12, name: 'Kigamboni', region: 'Dar es Salaam', type: 'Urban', wards: 20, farms: 420, livestock: 14000, farmers: 360, vaccinationRate: 88.7 },
-    { id: 13, name: 'Dodoma City', region: 'Dodoma', type: 'Urban', wards: 41, farms: 520, livestock: 18500, farmers: 450, vaccinationRate: 85.3 },
-    { id: 14, name: 'Bahi', region: 'Dodoma', type: 'Rural', wards: 22, farms: 680, livestock: 28000, farmers: 580, vaccinationRate: 76.8 },
-    { id: 15, name: 'Chamwino', region: 'Dodoma', type: 'Rural', wards: 32, farms: 920, livestock: 38500, farmers: 780, vaccinationRate: 78.2 },
-    { id: 16, name: 'Chemba', region: 'Dodoma', type: 'Rural', wards: 18, farms: 450, livestock: 19000, farmers: 380, vaccinationRate: 74.5 },
-    { id: 17, name: 'Kondoa', region: 'Dodoma', type: 'Rural', wards: 35, farms: 780, livestock: 32500, farmers: 660, vaccinationRate: 77.9 },
-    { id: 18, name: 'Kongwa', region: 'Dodoma', type: 'Rural', wards: 25, farms: 650, livestock: 27000, farmers: 550, vaccinationRate: 79.1 },
-    { id: 19, name: 'Mpwapwa', region: 'Dodoma', type: 'Rural', wards: 28, farms: 580, livestock: 24500, farmers: 490, vaccinationRate: 75.6 },
-    { id: 20, name: 'Moshi Municipal', region: 'Kilimanjaro', type: 'Urban', wards: 21, farms: 280, livestock: 11200, farmers: 240, vaccinationRate: 92.5 },
-];
-
-const districtsPerRegion = [
-    { region: 'Arusha', count: 7 },
-    { region: 'Dar es Salaam', count: 5 },
-    { region: 'Dodoma', count: 7 },
-    { region: 'Kilimanjaro', count: 7 },
-    { region: 'Mbeya', count: 7 },
-    { region: 'Morogoro', count: 7 },
-    { region: 'Mwanza', count: 7 },
-    { region: 'Kagera', count: 8 },
-];
+// Region data interface
+interface RegionData {
+    id: number;
+    name: string;
+    [key: string]: unknown;
+}
 
 export function Districts() {
+    const { data: districtsData, loading, error, refetch } = useApi<DistrictData[]>(
+        () => api.districts.list() as Promise<DistrictData[]>,
+        []
+    );
+    const { data: regionsData } = useApi<RegionData[]>(
+        () => api.regions.list() as Promise<RegionData[]>,
+        []
+    );
+
     const [searchQuery, setSearchQuery] = useState('');
     const [regionFilter, setRegionFilter] = useState('All');
     const [typeFilter, setTypeFilter] = useState('All');
-    const [selectedDistrict, setSelectedDistrict] = useState<typeof districtsData[0] | null>(null);
+    const [selectedDistrict, setSelectedDistrict] = useState<DistrictData | null>(null);
 
-    const regions = [...new Set(districtsData.map((d) => d.region))];
+    // Use API data or empty arrays
+    const districts = districtsData ?? [];
+    const regionsFromApi = regionsData ?? [];
 
-    const filteredDistricts = districtsData.filter((district) => {
+    // Get unique regions from districts data or API
+    const regions = useMemo(() => {
+        const fromDistricts = [...new Set(districts.map((d) => d.region ?? d.regionName ?? ''))].filter(Boolean);
+        if (fromDistricts.length > 0) return fromDistricts;
+        return regionsFromApi.map(r => r.name);
+    }, [districts, regionsFromApi]);
+
+    // Compute stats from data
+    const districtStats = useMemo(() => ({
+        totalDistricts: districts.length,
+        urbanDistricts: districts.filter(d => d.type === 'Urban').length,
+        ruralDistricts: districts.filter(d => d.type !== 'Urban').length,
+        totalWards: districts.reduce((sum, d) => sum + (d.wards ?? 0), 0),
+    }), [districts]);
+
+    // Chart data: districts per region
+    const districtsPerRegion = useMemo(() => {
+        const regionCounts: Record<string, number> = {};
+        districts.forEach(d => {
+            const region = d.region ?? d.regionName ?? 'Unknown';
+            regionCounts[region] = (regionCounts[region] ?? 0) + 1;
+        });
+        return Object.entries(regionCounts)
+            .map(([region, count]) => ({ region, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+    }, [districts]);
+
+    const filteredDistricts = useMemo(() => districts.filter((district) => {
+        const regionName = district.region ?? district.regionName ?? '';
         const matchesSearch =
             searchQuery === '' ||
             district.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            district.region.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesRegion = regionFilter === 'All' || district.region === regionFilter;
+            regionName.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesRegion = regionFilter === 'All' || regionName === regionFilter;
         const matchesType = typeFilter === 'All' || district.type === typeFilter;
         return matchesSearch && matchesRegion && matchesType;
-    });
+    }), [districts, searchQuery, regionFilter, typeFilter]);
 
     const getVaccinationColor = (rate: number) => {
         if (rate >= 80) return 'text-green-600 dark:text-green-400';
         if (rate >= 70) return 'text-amber-600 dark:text-amber-400';
         return 'text-red-600 dark:text-red-400';
     };
+
+    // Loading state
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    // Error state
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -234,12 +268,12 @@ export function Districts() {
                                             {district.type}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-300">{district.wards}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(district.farms)}</td>
-                                    <td className="py-3 px-4 text-right text-slate-900 dark:text-white font-medium">{formatNumber(district.livestock)}</td>
+                                    <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-300">{district.wards ?? 0}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(district.farms ?? 0)}</td>
+                                    <td className="py-3 px-4 text-right text-slate-900 dark:text-white font-medium">{formatNumber(district.livestock ?? 0)}</td>
                                     <td className="py-3 px-4 text-center">
-                                        <span className={cn('font-medium', getVaccinationColor(district.vaccinationRate))}>
-                                            {district.vaccinationRate}%
+                                        <span className={cn('font-medium', getVaccinationColor(district.vaccinationRate ?? 0))}>
+                                            {district.vaccinationRate ?? 0}%
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
@@ -269,31 +303,31 @@ export function Districts() {
                         <div className="p-6 grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Wards</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{selectedDistrict.wards}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{selectedDistrict.wards ?? 0}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farmers</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedDistrict.farmers)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedDistrict.farmers ?? 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farms</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedDistrict.farms)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedDistrict.farms ?? 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedDistrict.livestock)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedDistrict.livestock ?? 0)}</p>
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Vaccination Rate</label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div
-                                            className={cn('h-full rounded-full', selectedDistrict.vaccinationRate >= 80 ? 'bg-green-500' : selectedDistrict.vaccinationRate >= 70 ? 'bg-amber-500' : 'bg-red-500')}
-                                            style={{ width: `${selectedDistrict.vaccinationRate}%` }}
+                                            className={cn('h-full rounded-full', (selectedDistrict.vaccinationRate ?? 0) >= 80 ? 'bg-green-500' : (selectedDistrict.vaccinationRate ?? 0) >= 70 ? 'bg-amber-500' : 'bg-red-500')}
+                                            style={{ width: `${selectedDistrict.vaccinationRate ?? 0}%` }}
                                         />
                                     </div>
-                                    <span className={cn('font-bold', getVaccinationColor(selectedDistrict.vaccinationRate))}>
-                                        {selectedDistrict.vaccinationRate}%
+                                    <span className={cn('font-bold', getVaccinationColor(selectedDistrict.vaccinationRate ?? 0))}>
+                                        {selectedDistrict.vaccinationRate ?? 0}%
                                     </span>
                                 </div>
                             </div>

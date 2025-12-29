@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     ArrowRightLeft,
     Truck,
@@ -21,118 +21,94 @@ import {
     LineChart,
     Line,
 } from 'recharts';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, formatDate, cn } from '../lib/utils';
 
-// Mock data for movement tracking
-const movementStats = {
-    totalMovements: 12450,
-    pendingApprovals: 234,
-    inTransit: 89,
-    completedToday: 156,
-};
-
-const monthlyMovements = [
-    { month: 'Jan', transfers: 980, quarantine: 45 },
-    { month: 'Feb', transfers: 1120, quarantine: 52 },
-    { month: 'Mar', transfers: 1340, quarantine: 38 },
-    { month: 'Apr', transfers: 1180, quarantine: 61 },
-    { month: 'May', transfers: 1420, quarantine: 43 },
-    { month: 'Jun', transfers: 1580, quarantine: 55 },
-    { month: 'Jul', transfers: 1290, quarantine: 48 },
-    { month: 'Aug', transfers: 1450, quarantine: 52 },
-    { month: 'Sep', transfers: 1380, quarantine: 39 },
-    { month: 'Oct', transfers: 1520, quarantine: 57 },
-    { month: 'Nov', transfers: 1680, quarantine: 44 },
-    { month: 'Dec', transfers: 1510, quarantine: 51 },
-];
-
-const regionMovements = [
-    { region: 'Arusha', inbound: 1250, outbound: 980 },
-    { region: 'Dar es Salaam', inbound: 2100, outbound: 1850 },
-    { region: 'Dodoma', inbound: 890, outbound: 1020 },
-    { region: 'Mwanza', inbound: 1560, outbound: 1340 },
-    { region: 'Kilimanjaro', inbound: 780, outbound: 920 },
-];
-
-const recentMovements = [
-    {
-        id: 'MVT-2024-001',
-        livestockCount: 45,
-        species: 'Cattle',
-        fromFarm: 'Moshi Dairy Farm',
-        toFarm: 'Arusha Livestock Market',
-        fromRegion: 'Kilimanjaro',
-        toRegion: 'Arusha',
-        status: 'completed',
-        date: '2024-12-18',
-        permitNo: 'PRM-2024-5678',
-    },
-    {
-        id: 'MVT-2024-002',
-        livestockCount: 120,
-        species: 'Goats',
-        fromFarm: 'Dodoma Central Farm',
-        toFarm: 'Singida Processing',
-        fromRegion: 'Dodoma',
-        toRegion: 'Singida',
-        status: 'in_transit',
-        date: '2024-12-19',
-        permitNo: 'PRM-2024-5679',
-    },
-    {
-        id: 'MVT-2024-003',
-        livestockCount: 30,
-        species: 'Cattle',
-        fromFarm: 'Mwanza Ranches',
-        toFarm: 'Shinyanga Market',
-        fromRegion: 'Mwanza',
-        toRegion: 'Shinyanga',
-        status: 'pending',
-        date: '2024-12-20',
-        permitNo: 'PRM-2024-5680',
-    },
-    {
-        id: 'MVT-2024-004',
-        livestockCount: 200,
-        species: 'Sheep',
-        fromFarm: 'Iringa Highland Farm',
-        toFarm: 'Dar es Salaam Abattoir',
-        fromRegion: 'Iringa',
-        toRegion: 'Dar es Salaam',
-        status: 'quarantine',
-        date: '2024-12-17',
-        permitNo: 'PRM-2024-5677',
-    },
-    {
-        id: 'MVT-2024-005',
-        livestockCount: 80,
-        species: 'Pigs',
-        fromFarm: 'Tanga Pig Farm',
-        toFarm: 'Mombasa Export',
-        fromRegion: 'Tanga',
-        toRegion: 'Export',
-        status: 'completed',
-        date: '2024-12-16',
-        permitNo: 'PRM-2024-5676',
-    },
-];
+// Transfer record interface
+interface TransferRecord {
+    id: number | string;
+    livestockCount?: number;
+    species?: string;
+    fromFarm?: string;
+    toFarm?: string;
+    fromRegion?: string;
+    toRegion?: string;
+    status?: string;
+    date?: string;
+    transferDate?: string;
+    created_at?: string;
+    permitNo?: string;
+    [key: string]: unknown;
+}
 
 export function MovementTracking() {
+    const { data: transfersData, loading, error, refetch } = useApi<TransferRecord[]>(
+        () => api.transfers.list() as Promise<TransferRecord[]>,
+        []
+    );
+
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [selectedMovement, setSelectedMovement] = useState<typeof recentMovements[0] | null>(null);
+    const [selectedMovement, setSelectedMovement] = useState<TransferRecord | null>(null);
 
-    const filteredMovements = recentMovements.filter((item) => {
+    const transfers = transfersData ?? [];
+
+    // Compute stats from data
+    const movementStats = useMemo(() => ({
+        totalMovements: transfers.length,
+        pendingApprovals: transfers.filter(t => t.status === 'pending').length,
+        inTransit: transfers.filter(t => t.status === 'in_transit').length,
+        completedToday: transfers.filter(t => t.status === 'completed').length,
+    }), [transfers]);
+
+    // Monthly movements chart data
+    const monthlyMovements = useMemo(() => {
+        const months: Record<string, { transfers: number; quarantine: number }> = {};
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        monthNames.forEach(m => { months[m] = { transfers: 0, quarantine: 0 }; });
+        transfers.forEach(t => {
+            const date = t.date ?? t.transferDate ?? t.created_at ?? '';
+            if (!date) return;
+            const month = monthNames[new Date(date).getMonth()];
+            months[month].transfers++;
+            if (t.status === 'quarantine') months[month].quarantine++;
+        });
+        return monthNames.map(month => ({ month, ...months[month] }));
+    }, [transfers]);
+
+    // Region movements chart data
+    const regionMovements = useMemo(() => {
+        const regions: Record<string, { inbound: number; outbound: number }> = {};
+        transfers.forEach(t => {
+            const from = t.fromRegion ?? 'Unknown';
+            const to = t.toRegion ?? 'Unknown';
+            if (!regions[from]) regions[from] = { inbound: 0, outbound: 0 };
+            if (!regions[to]) regions[to] = { inbound: 0, outbound: 0 };
+            regions[from].outbound++;
+            regions[to].inbound++;
+        });
+        return Object.entries(regions)
+            .map(([region, data]) => ({ region, ...data }))
+            .sort((a, b) => (b.inbound + b.outbound) - (a.inbound + a.outbound))
+            .slice(0, 5);
+    }, [transfers]);
+
+    const filteredMovements = useMemo(() => transfers.filter((item) => {
+        const fromFarm = item.fromFarm ?? '';
+        const toFarm = item.toFarm ?? '';
         const matchesSearch =
             searchQuery === '' ||
-            item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.fromFarm.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.toFarm.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+            String(item.id).toLowerCase().includes(searchQuery.toLowerCase()) ||
+            fromFarm.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            toFarm.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || item.status === statusFilter.toLowerCase();
         return matchesSearch && matchesStatus;
-    });
+    }), [transfers, searchQuery, statusFilter]);
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadge = (status: string | undefined) => {
         switch (status) {
             case 'completed':
                 return { class: 'badge-success', icon: CheckCircle2, label: 'Completed' };
@@ -143,9 +119,17 @@ export function MovementTracking() {
             case 'quarantine':
                 return { class: 'badge-danger', icon: AlertTriangle, label: 'Quarantine' };
             default:
-                return { class: 'badge-info', icon: Clock, label: status };
+                return { class: 'badge-info', icon: Clock, label: status ?? 'Unknown' };
         }
     };
+
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -325,7 +309,7 @@ export function MovementTracking() {
                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
                                             <div className="flex items-center gap-1">
                                                 <Calendar className="w-3 h-3" />
-                                                {formatDate(item.date)}
+                                                {formatDate(item.date ?? '')}
                                             </div>
                                         </td>
                                         <td className="py-3 px-4 text-center">
@@ -373,7 +357,7 @@ export function MovementTracking() {
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Date</label>
-                                <p className="text-slate-900 dark:text-white">{formatDate(selectedMovement.date)}</p>
+                                <p className="text-slate-900 dark:text-white">{formatDate(selectedMovement.date ?? '')}</p>
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">From</label>

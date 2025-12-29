@@ -8,41 +8,92 @@ import {
     Phone,
     Mail,
 } from 'lucide-react';
-import { mockFarmers, mockRegions } from '../data/mockData';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatDate, formatNumber, cn } from '../lib/utils';
 
 const ITEMS_PER_PAGE = 10;
 
+// Farmer item interface based on backend response
+interface FarmerItem {
+    id: number;
+    uuid?: string;
+    firstName: string;
+    middleName?: string;
+    surname: string;
+    farmerNo?: string;
+    phone?: string;
+    phone1?: string;
+    email?: string;
+    gender?: 'male' | 'female';
+    regionName?: string;
+    regionId?: number;
+    districtName?: string;
+    districtId?: number;
+    farmsCount?: number;
+    livestockCount?: number;
+    registeredAt?: string;
+    created_at?: string;
+    updated_at?: string;
+    [key: string]: unknown;
+}
+
+// Region item interface
+interface RegionItem {
+    id: number;
+    name: string;
+    [key: string]: unknown;
+}
+
 export function FarmerDatabase() {
+    const { data: farmersData, loading, error, refetch } = useApi<FarmerItem[]>(() => api.farmers.list() as Promise<FarmerItem[]>, []);
+    const { data: regionsData } = useApi<RegionItem[]>(() => api.regions.list() as Promise<RegionItem[]>, []);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [regionFilter, setRegionFilter] = useState('All');
     const [genderFilter, setGenderFilter] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedFarmer, setSelectedFarmer] = useState<typeof mockFarmers[0] | null>(null);
+    const [selectedFarmer, setSelectedFarmer] = useState<FarmerItem | null>(null);
+
+    // Use API data or empty arrays
+    const farmers = farmersData ?? [];
+    const regions = regionsData ?? [];
 
     // Filter and search logic
     const filteredFarmers = useMemo(() => {
-        return mockFarmers.filter((item) => {
+        return farmers.filter((item: FarmerItem) => {
             const fullName = `${item.firstName} ${item.middleName || ''} ${item.surname}`.toLowerCase();
             const matchesSearch =
                 searchQuery === '' ||
                 fullName.includes(searchQuery.toLowerCase()) ||
-                item.farmerNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.phone.includes(searchQuery);
+                (item.farmerNo ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (item.phone ?? item.phone1 ?? '').includes(searchQuery);
 
             const matchesRegion = regionFilter === 'All' || item.regionName === regionFilter;
             const matchesGender = genderFilter === 'All' || item.gender === genderFilter;
 
             return matchesSearch && matchesRegion && matchesGender;
         });
-    }, [searchQuery, regionFilter, genderFilter]);
+    }, [farmers, searchQuery, regionFilter, genderFilter]);
 
     // Pagination
-    const totalPages = Math.ceil(filteredFarmers.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(filteredFarmers.length / ITEMS_PER_PAGE) || 1;
     const paginatedFarmers = filteredFarmers.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
+
+    // Loading state
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    // Error state
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -84,7 +135,7 @@ export function FarmerDatabase() {
                             className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
                             <option value="All">All Regions</option>
-                            {mockRegions.map((region) => (
+                            {regions.map((region: RegionItem) => (
                                 <option key={region.id} value={region.name}>
                                     {region.name}
                                 </option>
@@ -144,9 +195,9 @@ export function FarmerDatabase() {
                                         </div>
                                     </td>
                                     <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.regionName}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{item.farmCount}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{item.farmsCount ?? 0}</td>
                                     <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">
-                                        {formatNumber(item.livestockCount)}
+                                        {formatNumber(item.livestockCount ?? 0)}
                                     </td>
                                     <td className="py-3 px-4 text-center">
                                         <span className={cn('badge', item.gender === 'male' ? 'badge-info' : 'badge-warning')}>
@@ -237,19 +288,19 @@ export function FarmerDatabase() {
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Ward</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarmer.wardName}</p>
+                                <p className="text-slate-900 dark:text-white">{String(selectedFarmer.wardName ?? '-')}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farms</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarmer.farmCount}</p>
+                                <p className="text-slate-900 dark:text-white">{selectedFarmer.farmsCount ?? 0}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white">{formatNumber(selectedFarmer.livestockCount)}</p>
+                                <p className="text-slate-900 dark:text-white">{formatNumber(selectedFarmer.livestockCount ?? 0)}</p>
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered</label>
-                                <p className="text-slate-900 dark:text-white">{formatDate(selectedFarmer.registeredAt)}</p>
+                                <p className="text-slate-900 dark:text-white">{formatDate(selectedFarmer.registeredAt ?? selectedFarmer.created_at ?? '')}</p>
                             </div>
                         </div>
                         <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">

@@ -6,7 +6,10 @@ import {
     ChevronRight,
     Eye,
 } from 'lucide-react';
-import { mockLivestock } from '../data/mockData';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatDate, cn } from '../lib/utils';
 
 const ITEMS_PER_PAGE = 10;
@@ -15,29 +18,56 @@ const ITEMS_PER_PAGE = 10;
 const speciesOptions = ['All', 'Cattle', 'Goat', 'Sheep', 'Pig', 'Poultry'];
 const statusOptions = ['All', 'active', 'sold', 'dead', 'transferred'];
 
+// Livestock item interface based on backend response
+interface LivestockItem {
+    id: number;
+    uuid: string;
+    name: string;
+    gender: 'male' | 'female';
+    identificationNumber?: string;
+    species?: string;
+    breed?: string;
+    livestockType?: string;
+    farmName?: string;
+    regionName?: string;
+    districtName?: string;
+    status?: 'active' | 'sold' | 'dead' | 'transferred';
+    dateOfBirth?: string;
+    registeredAt?: string;
+    created_at?: string;
+    updated_at?: string;
+    // Allow additional fields from backend
+    [key: string]: unknown;
+}
+
 export function LivestockRegistry() {
+    const { data: livestockData, loading, error, refetch } = useApi<LivestockItem[]>(() => api.livestock.list() as Promise<LivestockItem[]>, []);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [speciesFilter, setSpeciesFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedLivestock, setSelectedLivestock] = useState<typeof mockLivestock[0] | null>(null);
+    const [selectedLivestock, setSelectedLivestock] = useState<LivestockItem | null>(null);
+
+    // Use API data or empty array
+    const livestock = livestockData ?? [];
 
     // Filter and search logic
     const filteredLivestock = useMemo(() => {
-        return mockLivestock.filter((item) => {
+        return livestock.filter((item: LivestockItem) => {
             const matchesSearch =
                 searchQuery === '' ||
-                item.identificationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.farmName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.regionName.toLowerCase().includes(searchQuery.toLowerCase());
+                (item.identificationNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (item.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (item.farmName ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (item.regionName ?? '').toLowerCase().includes(searchQuery.toLowerCase());
 
             const matchesSpecies = speciesFilter === 'All' || item.species === speciesFilter;
             const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
 
             return matchesSearch && matchesSpecies && matchesStatus;
         });
-    }, [searchQuery, speciesFilter, statusFilter]);
+    }, [livestock, searchQuery, speciesFilter, statusFilter]);
 
     // Pagination
     const totalPages = Math.ceil(filteredLivestock.length / ITEMS_PER_PAGE);
@@ -59,6 +89,16 @@ export function LivestockRegistry() {
                 return 'badge-info';
         }
     };
+
+    // Loading state
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    // Error state
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -160,8 +200,8 @@ export function LivestockRegistry() {
                                     <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.farmName}</td>
                                     <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.regionName}</td>
                                     <td className="py-3 px-4 text-center">
-                                        <span className={cn('badge', getStatusBadgeClass(item.status))}>
-                                            {item.status}
+                                        <span className={cn('badge', getStatusBadgeClass(item.status ?? 'active'))}>
+                                            {item.status ?? 'active'}
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
@@ -248,8 +288,8 @@ export function LivestockRegistry() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Status</label>
-                                    <span className={cn('badge', getStatusBadgeClass(selectedLivestock.status))}>
-                                        {selectedLivestock.status}
+                                    <span className={cn('badge', getStatusBadgeClass(selectedLivestock.status ?? 'active'))}>
+                                        {selectedLivestock.status ?? 'active'}
                                     </span>
                                 </div>
                                 <div>
@@ -262,11 +302,11 @@ export function LivestockRegistry() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Date of Birth</label>
-                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedLivestock.dateOfBirth)}</p>
+                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedLivestock.dateOfBirth ?? '')}</p>
                                 </div>
                                 <div>
                                     <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered</label>
-                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedLivestock.registeredAt)}</p>
+                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedLivestock.registeredAt ?? selectedLivestock.created_at ?? '')}</p>
                                 </div>
                             </div>
                         </div>

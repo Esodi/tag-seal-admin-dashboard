@@ -7,40 +7,93 @@ import {
     Eye,
     MapPin,
 } from 'lucide-react';
-import { mockFarms, mockRegions } from '../data/mockData';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatDate, formatNumber, cn } from '../lib/utils';
 
 const ITEMS_PER_PAGE = 10;
 
+// Farm item interface based on backend response
+interface FarmItem {
+    id: number;
+    uuid: string;
+    name: string;
+    referenceNo?: string;
+    farmerName?: string;
+    farmerId?: number;
+    regionName?: string;
+    regionId?: number;
+    districtName?: string;
+    districtId?: number;
+    wardName?: string;
+    wardId?: number;
+    livestock?: number;
+    status?: 'active' | 'inactive';
+    registeredAt?: string;
+    created_at?: string;
+    updated_at?: string;
+    latitude?: number;
+    longitude?: number;
+    size?: number | string;
+    sizeUnit?: string;
+    [key: string]: unknown;
+}
+
+// Region item interface
+interface RegionItem {
+    id: number;
+    name: string;
+    [key: string]: unknown;
+}
+
 export function FarmRegistry() {
+    const { data: farmsData, loading, error, refetch } = useApi<FarmItem[]>(() => api.farms.list() as Promise<FarmItem[]>, []);
+    const { data: regionsData } = useApi<RegionItem[]>(() => api.regions.list() as Promise<RegionItem[]>, []);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [regionFilter, setRegionFilter] = useState('All');
     const [statusFilter, setStatusFilter] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedFarm, setSelectedFarm] = useState<typeof mockFarms[0] | null>(null);
+    const [selectedFarm, setSelectedFarm] = useState<FarmItem | null>(null);
+
+    // Use API data or empty arrays
+    const farms = farmsData ?? [];
+    const regions = regionsData ?? [];
 
     // Filter and search logic
     const filteredFarms = useMemo(() => {
-        return mockFarms.filter((item) => {
+        return farms.filter((item: FarmItem) => {
             const matchesSearch =
                 searchQuery === '' ||
-                item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.referenceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.farmerName.toLowerCase().includes(searchQuery.toLowerCase());
+                (item.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (item.referenceNo ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (item.farmerName ?? '').toLowerCase().includes(searchQuery.toLowerCase());
 
             const matchesRegion = regionFilter === 'All' || item.regionName === regionFilter;
             const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
 
             return matchesSearch && matchesRegion && matchesStatus;
         });
-    }, [searchQuery, regionFilter, statusFilter]);
+    }, [farms, searchQuery, regionFilter, statusFilter]);
 
     // Pagination
-    const totalPages = Math.ceil(filteredFarms.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(filteredFarms.length / ITEMS_PER_PAGE) || 1;
     const paginatedFarms = filteredFarms.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
+
+    // Loading state
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    // Error state
+    if (error) {
+        return <ErrorMessage message={error.message} onRetry={refetch} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -82,7 +135,7 @@ export function FarmRegistry() {
                             className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
                             <option value="All">All Regions</option>
-                            {mockRegions.map((region) => (
+                            {regions.map((region: RegionItem) => (
                                 <option key={region.id} value={region.name}>
                                     {region.name}
                                 </option>
@@ -141,9 +194,9 @@ export function FarmRegistry() {
                                         </div>
                                     </td>
                                     <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">
-                                        {formatNumber(item.livestockCount)}
+                                        {formatNumber(typeof item.livestock === 'number' ? item.livestock : 0)}
                                     </td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{item.size}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{item.size ?? '-'}</td>
                                     <td className="py-3 px-4 text-center">
                                         <span className={cn('badge', item.status === 'active' ? 'badge-success' : 'badge-danger')}>
                                             {item.status}
@@ -223,15 +276,15 @@ export function FarmRegistry() {
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white">{formatNumber(selectedFarm.livestockCount)}</p>
+                                <p className="text-slate-900 dark:text-white">{formatNumber(typeof selectedFarm.livestock === 'number' ? selectedFarm.livestock : 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Size</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarm.size} {selectedFarm.sizeUnit}</p>
+                                <p className="text-slate-900 dark:text-white">{String(selectedFarm.size ?? '-')} {String(selectedFarm.sizeUnit ?? '')}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered</label>
-                                <p className="text-slate-900 dark:text-white">{formatDate(selectedFarm.registeredAt)}</p>
+                                <p className="text-slate-900 dark:text-white">{formatDate(selectedFarm.registeredAt ?? selectedFarm.created_at ?? '')}</p>
                             </div>
                         </div>
                         <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">

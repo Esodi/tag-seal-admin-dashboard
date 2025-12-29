@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
     Syringe,
     AlertTriangle,
@@ -18,27 +19,99 @@ import {
     PieChart,
     Pie,
 } from 'recharts';
-import { mockVaccinationStats } from '../data/mockData';
+import { useApi } from '../hooks/useApi';
+import { api } from '../services/api';
+import { PageLoader } from '../components/ui/LoadingSpinner';
+import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, cn } from '../lib/utils';
 
-// Summary stats
-const summaryStats = {
-    totalLivestock: mockVaccinationStats.reduce((sum, s) => sum + s.totalLivestock, 0),
-    vaccinated: mockVaccinationStats.reduce((sum, s) => sum + s.vaccinated, 0),
-    overdue: mockVaccinationStats.reduce((sum, s) => sum + s.overdue, 0),
-    avgRate: Math.round(mockVaccinationStats.reduce((sum, s) => sum + s.rate, 0) / mockVaccinationStats.length),
-};
+// Vaccination data interface
+interface VaccinationRecord {
+    id: number;
+    livestockUuid?: string;
+    vaccineId?: number;
+    vaccineName?: string;
+    vaccinationDate?: string;
+    nextDueDate?: string;
+    status?: string;
+    regionName?: string;
+    [key: string]: unknown;
+}
 
-
-
-// Compliance pie data
-const complianceData = [
-    { name: 'Compliant (≥80%)', value: 7, color: '#10b981' },
-    { name: 'At Risk (60-79%)', value: 9, color: '#f59e0b' },
-    { name: 'Critical (<60%)', value: 5, color: '#ef4444' },
-];
+// Livestock data interface for counting
+interface LivestockRecord {
+    id: number;
+    status?: string;
+    [key: string]: unknown;
+}
 
 export function VaccinationMonitoring() {
+    const { data: vaccinationsData, loading: vacLoading, error: vacError, refetch: vacRefetch } = useApi<VaccinationRecord[]>(
+        () => api.vaccinations.list() as Promise<VaccinationRecord[]>,
+        []
+    );
+    const { data: livestockData, loading: lsLoading } = useApi<LivestockRecord[]>(
+        () => api.livestock.list() as Promise<LivestockRecord[]>,
+        []
+    );
+
+    const vaccinations = vaccinationsData ?? [];
+    const livestock = livestockData ?? [];
+
+    // Compute summary stats from data
+    const summaryStats = useMemo(() => {
+        const totalLivestock = livestock.length;
+        const vaccinated = vaccinations.length;
+        const now = new Date();
+        const overdue = vaccinations.filter(v => {
+            if (!v.nextDueDate) return false;
+            return new Date(v.nextDueDate) < now;
+        }).length;
+        const avgRate = totalLivestock > 0 ? Math.round((vaccinated / totalLivestock) * 100) : 0;
+        return { totalLivestock, vaccinated, overdue, avgRate };
+    }, [vaccinations, livestock]);
+
+    // Group vaccinations by region for chart
+    const regionVaccinations = useMemo(() => {
+        const regionCounts: Record<string, { total: number; vaccinated: number }> = {};
+        vaccinations.forEach(v => {
+            const region = v.regionName ?? 'Unknown';
+            if (!regionCounts[region]) {
+                regionCounts[region] = { total: 0, vaccinated: 0 };
+            }
+            regionCounts[region].vaccinated++;
+            regionCounts[region].total++;
+        });
+        return Object.entries(regionCounts)
+            .map(([region, data]) => ({
+                region,
+                rate: data.total > 0 ? Math.round((data.vaccinated / data.total) * 100) : 0,
+            }))
+            .sort((a, b) => b.rate - a.rate)
+            .slice(0, 10);
+    }, [vaccinations]);
+
+    // Compliance pie data
+    const complianceData = useMemo(() => {
+        const compliant = regionVaccinations.filter(r => r.rate >= 80).length;
+        const atRisk = regionVaccinations.filter(r => r.rate >= 60 && r.rate < 80).length;
+        const critical = regionVaccinations.filter(r => r.rate < 60).length;
+        return [
+            { name: 'Compliant (≥80%)', value: compliant || 1, color: '#10b981' },
+            { name: 'At Risk (60-79%)', value: atRisk || 1, color: '#f59e0b' },
+            { name: 'Critical (<60%)', value: critical || 1, color: '#ef4444' },
+        ];
+    }, [regionVaccinations]);
+
+    const loading = vacLoading || lsLoading;
+
+    if (loading) {
+        return <PageLoader />;
+    }
+
+    if (vacError) {
+        return <ErrorMessage message={vacError.message} onRetry={vacRefetch} />;
+    }
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -123,7 +196,7 @@ export function VaccinationMonitoring() {
                     <div className="card-body">
                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockVaccinationStats.slice(0, 10)} layout="vertical">
+                                <BarChart data={regionVaccinations} layout="vertical">
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis type="number" domain={[0, 100]} stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val}%`} />
                                     <YAxis dataKey="region" type="category" stroke="#94a3b8" fontSize={11} width={80} />
@@ -132,7 +205,7 @@ export function VaccinationMonitoring() {
                                         formatter={(value) => `${value}%`}
                                     />
                                     <Bar dataKey="rate" name="Vaccination Rate" radius={[0, 4, 4, 0]}>
-                                        {mockVaccinationStats.slice(0, 10).map((entry, index) => (
+                                        {regionVaccinations.map((entry: { region: string; rate: number }, index: number) => (
                                             <Cell
                                                 key={`cell-${index}`}
                                                 fill={entry.rate >= 80 ? '#10b981' : entry.rate >= 60 ? '#f59e0b' : '#ef4444'}
@@ -222,15 +295,15 @@ export function VaccinationMonitoring() {
                             </tr>
                         </thead>
                         <tbody>
-                            {mockVaccinationStats.map((stat) => (
+                            {regionVaccinations.map((stat: { region: string; rate: number }) => (
                                 <tr key={stat.region} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                     <td className="py-3 px-4 flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-slate-400" />
                                         <span className="text-slate-900 dark:text-white font-medium">{stat.region}</span>
                                     </td>
-                                    <td className="text-right py-3 px-4 text-slate-600 dark:text-slate-300">{formatNumber(stat.totalLivestock)}</td>
-                                    <td className="text-right py-3 px-4 text-green-600 dark:text-green-400">{formatNumber(stat.vaccinated)}</td>
-                                    <td className="text-right py-3 px-4 text-red-600 dark:text-red-400">{formatNumber(stat.overdue)}</td>
+                                    <td className="text-right py-3 px-4 text-slate-600 dark:text-slate-300">-</td>
+                                    <td className="text-right py-3 px-4 text-green-600 dark:text-green-400">-</td>
+                                    <td className="text-right py-3 px-4 text-red-600 dark:text-red-400">-</td>
                                     <td className="text-right py-3 px-4">
                                         <span className={cn(
                                             'font-semibold',
