@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Breadcrumbs } from './Breadcrumbs';
+import { CommandPalette } from '../common/CommandPalette';
 
 export function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -31,8 +33,11 @@ export function MainLayout() {
                 />
 
                 <main className="flex-1 p-4 lg:p-6">
+                    <Breadcrumbs />
                     <Outlet />
                 </main>
+
+                <CommandPalette />
 
                 <footer className="py-4 px-6 border-t border-slate-200 dark:border-slate-700">
                     <p className="text-center text-sm text-slate-500 dark:text-slate-400">

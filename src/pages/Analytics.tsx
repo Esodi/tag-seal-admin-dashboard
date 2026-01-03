@@ -1,14 +1,11 @@
 import { useState, useMemo } from 'react';
 import {
-    Download,
-    FileText,
     TrendingUp,
     BarChart as BarChartIcon,
     Activity,
+    Award
 } from 'lucide-react';
 import {
-    AreaChart,
-    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -18,16 +15,15 @@ import {
     BarChart,
     Bar,
     Legend,
-    LineChart,
-    Line,
     PieChart,
-    Pie,
+    Pie
 } from 'recharts';
 import { useApi } from '../hooks/useApi';
 import { api } from '../services/api';
 import { PageLoader } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, cn } from '../lib/utils';
+import { differenceInMonths } from 'date-fns';
 
 // Tab Button Component
 function TabButton({
@@ -45,9 +41,9 @@ function TabButton({
         <button
             onClick={onClick}
             className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+                'flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-all',
                 active
-                    ? 'bg-primary-600 text-white'
+                    ? 'bg-primary-600 text-white shadow-md shadow-primary-200 dark:shadow-none'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
             )}
         >
@@ -57,474 +53,352 @@ function TabButton({
     );
 }
 
-// Export Button Component
-function ExportButton({
-    type,
-    onClick
-}: {
-    type: 'pdf' | 'csv';
-    onClick: () => void;
-}) {
-    return (
-        <button
-            onClick={onClick}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors"
-        >
-            {type === 'pdf' ? <FileText className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-            Export {type.toUpperCase()}
-        </button>
-    );
-}
-
-// Export Handlers
-function exportToCSV(data: { [key: string]: unknown }[], filename: string) {
-    if (data.length === 0) return;
-
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-        headers.join(','),
-        ...data.map(row => headers.map(header => row[header]).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filename}.csv`;
-    link.click();
-}
-
-function exportToPDF() {
-    // In a real implementation, you would use a library like jsPDF
-    alert('PDF export would generate a comprehensive report. This feature requires integration with a PDF generation library like jsPDF or html2pdf.');
-}
-
 export function Analytics() {
     const { data, loading, error, refetch } = useApi(async () => {
-        const [livestock, farms, farmers, vaccinations, transfers] = await Promise.all([
+        const [
+            livestock,
+            farms,
+            vaccinations,
+            births,
+            inseminations
+        ] = await Promise.all([
             api.livestock.list(),
             api.farms.list(),
-            api.farmers.list(),
             api.vaccinations.list(),
-            api.medications.list(),
-            api.transfers.list()
+            api.birthEvents.list(),
+            api.inseminations.list()
         ]);
-        return { livestock, farms, farmers, vaccinations, transfers };
+        return { livestock, farms, vaccinations, births, inseminations };
     }, []);
 
-    const [activeTab, setActiveTab] = useState<'livestock' | 'farm' | 'health'>('livestock');
+    const [activeTab, setActiveTab] = useState<'livestock' | 'farm' | 'health' | 'reproduction'>('livestock');
 
     const stats = useMemo(() => {
         if (!data) return null;
-        const { livestock, farms, vaccinations } = data;
+        const { livestock, farms, vaccinations, births, inseminations } = data;
 
         // --- Livestock Analytics ---
-        // Growth (Registrations by Month)
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const growthMap: Record<string, number> = {};
-        months.forEach(m => growthMap[m] = 0);
+
+        // 1. Age Demographics (Calculated from DOB)
+        const now = new Date();
+        const ageGroups = {
+            '0-6m': 0,
+            '6-12m': 0,
+            '1-2y': 0,
+            '2-5y': 0,
+            '5y+': 0
+        };
 
         livestock.forEach((l: any) => {
-            const date = new Date(l.registrationDate || l.created_at || new Date());
-            const month = months[date.getMonth()];
-            growthMap[month]++;
+            if (l.dateOfBirth) {
+                const months = differenceInMonths(now, new Date(l.dateOfBirth));
+                if (months <= 6) ageGroups['0-6m']++;
+                else if (months <= 12) ageGroups['6-12m']++;
+                else if (months <= 24) ageGroups['1-2y']++;
+                else if (months <= 60) ageGroups['2-5y']++;
+                else ageGroups['5y+']++;
+            }
         });
 
-        const livestockTrend = months.map(month => ({ month, count: growthMap[month] }));
-
-        // Species Distribution
-        const speciesCounts: Record<string, number> = {};
-        livestock.forEach((l: any) => {
-            const species = l.species || 'Unknown';
-            speciesCounts[species] = (speciesCounts[species] || 0) + 1;
-        });
-        const speciesDistribution = Object.entries(speciesCounts)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value);
-
-        // Age Distribution (Mocked if birthDate missing, else derived)
-        const totalLivestock = livestock.length;
-        const ageDistribution = [
-            { age: '0-6 months', count: Math.round(totalLivestock * 0.15), color: '#3b82f6' },
-            { age: '6-12 months', count: Math.round(totalLivestock * 0.20), color: '#10b981' },
-            { age: '1-2 years', count: Math.round(totalLivestock * 0.30), color: '#f59e0b' },
-            { age: '2-4 years', count: Math.round(totalLivestock * 0.25), color: '#ef4444' },
-            { age: '4+ years', count: Math.round(totalLivestock * 0.10), color: '#8b5cf6' },
-        ];
-
-        // --- Farm Analytics ---
-        // Farm Size (Mocked distribution)
-        const farmSizeData = [
-            { size: '< 5 ha', count: Math.round(farms.length * 0.4), color: '#3b82f6' },
-            { size: '5-10 ha', count: Math.round(farms.length * 0.3), color: '#10b981' },
-            { size: '10-25 ha', count: Math.round(farms.length * 0.2), color: '#f59e0b' },
-            { size: '> 25 ha', count: Math.round(farms.length * 0.1), color: '#ef4444' },
-        ];
-
-        // --- Health Analytics ---
-        // Vaccination Stats (by region)
-        const regionStats: Record<string, { vaccinated: number, total: number }> = {};
-        vaccinations.forEach((v: any) => {
-            const region = v.region || 'Unknown';
-            if (!regionStats[region]) regionStats[region] = { vaccinated: 0, total: 0 };
-            regionStats[region].vaccinated++;
-        });
-        // Normalize with region totals from livestock if available, or assume vaccination data implies population
-        // To compute rate, we ideally need total livestock per region.
-        // Let's compute region totals from livestock data
-        livestock.forEach((l: any) => {
-            const region = l.region || 'Unknown';
-            if (!regionStats[region]) regionStats[region] = { vaccinated: 0, total: 0 };
-            regionStats[region].total++;
-        });
-
-        const vaccinationStats = Object.entries(regionStats)
-            .map(([region, data]) => ({
-                region,
-                vaccinated: data.vaccinated,
-                vaccinationRate: data.total > 0 ? Math.round((data.vaccinated / data.total) * 100) : 0
-            }))
-            .sort((a, b) => b.vaccinationRate - a.vaccinationRate)
-            .slice(0, 10);
-
-        // Growth Rate Data (Mocked or derived)
-        const growthRateData = months.map((m) => ({
-            month: m,
-            growth: parseFloat((Math.random() * 2 + 1).toFixed(1)) // Mock growth rate 1-3%
+        const ageDistribution = Object.entries(ageGroups).map(([age, count]) => ({
+            age,
+            count,
+            fill: '#3b82f6' // Default blue
         }));
 
+        // 2. Breed Distribution (Top 10)
+        const breedCounts: Record<string, number> = {};
+        livestock.forEach((l: any) => {
+            const breed = l.breed || 'Unknown';
+            breedCounts[breed] = (breedCounts[breed] || 0) + 1;
+        });
+
+        const breedDistribution = Object.entries(breedCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8) // Top 8 breeds
+            .map(([name, value], index) => ({
+                name,
+                value,
+                fill: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6366f1'][index % 6]
+            }));
+
+
+        // --- Farm Analytics ---
+
+        // 1. Farm Size Distribution
+        // Assuming size is in acres or hectares, grouping them
+        const sizeGroups = {
+            'Micro (< 2)': 0,
+            'Small (2-5)': 0,
+            'Medium (5-20)': 0,
+            'Large (20-100)': 0,
+            'Commercial (> 100)': 0
+        };
+
+        farms.forEach((f: any) => {
+            const size = Number(f.size || 0);
+            if (size > 0) {
+                if (size < 2) sizeGroups['Micro (< 2)']++;
+                else if (size < 5) sizeGroups['Small (2-5)']++;
+                else if (size < 20) sizeGroups['Medium (5-20)']++;
+                else if (size < 100) sizeGroups['Large (20-100)']++;
+                else sizeGroups['Commercial (> 100)']++;
+            }
+        });
+
+        const farmSizeData = Object.entries(sizeGroups).map(([name, value]) => ({
+            name,
+            value
+        }));
+
+        // --- Health Analytics ---
+        // Vaccination coverage by disease (Top diseases vaccinated against)
+        const diseaseVaccinationCounts: Record<string, number> = {};
+        vaccinations.forEach((v: any) => {
+            // Needed: fetch disease name from v.diseaseId ideally, simulating here or using if available
+            // assuming 'diseaseName' or similar might be enriched or just using ID
+            const disease = v.diseaseId ? `Disease ${v.diseaseId}` : 'Unknown';
+            diseaseVaccinationCounts[disease] = (diseaseVaccinationCounts[disease] || 0) + 1;
+        });
+
+        const vaccinationByDisease = Object.entries(diseaseVaccinationCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+
+        // --- Reproduction Analytics ---
+
+        // 1. Calving Success Rate (Births vs Eligible Females - Mocking eligible females count approx)
+        // Assume 'cows' > 2 years are eligible roughly
+        // Real logic would be complex. Simplified metric:
+        const totalBirths = births.length;
+        const totalInseminations = inseminations.length;
+
+        // Insemination Success Rate (Births linked to insemination / Total Inseminations) - approximated
+        // In reality we'd check outcomes of insemination records.
+        // Let's visualize Insemination Types (AI vs Natural if applicable)
+        const inseminationTypes = {
+            'Artificial Insemination': 0,
+            'Natural Service': 0
+        };
+        inseminations.forEach((i: any) => {
+            // Logic to determine type, mock if field missing
+            inseminationTypes['Artificial Insemination']++;
+        });
+
+        const reproductionStats = [
+            { name: 'Total Births', value: totalBirths, fill: '#10b981' },
+            { name: 'Recorded Inseminations', value: totalInseminations, fill: '#3b82f6' }
+        ];
+
         return {
-            livestockTrend,
-            speciesDistribution,
             ageDistribution,
+            breedDistribution,
             farmSizeData,
-            vaccinationStats,
-            growthRateData
+            vaccinationByDisease,
+            reproductionStats,
+            totalLivestock: livestock.length,
+            totalFarms: farms.length
         };
     }, [data]);
 
     if (loading) return <PageLoader />;
     if (error) return <ErrorMessage message={error.message} onRetry={refetch} />;
 
-    // In case no data yet
     if (!stats) return null;
-
-    const { livestockTrend, speciesDistribution, ageDistribution, farmSizeData, vaccinationStats, growthRateData } = stats;
 
     return (
         <div className="space-y-6">
-            {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                        Analytics & Reports
+                        Advanced Analytics
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Comprehensive data analysis for policy decisions
+                        Deep dive into system data and trends
                     </p>
-                </div>
-                <div className="flex gap-2">
-                    <ExportButton type="csv" onClick={() => {
-                        if (activeTab === 'livestock') {
-                            exportToCSV(livestockTrend, 'livestock_trend');
-                        } else if (activeTab === 'farm') {
-                            exportToCSV(farmSizeData, 'farm_sizes');
-                        } else {
-                            exportToCSV(vaccinationStats, 'vaccination_stats');
-                        }
-                    }} />
-                    <ExportButton type="pdf" onClick={exportToPDF} />
                 </div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pb-4 border-b border-slate-200 dark:border-slate-800">
                 <TabButton
                     active={activeTab === 'livestock'}
                     onClick={() => setActiveTab('livestock')}
                     icon={TrendingUp}
                 >
-                    Livestock Analytics
+                    Livestock Demographics
                 </TabButton>
                 <TabButton
                     active={activeTab === 'farm'}
                     onClick={() => setActiveTab('farm')}
                     icon={BarChartIcon}
                 >
-                    Farm Analytics
+                    Farm Insights
                 </TabButton>
                 <TabButton
                     active={activeTab === 'health'}
                     onClick={() => setActiveTab('health')}
                     icon={Activity}
                 >
-                    Health Compliance
+                    Health & Disease
+                </TabButton>
+                <TabButton
+                    active={activeTab === 'reproduction'}
+                    onClick={() => setActiveTab('reproduction')}
+                    icon={Award}
+                >
+                    Reproduction Performance
                 </TabButton>
             </div>
 
-            {/* Livestock Analytics Tab */}
-            {activeTab === 'livestock' && (
-                <div className="space-y-6">
-                    {/* Population Overview */}
+            {/* Content Area */}
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+
+                {/* --- Livestock Tab --- */}
+                {activeTab === 'livestock' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Population Trend */}
+                        {/* Age Pyramid / Distribution */}
                         <div className="card">
                             <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Population Growth Trend
-                                </h2>
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Age Distribution</h3>
+                                <p className="text-sm text-slate-500">Calculated from Date of Birth</p>
                             </div>
-                            <div className="card-body">
-                                <div className="h-64">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={livestockTrend}>
-                                            <defs>
-                                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => formatNumber(val)} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => formatNumber(value as number)}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="count"
-                                                stroke="#3b82f6"
-                                                fillOpacity={1}
-                                                fill="url(#colorTotal)"
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
+                            <div className="card-body h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={stats.ageDistribution}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                        <XAxis dataKey="age" stroke="#94a3b8" />
+                                        <YAxis stroke="#94a3b8" />
+                                        <Tooltip
+                                            cursor={{ fill: 'transparent' }}
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                        />
+                                        <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
 
-                        {/* Species Distribution */}
+                        {/* Bread Mix */}
                         <div className="card">
                             <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Species Distribution
-                                </h2>
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Top Breeds</h3>
+                                <p className="text-sm text-slate-500">Most common breeds registered</p>
                             </div>
-                            <div className="card-body">
-                                <div className="h-64">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={speciesDistribution}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={60}
-                                                outerRadius={80}
-                                                paddingAngle={2}
-                                                dataKey="value"
-                                            >
-                                                {speciesDistribution.map((_, index) => (
-                                                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => formatNumber(value as number)}
-                                            />
-                                            <Legend />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                            <div className="card-body h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={stats.breedDistribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                        >
+                                            {stats.breedDistribution.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                        />
+                                        <Legend layout="vertical" align="right" verticalAlign="middle" />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- Farm Tab --- */}
+                {activeTab === 'farm' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="card lg:col-span-2">
+                            <div className="card-header">
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Farm Size Classification</h3>
+                                <p className="text-sm text-slate-500">Distribution of farms by land size</p>
+                            </div>
+                            <div className="card-body h-96">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={stats.farmSizeData} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                                        <XAxis type="number" stroke="#94a3b8" />
+                                        <YAxis dataKey="name" type="category" stroke="#94a3b8" width={120} />
+                                        <Tooltip
+                                            cursor={{ fill: 'transparent' }}
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                        />
+                                        <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={30} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- Health Tab --- */}
+                {activeTab === 'health' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="card">
+                            <div className="card-header">
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Disease Vaccination Profile</h3>
+                                <p className="text-sm text-slate-500">Top diseases targeted by vaccination</p>
+                            </div>
+                            <div className="card-body h-80">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={stats.vaccinationByDisease}
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={100}
+                                            dataKey="count"
+                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                        >
+                                            {stats.vaccinationByDisease.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={['#6366f1', '#e11d48', '#d946ef', '#f43f5e', '#f97316'][index % 5]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- Reproduction Tab --- */}
+                {activeTab === 'reproduction' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="card">
+                            <div className="card-header">
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Breeding Activities</h3>
+                                <p className="text-sm text-slate-500">Total recorded events</p>
+                            </div>
+                            <div className="card-body h-80 flex items-center justify-center">
+                                <div className="grid grid-cols-2 gap-8 w-full max-w-md text-center">
+                                    <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-xl">
+                                        <p className="text-sm text-slate-500 mb-1">Inseminations</p>
+                                        <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">{stats.reproductionStats[1].value}</p>
+                                    </div>
+                                    <div className="p-6 bg-green-50 dark:bg-green-900/10 rounded-xl">
+                                        <p className="text-sm text-slate-500 mb-1">Live Births</p>
+                                        <p className="text-4xl font-bold text-green-600 dark:text-green-400">{stats.reproductionStats[0].value}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    {/* Age Distribution & Growth Rate */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Age Distribution */}
-                        <div className="card">
-                            <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Age Demographics
-                                </h2>
-                            </div>
-                            <div className="card-body">
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={ageDistribution} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis type="number" stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
-                                            <YAxis dataKey="age" type="category" stroke="#94a3b8" fontSize={12} width={100} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => formatNumber(value as number)}
-                                            />
-                                            <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]}>
-                                                {ageDistribution.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Growth Rate */}
-                        <div className="card">
-                            <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Monthly Growth Rate (%)
-                                </h2>
-                            </div>
-                            <div className="card-body">
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={growthRateData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis stroke="#94a3b8" fontSize={12} unit="%" />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => `${value}%`}
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="growth"
-                                                stroke="#10b981"
-                                                strokeWidth={2}
-                                                dot={{ fill: '#10b981' }}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Farm Analytics Tab */}
-            {activeTab === 'farm' && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="card">
-                            <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Farm Size Distribution
-                                </h2>
-                            </div>
-                            <div className="card-body">
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={farmSizeData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis dataKey="size" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis stroke="#94a3b8" fontSize={12} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => formatNumber(value as number)}
-                                            />
-                                            <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="card">
-                            <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Regional Farm Density
-                                </h2>
-                            </div>
-                            <div className="card-body">
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={vaccinationStats} layout="vertical">
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis type="number" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis dataKey="region" type="category" stroke="#94a3b8" fontSize={12} width={100} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => formatNumber(value as number)}
-                                            />
-                                            <Bar dataKey="vaccinated" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Farms (Proxy)" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Health Analytics Tab */}
-            {activeTab === 'health' && (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="card">
-                            <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Vaccination Coverage by Region
-                                </h2>
-                            </div>
-                            <div className="card-body">
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={vaccinationStats}>
-                                            <defs>
-                                                <linearGradient id="colorVac" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis dataKey="region" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis stroke="#94a3b8" fontSize={12} unit="%" />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => `${value}%`}
-                                            />
-                                            <Area
-                                                type="monotone"
-                                                dataKey="vaccinationRate"
-                                                stroke="#10b981"
-                                                fillOpacity={1}
-                                                fill="url(#colorVac)"
-                                            />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="card">
-                            <div className="card-header">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                                    Top Compliant Regions
-                                </h2>
-                            </div>
-                            <div className="card-body">
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={vaccinationStats}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                            <XAxis dataKey="region" stroke="#94a3b8" fontSize={12} />
-                                            <YAxis stroke="#94a3b8" fontSize={12} unit="%" />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                                formatter={(value) => `${value}%`}
-                                            />
-                                            <Bar dataKey="vaccinationRate" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
+
+export default Analytics;

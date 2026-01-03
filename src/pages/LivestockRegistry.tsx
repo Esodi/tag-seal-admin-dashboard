@@ -1,326 +1,401 @@
-import { useState, useMemo } from 'react';
-import {
-    Search,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-    Eye,
-} from 'lucide-react';
-import { useApi } from '../hooks/useApi';
-import { api } from '../services/api';
-import { PageLoader } from '../components/ui/LoadingSpinner';
-import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { formatDate, cn } from '../lib/utils';
-
-const ITEMS_PER_PAGE = 10;
-
-// Species filter options
-const speciesOptions = ['All', 'Cattle', 'Goat', 'Sheep', 'Pig', 'Poultry'];
-const statusOptions = ['All', 'active', 'sold', 'dead', 'transferred'];
-
-// Livestock item interface based on backend response
-interface LivestockItem {
-    id: number;
-    uuid: string;
-    name: string;
-    gender: 'male' | 'female';
-    identificationNumber?: string;
-    species?: string;
-    breed?: string;
-    livestockType?: string;
-    farmName?: string;
-    regionName?: string;
-    districtName?: string;
-    status?: 'active' | 'sold' | 'dead' | 'transferred';
-    dateOfBirth?: string;
-    registeredAt?: string;
-    created_at?: string;
-    updated_at?: string;
-    // Allow additional fields from backend
-    [key: string]: unknown;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { CrudPage, DataTableColumn, FormField, SelectOption } from '../components/crud';
+import { livestockApi, farmApi, referenceApi } from '../services/api';
+import { Livestock } from '../types/entities';
+import { formatDate } from '../lib/utils';
 
 export function LivestockRegistry() {
-    const { data: livestockData, loading, error, refetch } = useApi<LivestockItem[]>(() => api.livestock.list() as Promise<LivestockItem[]>, []);
+    const [livestock, setLivestock] = useState<Livestock[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | undefined>();
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [speciesFilter, setSpeciesFilter] = useState('All');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [selectedLivestock, setSelectedLivestock] = useState<LivestockItem | null>(null);
+    // Reference data for dropdowns
+    const [farms, setFarms] = useState<SelectOption[]>([]);
+    const [species, setSpecies] = useState<SelectOption[]>([]);
+    const [breeds, setBreeds] = useState<SelectOption[]>([]);
+    const [livestockTypes, setLivestockTypes] = useState<SelectOption[]>([]);
+    const [obtainedMethods, setObtainedMethods] = useState<SelectOption[]>([]);
 
-    // Use API data or empty array
-    const livestock = livestockData ?? [];
+    // Parent livestock for mother/father selection
+    const [maleLivestock, setMaleLivestock] = useState<SelectOption[]>([]);
+    const [femaleLivestock, setFemaleLivestock] = useState<SelectOption[]>([]);
 
-    // Filter and search logic
-    const filteredLivestock = useMemo(() => {
-        return livestock.filter((item: LivestockItem) => {
-            const matchesSearch =
-                searchQuery === '' ||
-                (item.identificationNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (item.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (item.farmName ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (item.regionName ?? '').toLowerCase().includes(searchQuery.toLowerCase());
+    // Lookup maps for displaying names
+    const [farmsMap, setFarmsMap] = useState<Map<string, string>>(new Map());
+    const [speciesMap, setSpeciesMap] = useState<Map<number, string>>(new Map());
+    const [breedsMap, setBreedsMap] = useState<Map<number, string>>(new Map());
+    const [livestockTypesMap, setLivestockTypesMap] = useState<Map<number, string>>(new Map());
 
-            const matchesSpecies = speciesFilter === 'All' || item.species === speciesFilter;
-            const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(undefined);
+        try {
+            const [
+                livestockData,
+                farmsData,
+                speciesData,
+                breedsData,
+                livestockTypesData,
+                obtainedMethodsData,
+            ] = await Promise.all([
+                livestockApi.list(),
+                farmApi.list(),
+                referenceApi.species.list(),
+                referenceApi.breeds.list(),
+                referenceApi.livestockTypes.list(),
+                referenceApi.livestockObtainedMethods.list(),
+            ]);
 
-            return matchesSearch && matchesSpecies && matchesStatus;
-        });
-    }, [livestock, searchQuery, speciesFilter, statusFilter]);
+            setLivestock(livestockData);
 
-    // Pagination
-    const totalPages = Math.ceil(filteredLivestock.length / ITEMS_PER_PAGE);
-    const paginatedLivestock = filteredLivestock.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+            // Build farm options
+            const farmOptions = farmsData.map(f => ({
+                value: f.uuid,
+                label: `${f.name} (${f.referenceNo || f.uuid.slice(0, 8)})`,
+            }));
+            setFarms(farmOptions);
+            setFarmsMap(new Map(farmsData.map(f => [f.uuid, f.name])));
 
-    const getStatusBadgeClass = (status: string) => {
-        switch (status) {
-            case 'active':
-                return 'badge-success';
-            case 'sold':
-            case 'transferred':
-                return 'badge-warning';
-            case 'dead':
-                return 'badge-danger';
-            default:
-                return 'badge-info';
+            // Build reference options
+            setSpecies(speciesData.map(s => ({ value: s.id, label: s.name })));
+            setBreeds(breedsData.map(b => ({ value: b.id, label: b.name })));
+            setLivestockTypes(livestockTypesData.map(t => ({ value: t.id, label: t.name })));
+            setObtainedMethods(obtainedMethodsData.map(m => ({ value: m.id, label: m.name })));
+
+            // Build lookup maps
+            setSpeciesMap(new Map(speciesData.map(s => [s.id, s.name])));
+            setBreedsMap(new Map(breedsData.map(b => [b.id, b.name])));
+            setLivestockTypesMap(new Map(livestockTypesData.map(t => [t.id, t.name])));
+
+            // Build parent livestock options
+            const males = livestockData
+                .filter(l => l.gender === 'male')
+                .map(l => ({
+                    value: l.uuid,
+                    label: `${l.name || l.identificationNumber || l.uuid.slice(0, 8)} (${speciesData.find(s => s.id === l.speciesId)?.name || 'Unknown'})`,
+                }));
+            const females = livestockData
+                .filter(l => l.gender === 'female')
+                .map(l => ({
+                    value: l.uuid,
+                    label: `${l.name || l.identificationNumber || l.uuid.slice(0, 8)} (${speciesData.find(s => s.id === l.speciesId)?.name || 'Unknown'})`,
+                }));
+            setMaleLivestock(males);
+            setFemaleLivestock(females);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load livestock');
+        } finally {
+            setLoading(false);
         }
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const columns: DataTableColumn<Livestock>[] = [
+        {
+            id: 'id',
+            header: 'Tag ID',
+            accessorFn: (row) => row.identificationNumber || row.barcodeTagId || row.rfidTagId || row.dummyTagId || row.uuid.slice(0, 8),
+            size: 120,
+        },
+        {
+            id: 'name',
+            header: 'Name',
+            accessorKey: 'name',
+            cell: ({ getValue }) => (getValue() as string) || <span className="text-slate-400">Unnamed</span>,
+        },
+        {
+            id: 'species',
+            header: 'Species',
+            accessorFn: (row) => speciesMap.get(row.speciesId || 0) || '-',
+        },
+        {
+            id: 'breed',
+            header: 'Breed',
+            accessorFn: (row) => breedsMap.get(row.breedId || 0) || '-',
+        },
+        {
+            id: 'type',
+            header: 'Type',
+            accessorFn: (row) => livestockTypesMap.get(row.livestockTypeId || 0) || '-',
+        },
+        {
+            id: 'gender',
+            header: 'Gender',
+            accessorKey: 'gender',
+            cell: ({ getValue }) => {
+                const gender = getValue() as string;
+                return (
+                    <span className={`badge ${gender === 'male' ? 'badge-info' : 'badge-warning'}`}>
+                        {gender}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'farm',
+            header: 'Farm',
+            accessorFn: (row) => farmsMap.get(row.farmUuid) || '-',
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorKey: 'status',
+            cell: ({ getValue }) => {
+                const status = String(getValue());
+                const statusColors: Record<string, string> = {
+                    Alive: 'badge-success',
+                    Active: 'badge-success',
+                    Dead: 'badge-danger',
+                    Sold: 'badge-warning',
+                    Transferred: 'badge-info',
+                    Slaughtered: 'badge-secondary',
+                };
+                return (
+                    <span className={`badge ${statusColors[status] || 'badge-secondary'}`}>
+                        {status}
+                    </span>
+                );
+            },
+        },
+    ];
+
+    const formFields: FormField<Partial<Livestock>>[] = [
+        // Basic Information
+        {
+            name: 'farmUuid',
+            label: 'Farm',
+            type: 'select',
+            required: true,
+            options: farms,
+            placeholder: 'Select farm',
+        },
+        {
+            name: 'name',
+            label: 'Name',
+            type: 'text',
+            placeholder: 'Enter livestock name (optional)',
+        },
+
+        // Tag IDs
+        {
+            name: 'identificationNumber',
+            label: 'Identification Number',
+            type: 'text',
+            placeholder: 'Main identification number',
+        },
+        {
+            name: 'barcodeTagId',
+            label: 'Barcode Tag ID',
+            type: 'text',
+            placeholder: 'Barcode tag ID',
+        },
+        {
+            name: 'rfidTagId',
+            label: 'RFID Tag ID',
+            type: 'text',
+            placeholder: 'RFID tag ID',
+        },
+        {
+            name: 'dummyTagId',
+            label: 'Temporary Tag ID',
+            type: 'text',
+            placeholder: 'Temporary/dummy tag ID',
+        },
+
+        // Classification
+        {
+            name: 'speciesId',
+            label: 'Species',
+            type: 'select',
+            required: true,
+            options: species,
+            placeholder: 'Select species',
+        },
+        {
+            name: 'breedId',
+            label: 'Breed',
+            type: 'select',
+            options: breeds,
+            placeholder: 'Select breed',
+        },
+        {
+            name: 'livestockTypeId',
+            label: 'Livestock Type',
+            type: 'select',
+            options: livestockTypes,
+            placeholder: 'Select type (dairy, beef, etc.)',
+        },
+        {
+            name: 'gender',
+            label: 'Gender',
+            type: 'select',
+            required: true,
+            options: [
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+            ],
+        },
+
+        // Birth and Origin
+        {
+            name: 'dateOfBirth',
+            label: 'Date of Birth',
+            type: 'date',
+        },
+        {
+            name: 'livestockObtainedMethodId',
+            label: 'How Obtained',
+            type: 'select',
+            options: obtainedMethods,
+            placeholder: 'Select method',
+        },
+        {
+            name: 'dateFirstEnteredToFarm',
+            label: 'Date Entered Farm',
+            type: 'date',
+        },
+        {
+            name: 'weightAsOnRegistration',
+            label: 'Weight at Registration (kg)',
+            type: 'number',
+            min: 0,
+            placeholder: 'Weight in kilograms',
+        },
+
+        // Parentage
+        {
+            name: 'motherUuid',
+            label: 'Mother',
+            type: 'select',
+            options: femaleLivestock,
+            placeholder: 'Select mother (optional)',
+        },
+        {
+            name: 'fatherUuid',
+            label: 'Father',
+            type: 'select',
+            options: maleLivestock,
+            placeholder: 'Select father (optional)',
+        },
+
+        // Physical Characteristics
+        {
+            name: 'primaryColor',
+            label: 'Primary Color',
+            type: 'text',
+            placeholder: 'e.g., Black, Brown, White',
+        },
+        {
+            name: 'secondaryColor',
+            label: 'Secondary Color',
+            type: 'text',
+            placeholder: 'e.g., Spotted, Mixed',
+        },
+
+        // Status
+        {
+            name: 'status',
+            label: 'Status',
+            type: 'select',
+            options: [
+                { value: 'Alive', label: 'Alive' },
+                { value: 'Active', label: 'Active' },
+                { value: 'Dead', label: 'Dead' },
+                { value: 'Sold', label: 'Sold' },
+                { value: 'Transferred', label: 'Transferred' },
+                { value: 'Slaughtered', label: 'Slaughtered' },
+            ],
+            defaultValue: 'Alive',
+        },
+    ];
+
+    const detailFields = [
+        {
+            key: 'uuid' as keyof Livestock,
+            label: 'UUID',
+            render: (value: unknown) => String(value).slice(0, 8) + '...',
+        },
+        { key: 'identificationNumber' as keyof Livestock, label: 'ID Number' },
+        { key: 'barcodeTagId' as keyof Livestock, label: 'Barcode Tag' },
+        { key: 'rfidTagId' as keyof Livestock, label: 'RFID Tag' },
+        { key: 'name' as keyof Livestock, label: 'Name' },
+        { key: 'gender' as keyof Livestock, label: 'Gender' },
+        {
+            key: 'speciesId' as keyof Livestock,
+            label: 'Species',
+            render: (value: unknown) => speciesMap.get(Number(value)) || '-',
+        },
+        {
+            key: 'breedId' as keyof Livestock,
+            label: 'Breed',
+            render: (value: unknown) => breedsMap.get(Number(value)) || '-',
+        },
+        {
+            key: 'livestockTypeId' as keyof Livestock,
+            label: 'Type',
+            render: (value: unknown) => livestockTypesMap.get(Number(value)) || '-',
+        },
+        {
+            key: 'farmUuid' as keyof Livestock,
+            label: 'Farm',
+            render: (value: unknown) => farmsMap.get(String(value)) || '-',
+        },
+        {
+            key: 'dateOfBirth' as keyof Livestock,
+            label: 'Date of Birth',
+            render: (value: unknown) => value ? formatDate(String(value)) : '-',
+        },
+        { key: 'weightAsOnRegistration' as keyof Livestock, label: 'Weight at Registration (kg)' },
+        { key: 'primaryColor' as keyof Livestock, label: 'Primary Color' },
+        { key: 'secondaryColor' as keyof Livestock, label: 'Secondary Color' },
+        { key: 'status' as keyof Livestock, label: 'Status' },
+        {
+            key: 'created_at' as keyof Livestock,
+            label: 'Registered',
+            render: (value: unknown) => value ? formatDate(String(value)) : '-',
+        },
+    ];
+
+    const handleCreate = async (data: Partial<Livestock>) => {
+        await livestockApi.create(data as unknown as Livestock);
     };
 
-    // Loading state
-    if (loading) {
-        return <PageLoader />;
-    }
+    const handleUpdate = async (id: number | string, data: Partial<Livestock>) => {
+        await livestockApi.update(Number(id), data);
+    };
 
-    // Error state
-    if (error) {
-        return <ErrorMessage message={error.message} onRetry={refetch} />;
-    }
+    const handleDelete = async (id: number | string) => {
+        await livestockApi.delete(Number(id));
+    };
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    Livestock Registry
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    National livestock database - {filteredLivestock.length.toLocaleString()} records found
-                </p>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="card p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    {/* Search Input */}
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by ID, name, farm, or region..."
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                    </div>
-
-                    {/* Species Filter */}
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-slate-400" />
-                        <select
-                            value={speciesFilter}
-                            onChange={(e) => {
-                                setSpeciesFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            {speciesOptions.map((option) => (
-                                <option key={option} value={option}>
-                                    {option === 'All' ? 'All Species' : option}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Status Filter */}
-                    <div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            {statusOptions.map((option) => (
-                                <option key={option} value={option}>
-                                    {option === 'All' ? 'All Status' : option.charAt(0).toUpperCase() + option.slice(1)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Data Table */}
-            <div className="card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">ID</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Name</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Species</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Breed</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Farm</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Region</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Status</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedLivestock.map((item) => (
-                                <tr
-                                    key={item.id}
-                                    className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                >
-                                    <td className="py-3 px-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                                        {item.identificationNumber}
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-medium">{item.name}</td>
-                                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.species}</td>
-                                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.breed}</td>
-                                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.farmName}</td>
-                                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.regionName}</td>
-                                    <td className="py-3 px-4 text-center">
-                                        <span className={cn('badge', getStatusBadgeClass(item.status ?? 'active'))}>
-                                            {item.status ?? 'active'}
-                                        </span>
-                                    </td>
-                                    <td className="py-3 px-4 text-center">
-                                        <button
-                                            onClick={() => setSelectedLivestock(item)}
-                                            className="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400"
-                                            title="View Details"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-                        {Math.min(currentPage * ITEMS_PER_PAGE, filteredLivestock.length)} of{' '}
-                        {filteredLivestock.length} results
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="text-sm text-slate-600 dark:text-slate-300">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Detail Modal */}
-            {selectedLivestock && (
-                <>
-                    <div
-                        className="fixed inset-0 bg-black/50 z-50"
-                        onClick={() => setSelectedLivestock(null)}
-                    />
-                    <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg bg-white dark:bg-slate-800 rounded-xl shadow-xl z-50 overflow-auto max-h-[90vh]">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                Livestock Details
-                            </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                {selectedLivestock.identificationNumber}
-                            </p>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Name</label>
-                                    <p className="text-slate-900 dark:text-white">{selectedLivestock.name}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Species</label>
-                                    <p className="text-slate-900 dark:text-white">{selectedLivestock.species}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Breed</label>
-                                    <p className="text-slate-900 dark:text-white">{selectedLivestock.breed}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Type</label>
-                                    <p className="text-slate-900 dark:text-white">{selectedLivestock.livestockType}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Gender</label>
-                                    <p className="text-slate-900 dark:text-white capitalize">{selectedLivestock.gender}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Status</label>
-                                    <span className={cn('badge', getStatusBadgeClass(selectedLivestock.status ?? 'active'))}>
-                                        {selectedLivestock.status ?? 'active'}
-                                    </span>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farm</label>
-                                    <p className="text-slate-900 dark:text-white">{selectedLivestock.farmName}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Region</label>
-                                    <p className="text-slate-900 dark:text-white">{selectedLivestock.regionName}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Date of Birth</label>
-                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedLivestock.dateOfBirth ?? '')}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered</label>
-                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedLivestock.registeredAt ?? selectedLivestock.created_at ?? '')}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-                            <button
-                                onClick={() => setSelectedLivestock(null)}
-                                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
+        <CrudPage
+            title="Livestock Registry"
+            description={`Registered livestock - ${livestock.length.toLocaleString()} animals`}
+            data={livestock}
+            loading={loading}
+            error={error}
+            columns={columns}
+            formFields={formFields}
+            detailFields={detailFields}
+            formColumns={2}
+            onCreate={handleCreate}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onRefresh={fetchData}
+            createLabel="Add Livestock"
+            createModalSize="xl"
+            editModalSize="xl"
+            viewModalSize="lg"
+            tableProps={{
+                searchPlaceholder: 'Search by tag ID, name, or species...',
+                enableRowSelection: true,
+            }}
+        />
     );
 }
+
+export default LivestockRegistry;

@@ -1,319 +1,387 @@
-import { useState, useMemo } from 'react';
-import {
-    Search,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-    Eye,
-    Phone,
-    Mail,
-} from 'lucide-react';
-import { useApi } from '../hooks/useApi';
-import { api } from '../services/api';
-import { PageLoader } from '../components/ui/LoadingSpinner';
-import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { formatDate, formatNumber, cn } from '../lib/utils';
-
-const ITEMS_PER_PAGE = 10;
-
-// Farmer item interface based on backend response
-interface FarmerItem {
-    id: number;
-    uuid?: string;
-    firstName: string;
-    middleName?: string;
-    surname: string;
-    farmerNo?: string;
-    phone?: string;
-    phone1?: string;
-    email?: string;
-    gender?: 'male' | 'female';
-    regionName?: string;
-    regionId?: number;
-    districtName?: string;
-    districtId?: number;
-    farmsCount?: number;
-    livestockCount?: number;
-    registeredAt?: string;
-    created_at?: string;
-    updated_at?: string;
-    [key: string]: unknown;
-}
-
-// Region item interface
-interface RegionItem {
-    id: number;
-    name: string;
-    [key: string]: unknown;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { CrudPage, DataTableColumn, FormField, SelectOption } from '../components/crud';
+import { farmerApi, locationApi, referenceApi } from '../services/api';
+import { Farmer } from '../types/entities';
+import { formatDate } from '../lib/utils';
 
 export function FarmerDatabase() {
-    const { data: farmersData, loading, error, refetch } = useApi<FarmerItem[]>(() => api.farmers.list() as Promise<FarmerItem[]>, []);
-    const { data: regionsData } = useApi<RegionItem[]>(() => api.regions.list() as Promise<RegionItem[]>, []);
+    const [farmers, setFarmers] = useState<Farmer[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | undefined>();
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [regionFilter, setRegionFilter] = useState('All');
-    const [genderFilter, setGenderFilter] = useState('All');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [selectedFarmer, setSelectedFarmer] = useState<FarmerItem | null>(null);
+    // Reference data for dropdowns
+    const [countries, setCountries] = useState<SelectOption[]>([]);
+    const [regions, setRegions] = useState<SelectOption[]>([]);
+    const [districts, setDistricts] = useState<SelectOption[]>([]);
+    const [wards, setWards] = useState<SelectOption[]>([]);
+    const [villages, setVillages] = useState<SelectOption[]>([]);
+    const [identityCardTypes, setIdentityCardTypes] = useState<SelectOption[]>([]);
+    const [schoolLevels, setSchoolLevels] = useState<SelectOption[]>([]);
 
-    // Use API data or empty arrays
-    const farmers = farmersData ?? [];
-    const regions = regionsData ?? [];
+    // For displaying names in table
+    const [regionsMap, setRegionsMap] = useState<Map<number, string>>(new Map());
+    const [districtsMap, setDistrictsMap] = useState<Map<number, string>>(new Map());
 
-    // Filter and search logic
-    const filteredFarmers = useMemo(() => {
-        return farmers.filter((item: FarmerItem) => {
-            const fullName = `${item.firstName} ${item.middleName || ''} ${item.surname}`.toLowerCase();
-            const matchesSearch =
-                searchQuery === '' ||
-                fullName.includes(searchQuery.toLowerCase()) ||
-                (item.farmerNo ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (item.phone ?? item.phone1 ?? '').includes(searchQuery);
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(undefined);
+        try {
+            const [farmersData, countriesData, regionsData, districtsData, idTypesData, schoolLevelsData] = await Promise.all([
+                farmerApi.list(),
+                locationApi.countries.list(),
+                locationApi.regions.list(),
+                locationApi.districts.list(),
+                referenceApi.identityCardTypes.list(),
+                referenceApi.schoolLevels.list(),
+            ]);
 
-            const matchesRegion = regionFilter === 'All' || item.regionName === regionFilter;
-            const matchesGender = genderFilter === 'All' || item.gender === genderFilter;
+            setFarmers(farmersData);
+            setCountries(countriesData.map(c => ({ value: c.id, label: c.name })));
+            setRegions(regionsData.map(r => ({ value: r.id, label: r.name })));
+            setDistricts(districtsData.map(d => ({ value: d.id, label: d.name })));
+            setIdentityCardTypes(idTypesData.map(t => ({ value: t.id, label: t.name })));
+            setSchoolLevels(schoolLevelsData.map(l => ({ value: l.id, label: l.name })));
 
-            return matchesSearch && matchesRegion && matchesGender;
-        });
-    }, [farmers, searchQuery, regionFilter, genderFilter]);
+            // Build lookup maps
+            setRegionsMap(new Map(regionsData.map(r => [r.id, r.name])));
+            setDistrictsMap(new Map(districtsData.map(d => [d.id, d.name])));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load farmers');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-    // Pagination
-    const totalPages = Math.ceil(filteredFarmers.length / ITEMS_PER_PAGE) || 1;
-    const paginatedFarmers = filteredFarmers.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
-    // Loading state
-    if (loading) {
-        return <PageLoader />;
-    }
+    // Load cascading location data
+    const loadRegions = useCallback(async (countryId: number) => {
+        try {
+            const data = await locationApi.getRegionsByCountry(countryId);
+            setRegions(data.map(r => ({ value: r.id, label: r.name })));
+        } catch (err) {
+            console.error('Failed to load regions:', err);
+        }
+    }, []);
 
-    // Error state
-    if (error) {
-        return <ErrorMessage message={error.message} onRetry={refetch} />;
-    }
+    const loadDistricts = useCallback(async (regionId: number) => {
+        try {
+            const data = await locationApi.getDistrictsByRegion(regionId);
+            setDistricts(data.map(d => ({ value: d.id, label: d.name })));
+        } catch (err) {
+            console.error('Failed to load districts:', err);
+        }
+    }, []);
+
+    const loadWards = useCallback(async (districtId: number) => {
+        try {
+            const data = await locationApi.getWardsByDistrict(districtId);
+            setWards(data.map(w => ({ value: w.id, label: w.name })));
+        } catch (err) {
+            console.error('Failed to load wards:', err);
+        }
+    }, []);
+
+    const loadVillages = useCallback(async (wardId: number) => {
+        try {
+            const data = await locationApi.getVillagesByWard(wardId);
+            setVillages(data.map(v => ({ value: v.id, label: v.name })));
+        } catch (err) {
+            console.error('Failed to load villages:', err);
+        }
+    }, []);
+
+    const columns: DataTableColumn<Farmer>[] = [
+        { id: 'farmerNo', header: 'Farmer ID', accessorKey: 'farmerNo', size: 120 },
+        {
+            id: 'name',
+            header: 'Name',
+            accessorFn: (row) => `${row.firstName} ${row.middleName || ''} ${row.surname}`.trim(),
+        },
+        { id: 'phone1', header: 'Phone', accessorKey: 'phone1' },
+        {
+            id: 'region',
+            header: 'Region',
+            accessorFn: (row) => regionsMap.get(row.regionId || 0) || '-',
+        },
+        {
+            id: 'district',
+            header: 'District',
+            accessorFn: (row) => districtsMap.get(row.districtId || 0) || '-',
+        },
+        {
+            id: 'gender',
+            header: 'Gender',
+            accessorKey: 'gender',
+            cell: ({ getValue }) => {
+                const gender = getValue() as string;
+                return (
+                    <span className={`badge ${gender === 'male' ? 'badge-info' : 'badge-warning'}`}>
+                        {gender}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorKey: 'status',
+            cell: ({ getValue }) => {
+                const status = getValue() as string;
+                return (
+                    <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                        {status}
+                    </span>
+                );
+            },
+        },
+    ];
+
+    const formFields: FormField<Partial<Farmer>>[] = [
+        // Personal Information
+        {
+            name: 'firstName',
+            label: 'First Name',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter first name',
+        },
+        {
+            name: 'middleName',
+            label: 'Middle Name',
+            type: 'text',
+            placeholder: 'Enter middle name (optional)',
+        },
+        {
+            name: 'surname',
+            label: 'Surname',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter surname',
+        },
+        {
+            name: 'gender',
+            label: 'Gender',
+            type: 'select',
+            required: true,
+            options: [
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+            ],
+        },
+        {
+            name: 'dateOfBirth',
+            label: 'Date of Birth',
+            type: 'date',
+        },
+        {
+            name: 'farmerNo',
+            label: 'Farmer Number',
+            type: 'text',
+            placeholder: 'Auto-generated if empty',
+            helpText: 'Leave blank to auto-generate',
+        },
+
+        // Contact Information
+        {
+            name: 'phone1',
+            label: 'Primary Phone',
+            type: 'tel',
+            required: true,
+            placeholder: '+255 XXX XXX XXX',
+        },
+        {
+            name: 'phone2',
+            label: 'Secondary Phone',
+            type: 'tel',
+            placeholder: '+255 XXX XXX XXX',
+        },
+        {
+            name: 'email',
+            label: 'Email',
+            type: 'email',
+            placeholder: 'farmer@example.com',
+        },
+
+        // Identity
+        {
+            name: 'identityCardTypeId',
+            label: 'ID Card Type',
+            type: 'select',
+            options: identityCardTypes,
+            placeholder: 'Select ID type',
+        },
+        {
+            name: 'identityNumber',
+            label: 'ID Number',
+            type: 'text',
+            placeholder: 'Enter ID number',
+        },
+        {
+            name: 'schoolLevelId',
+            label: 'Education Level',
+            type: 'select',
+            options: schoolLevels,
+            placeholder: 'Select education level',
+        },
+
+        // Location (cascading)
+        {
+            name: 'countryId',
+            label: 'Country',
+            type: 'select',
+            options: countries,
+            placeholder: 'Select country',
+        },
+        {
+            name: 'regionId',
+            label: 'Region',
+            type: 'select',
+            options: regions,
+            placeholder: 'Select region',
+        },
+        {
+            name: 'districtId',
+            label: 'District',
+            type: 'select',
+            options: districts,
+            placeholder: 'Select district',
+        },
+        {
+            name: 'wardId',
+            label: 'Ward',
+            type: 'select',
+            options: wards,
+            placeholder: 'Select ward',
+        },
+        {
+            name: 'villageId',
+            label: 'Village',
+            type: 'select',
+            options: villages,
+            placeholder: 'Select village',
+        },
+        {
+            name: 'physicalAddress',
+            label: 'Physical Address',
+            type: 'textarea',
+            placeholder: 'Enter physical address',
+            colSpan: 2,
+        },
+
+        // Other
+        {
+            name: 'farmerOrganizationMembership',
+            label: 'Organization Membership',
+            type: 'text',
+            placeholder: 'Farmer organization name',
+        },
+        {
+            name: 'farmerType',
+            label: 'Farmer Type',
+            type: 'select',
+            options: [
+                { value: 'individual', label: 'Individual' },
+                { value: 'commercial', label: 'Commercial' },
+                { value: 'cooperative', label: 'Cooperative' },
+            ],
+        },
+        {
+            name: 'status',
+            label: 'Status',
+            type: 'select',
+            options: [
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+            ],
+            defaultValue: 'active',
+        },
+    ];
+
+    const detailFields = [
+        { key: 'farmerNo' as keyof Farmer, label: 'Farmer ID' },
+        {
+            key: 'name' as const,
+            label: 'Full Name',
+            render: (_: unknown, data: Farmer) => `${data.firstName} ${data.middleName || ''} ${data.surname}`.trim(),
+        },
+        { key: 'gender' as keyof Farmer, label: 'Gender' },
+        {
+            key: 'dateOfBirth' as keyof Farmer,
+            label: 'Date of Birth',
+            render: (value: unknown) => value ? formatDate(String(value)) : '-',
+        },
+        { key: 'phone1' as keyof Farmer, label: 'Primary Phone' },
+        { key: 'phone2' as keyof Farmer, label: 'Secondary Phone' },
+        { key: 'email' as keyof Farmer, label: 'Email' },
+        {
+            key: 'identityCardTypeId' as keyof Farmer,
+            label: 'ID Type',
+            render: (value: unknown) => {
+                const type = identityCardTypes.find(t => t.value === value);
+                return type?.label || '-';
+            },
+        },
+        { key: 'identityNumber' as keyof Farmer, label: 'ID Number' },
+        {
+            key: 'regionId' as keyof Farmer,
+            label: 'Region',
+            render: (value: unknown) => regionsMap.get(Number(value)) || '-',
+        },
+        {
+            key: 'districtId' as keyof Farmer,
+            label: 'District',
+            render: (value: unknown) => districtsMap.get(Number(value)) || '-',
+        },
+        { key: 'physicalAddress' as keyof Farmer, label: 'Address' },
+        { key: 'farmerOrganizationMembership' as keyof Farmer, label: 'Organization' },
+        { key: 'status' as keyof Farmer, label: 'Status' },
+        {
+            key: 'created_at' as keyof Farmer,
+            label: 'Registered',
+            render: (value: unknown) => value ? formatDate(String(value)) : '-',
+        },
+    ];
+
+    const handleCreate = async (data: Partial<Farmer>) => {
+        await farmerApi.create(data);
+    };
+
+    const handleUpdate = async (id: number | string, data: Partial<Farmer>) => {
+        await farmerApi.update(Number(id), data);
+    };
+
+    const handleDelete = async (id: number | string) => {
+        await farmerApi.delete(Number(id));
+    };
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    Farmer Database
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    Registered farmers - {filteredFarmers.length.toLocaleString()} records found
-                </p>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="card p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by name, ID, or phone..."
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-slate-400" />
-                        <select
-                            value={regionFilter}
-                            onChange={(e) => {
-                                setRegionFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option value="All">All Regions</option>
-                            {regions.map((region: RegionItem) => (
-                                <option key={region.id} value={region.name}>
-                                    {region.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <select
-                            value={genderFilter}
-                            onChange={(e) => {
-                                setGenderFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option value="All">All Gender</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Data Table */}
-            <div className="card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Farmer ID</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Name</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Phone</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Region</th>
-                                <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Farms</th>
-                                <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Livestock</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Gender</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedFarmers.map((item) => (
-                                <tr
-                                    key={item.id}
-                                    className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                >
-                                    <td className="py-3 px-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                                        {item.farmerNo}
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-medium">
-                                        {item.firstName} {item.middleName || ''} {item.surname}
-                                    </td>
-                                    <td className="py-3 px-4">
-                                        <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                                            <Phone className="w-3 h-3" />
-                                            {item.phone}
-                                        </div>
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.regionName}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{item.farmsCount ?? 0}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">
-                                        {formatNumber(item.livestockCount ?? 0)}
-                                    </td>
-                                    <td className="py-3 px-4 text-center">
-                                        <span className={cn('badge', item.gender === 'male' ? 'badge-info' : 'badge-warning')}>
-                                            {item.gender}
-                                        </span>
-                                    </td>
-                                    <td className="py-3 px-4 text-center">
-                                        <button
-                                            onClick={() => setSelectedFarmer(item)}
-                                            className="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-                        {Math.min(currentPage * ITEMS_PER_PAGE, filteredFarmers.length)} of {filteredFarmers.length}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="text-sm">Page {currentPage} of {totalPages}</span>
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Detail Modal */}
-            {selectedFarmer && (
-                <>
-                    <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedFarmer(null)} />
-                    <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg bg-white dark:bg-slate-800 rounded-xl shadow-xl z-50 overflow-auto max-h-[90vh]">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                                {selectedFarmer.firstName} {selectedFarmer.middleName || ''} {selectedFarmer.surname}
-                            </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{selectedFarmer.farmerNo}</p>
-                        </div>
-                        <div className="p-6 grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Phone</label>
-                                <p className="text-slate-900 dark:text-white flex items-center gap-1">
-                                    <Phone className="w-3 h-3" /> {selectedFarmer.phone}
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Email</label>
-                                <p className="text-slate-900 dark:text-white flex items-center gap-1">
-                                    {selectedFarmer.email ? (
-                                        <><Mail className="w-3 h-3" /> {selectedFarmer.email}</>
-                                    ) : (
-                                        <span className="text-slate-400">Not provided</span>
-                                    )}
-                                </p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Gender</label>
-                                <span className={cn('badge', selectedFarmer.gender === 'male' ? 'badge-info' : 'badge-warning')}>
-                                    {selectedFarmer.gender}
-                                </span>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Region</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarmer.regionName}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">District</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarmer.districtName}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Ward</label>
-                                <p className="text-slate-900 dark:text-white">{String(selectedFarmer.wardName ?? '-')}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farms</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarmer.farmsCount ?? 0}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white">{formatNumber(selectedFarmer.livestockCount ?? 0)}</p>
-                            </div>
-                            <div className="col-span-2">
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered</label>
-                                <p className="text-slate-900 dark:text-white">{formatDate(selectedFarmer.registeredAt ?? selectedFarmer.created_at ?? '')}</p>
-                            </div>
-                        </div>
-                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-                            <button
-                                onClick={() => setSelectedFarmer(null)}
-                                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
+        <CrudPage
+            title="Farmer Database"
+            description={`Registered farmers - ${farmers.length.toLocaleString()} records`}
+            data={farmers}
+            loading={loading}
+            error={error}
+            columns={columns}
+            formFields={formFields}
+            detailFields={detailFields}
+            formColumns={2}
+            onCreate={handleCreate}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onRefresh={fetchData}
+            createLabel="Add Farmer"
+            createModalSize="xl"
+            editModalSize="xl"
+            viewModalSize="lg"
+            tableProps={{
+                searchPlaceholder: 'Search by name, ID, or phone...',
+                enableRowSelection: true,
+            }}
+        />
     );
 }
+
+export default FarmerDatabase;

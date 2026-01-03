@@ -38,7 +38,7 @@ interface RegionData {
 
 export function Regions() {
     const { data: regionsData, loading, error, refetch } = useApi<RegionData[]>(
-        () => api.regions.list() as Promise<RegionData[]>,
+        () => api.regions.list() as unknown as Promise<RegionData[]>,
         []
     );
 

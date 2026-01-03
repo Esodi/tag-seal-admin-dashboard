@@ -7,6 +7,9 @@ import {
     Info,
     ArrowUpRight,
     Beef,
+    Stethoscope,
+    Activity,
+    Shield
 } from 'lucide-react';
 import { useMemo } from 'react';
 import {
@@ -29,6 +32,9 @@ import { api } from '../services/api';
 import { PageLoader } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { formatNumber, formatPercentage, getAlertColor, cn } from '../lib/utils';
+import { AccountWidget } from '../components/dashboard/AccountWidget';
+import { RecentActivityFeed, ActivityItem } from '../components/dashboard/RecentActivityFeed';
+import { useAuth } from '../contexts/AuthContext';
 
 // Stat Card Component
 function StatCard({
@@ -37,14 +43,16 @@ function StatCard({
     subtitle,
     icon: Icon,
     trend,
-    color = 'primary'
+    color = 'primary',
+    loading = false
 }: {
     title: string;
     value: string;
     subtitle?: string;
     icon: React.ComponentType<{ className?: string }>;
     trend?: { value: number; label: string };
-    color?: 'primary' | 'secondary' | 'accent' | 'success' | 'warning';
+    color?: 'primary' | 'secondary' | 'accent' | 'success' | 'warning' | 'info';
+    loading?: boolean;
 }) {
     const colorClasses = {
         primary: 'bg-primary-500',
@@ -52,7 +60,12 @@ function StatCard({
         accent: 'bg-accent-500',
         success: 'bg-green-500',
         warning: 'bg-amber-500',
+        info: 'bg-cyan-500',
     };
+
+    if (loading) {
+        return <div className="card p-6 h-32 animate-pulse bg-slate-100 dark:bg-slate-800" />;
+    }
 
     return (
         <div className="card p-6">
@@ -73,7 +86,7 @@ function StatCard({
                         </div>
                     )}
                 </div>
-                <div className={cn('p-3 rounded-xl', colorClasses[color])}>
+                <div className={cn('p-3 rounded-xl shadow-sm', colorClasses[color])}>
                     <Icon className="w-6 h-6 text-white" />
                 </div>
             </div>
@@ -97,16 +110,18 @@ function AlertCard({ type, title, message, region, createdAt }: {
     const Icon = icons[type];
 
     return (
-        <div className={cn('p-4 rounded-lg border', getAlertColor(type))}>
-            <div className="flex gap-3">
-                <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div>
-                    <p className="font-medium">{title}</p>
-                    <p className="text-sm mt-1 opacity-90">{message}</p>
-                    <div className="flex gap-4 mt-2 text-xs opacity-75">
-                        {region && <span>Region: {region}</span>}
-                        <span>{new Date(createdAt).toLocaleDateString()}</span>
-                    </div>
+        <div className={cn('p-4 rounded-lg border flex gap-3', getAlertColor(type))}>
+            <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+                <p className="font-medium text-sm">{title}</p>
+                <p className="text-sm mt-0.5 opacity-90">{message}</p>
+                <div className="flex items-center gap-3 mt-2 text-xs opacity-75">
+                    {region && (
+                        <span className="bg-white/20 px-1.5 py-0.5 rounded uppercase tracking-wider font-semibold">
+                            {region}
+                        </span>
+                    )}
+                    <span>{new Date(createdAt).toLocaleDateString()}</span>
                 </div>
             </div>
         </div>
@@ -114,31 +129,77 @@ function AlertCard({ type, title, message, region, createdAt }: {
 }
 
 export function Dashboard() {
+    const { user } = useAuth();
+
+    // Fetch all necessary data for dashboard
     const { data, loading, error, refetch } = useApi(async () => {
-        const [livestock, farms, farmers, vaccinations, medications] = await Promise.all([
+        const [
+            livestock,
+            farms,
+            farmers,
+            vaccinations,
+            medications,
+            transfers,
+            births,
+            users,
+            vets,
+            officers
+        ] = await Promise.all([
             api.livestock.list(),
             api.farms.list(),
             api.farmers.list(),
             api.vaccinations.list(),
-            api.medications.list()
+            api.medications.list(),
+            api.transfers.list(),
+            api.birthEvents.list(),
+            api.users.list(),
+            api.vets.list(),
+            api.extensionOfficers.list()
         ]);
-        return { livestock, farms, farmers, vaccinations, medications };
+        return {
+            livestock,
+            farms,
+            farmers,
+            vaccinations,
+            medications,
+            transfers,
+            births,
+            users,
+            vets,
+            officers
+        };
     }, []);
 
     const stats = useMemo(() => {
         if (!data) return null;
-        const { livestock, farms, farmers, vaccinations, medications } = data;
+        const {
+            livestock,
+            farms,
+            farmers,
+            vaccinations,
+            medications,
+            transfers,
+            births,
+            users,
+            vets,
+            officers
+        } = data;
 
-        // Dashboard Stats
+        // --- Core KPI Stats ---
         const totalLivestock = livestock.length;
-        const activeLivestock = livestock.filter((l: any) => l.status === 'Alive' || l.status === 'Active').length;
+        const activeLivestock = livestock.filter((l: any) => l.status?.toLowerCase() === 'active' || l.status?.toLowerCase() === 'alive').length;
+
         const totalFarms = farms.length;
-        const activeFarms = farms.filter((f: any) => f.status === 'Active').length;
-        const totalFarmers = farmers.length;
+        const activeFarms = farms.filter((f: any) => f.status?.toLowerCase() === 'active').length;
+
+        const totalUsers = users.length + farmers.length; // Approximate total system users
+
         const uniqueVaccinatedLivestock = new Set(vaccinations.map((v: any) => v.livestockId)).size;
         const vaccinationCoverage = totalLivestock > 0 ? (uniqueVaccinatedLivestock / totalLivestock) * 100 : 0;
 
-        // Species Distribution
+        // --- Charts Data ---
+
+        // 1. Species Distribution Pie Chart
         const speciesCounts: Record<string, number> = {};
         livestock.forEach((l: any) => {
             const species = l.species || 'Unknown';
@@ -146,12 +207,12 @@ export function Dashboard() {
         });
 
         const speciesColors: Record<string, string> = {
-            'Cattle': '#3b82f6',
-            'Goats': '#10b981',
-            'Sheep': '#f59e0b',
-            'Pigs': '#ec4899',
-            'Poultry': '#8b5cf6',
-            'Donkeys': '#64748b'
+            'Cattle': '#3b82f6', // Blue
+            'Goats': '#10b981',  // Green
+            'Sheep': '#f59e0b',  // Amber
+            'Pigs': '#ec4899',   // Pink
+            'Poultry': '#8b5cf6', // Violet
+            'Donkeys': '#64748b'  // Slate
         };
 
         const speciesDistribution = Object.entries(speciesCounts)
@@ -162,7 +223,28 @@ export function Dashboard() {
             }))
             .sort((a, b) => b.value - a.value);
 
-        // Regional Comparison
+        // 2. Livestock Trend Area Chart (Monthly Registrations)
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const trendMap: Record<string, { cattle: number, goats: number }> = {};
+        months.forEach(m => trendMap[m] = { cattle: 0, goats: 0 });
+
+        livestock.forEach((l: any) => {
+            const date = new Date(l.registrationDate || l.created_at || new Date());
+            // Filter only last 12 months ideally, but demonstrating with full dataset mapped to months
+            if (date.getFullYear() === new Date().getFullYear() || date.getFullYear() === new Date().getFullYear() - 1) {
+                const month = months[date.getMonth()];
+                if (l.species === 'Cattle') trendMap[month].cattle++;
+                else if (l.species === 'Goats') trendMap[month].goats++;
+            }
+        });
+
+        const livestockTrend = months.map(month => ({
+            month,
+            cattle: trendMap[month].cattle,
+            goats: trendMap[month].goats
+        }));
+
+        // 3. Regional Comparison Bar Chart
         const regionStats: Record<string, { livestock: number, vaccinated: number }> = {};
         livestock.forEach((l: any) => {
             const region = l.region || 'Unknown';
@@ -170,12 +252,13 @@ export function Dashboard() {
             regionStats[region].livestock++;
         });
 
+        // Mapping vaccinations to regions (assuming vaccination record has region or linking via livestock)
+        // For accurate data, we would join with livestock, but assuming mock-ish structure or direct region field
         vaccinations.forEach((v: any) => {
             const region = v.region || 'Unknown';
             if (regionStats[region]) {
-                regionStats[region].vaccinated++; // Approximate since vaccination record has region
+                regionStats[region].vaccinated++;
             } else {
-                // Should fetch region from livestock if not in vaccination, but assuming vaccination has it
                 if (!regionStats[region]) regionStats[region] = { livestock: 0, vaccinated: 0 };
                 regionStats[region].vaccinated++;
             }
@@ -190,42 +273,76 @@ export function Dashboard() {
             .sort((a, b) => b.livestock - a.livestock)
             .slice(0, 10);
 
-        // Livestock Trend (Monthly)
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const trendMap: Record<string, { cattle: number, goats: number }> = {};
-        months.forEach(m => trendMap[m] = { cattle: 0, goats: 0 });
 
-        livestock.forEach((l: any) => {
-            const date = new Date(l.registrationDate || l.created_at || new Date());
-            const month = months[date.getMonth()];
-            if (l.species === 'Cattle') trendMap[month].cattle++;
-            else if (l.species === 'Goats') trendMap[month].goats++;
-        });
+        // --- Activity Feed Construction ---
+        // Combine transfers, births, vaccinations, medications into a single timeline
+        const activities: ActivityItem[] = [];
 
-        const livestockTrend = months.map(month => ({
-            month,
-            cattle: trendMap[month].cattle,
-            goats: trendMap[month].goats
+        transfers.forEach((t: any) => activities.push({
+            id: `transfer-${t.id}`,
+            type: 'transfer',
+            title: 'Livestock Transfer',
+            description: `${t.livestockId ? 'Livestock #' + t.livestockId : 'Livestock'} transferred from ${t.sourceFarmUuid || 'Farm'} to ${t.destinationFarmUuid || 'Farm'}`,
+            date: t.transferDate || t.created_at || new Date().toISOString(),
+            link: '/lifecycle/transfers'
         }));
 
-        // Alerts (High Severity Medications/Events)
+        births.forEach((b: any) => activities.push({
+            id: `birth-${b.id}`,
+            type: 'birth',
+            title: 'Birth Recorded',
+            description: `New birth logged for Mother #${b.motherId || 'Unknown'}`,
+            date: b.birthDate || b.created_at || new Date().toISOString(),
+            link: '/reproduction/births'
+        }));
+
+        vaccinations.slice(0, 20).forEach((v: any) => activities.push({ // Limit older records
+            id: `vac-${v.id}`,
+            type: 'vaccination',
+            title: 'Vaccination Administered',
+            description: `Vaccination against ${v.diseaseId || 'Disease'} completed`,
+            date: v.vaccinationDate || v.created_at || new Date().toISOString(),
+            link: '/health/vaccinations'
+        }));
+
+        medications.slice(0, 20).forEach((m: any) => activities.push({
+            id: `med-${m.id}`,
+            type: 'treatment',
+            title: 'Medical Treatment',
+            description: `Treatment for ${m.disease || 'illness'} recorded`,
+            date: m.treatmentDate || m.created_at || new Date().toISOString(),
+            link: '/health/medications'
+        }));
+
+        // --- Alerts Logic ---
+        // High severity medications/diseases
         const alerts = medications
             .filter((m: any) => m.severity === 'critical' || m.severity === 'high')
             .map((m: any) => ({
                 id: m.id,
                 type: m.severity === 'critical' ? 'danger' : 'warning',
-                title: m.disease || 'Health Alert',
-                message: `${m.type} reported in ${m.farmName || 'Unknown Farm'}`,
+                title: 'Disease Alert',
+                message: `${m.disease || 'Unknown Disease'} outbreak reported in ${m.region || 'Unknown Region'}`,
                 region: m.region,
-                createdAt: m.reportedDate || m.created_at || new Date().toISOString()
+                createdAt: m.treatmentDate || new Date().toISOString()
             }))
             .slice(0, 5) as any[];
 
         return {
-            dashboardStats: { totalLivestock, activeLivestock, totalFarms, activeFarms, totalFarmers, vaccinationCoverage },
+            dashboardStats: {
+                totalLivestock,
+                activeLivestock,
+                totalFarms,
+                activeFarms,
+                totalFarmers: farmers.length,
+                vaccinationCoverage,
+                totalVets: vets.length,
+                totalOfficers: officers.length
+            },
             livestockTrend,
             speciesDistribution,
             regionalComparison,
+            activities,
             alerts
         };
     }, [data]);
@@ -238,71 +355,86 @@ export function Dashboard() {
         return <ErrorMessage message={error.message} onRetry={refetch} />;
     }
 
-    // In case no data yet
     if (!stats) return null;
 
-    const { dashboardStats, livestockTrend, speciesDistribution, regionalComparison, alerts } = stats;
+    const {
+        dashboardStats,
+        livestockTrend,
+        speciesDistribution,
+        regionalComparison,
+        activities,
+        alerts
+    } = stats;
 
     return (
         <div className="space-y-6">
-            {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    National Livestock Dashboard
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    Overview of livestock population and regulatory compliance across Tanzania
-                </p>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    title="Total Livestock"
-                    value={formatNumber(dashboardStats.totalLivestock)}
-                    subtitle={`${formatNumber(dashboardStats.activeLivestock)} active`}
-                    icon={Beef}
-                    trend={{ value: 5.2, label: 'vs last month' }}
-                    color="primary"
-                />
-                <StatCard
-                    title="Registered Farms"
-                    value={formatNumber(dashboardStats.totalFarms)}
-                    subtitle={`${formatNumber(dashboardStats.activeFarms)} active`}
-                    icon={Building2}
-                    trend={{ value: 3.1, label: 'vs last month' }}
-                    color="secondary"
-                />
-                <StatCard
-                    title="Registered Farmers"
-                    value={formatNumber(dashboardStats.totalFarmers)}
-                    icon={Users}
-                    trend={{ value: 2.8, label: 'vs last month' }}
-                    color="accent"
-                />
-                <StatCard
-                    title="Vaccination Coverage"
-                    value={formatPercentage(dashboardStats.vaccinationCoverage)}
-                    subtitle="Nationwide average"
-                    icon={Syringe}
-                    color="success"
-                />
-            </div>
-
-            {/* Charts Row */}
+            {/* Page Header & Account Widget */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Line Chart - Population Trend */}
-                <div className="lg:col-span-2 card">
-                    <div className="card-header">
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Livestock Population Trend
-                        </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Monthly registration data for the past year
+                <div className="lg:col-span-2 space-y-6">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                            Dashboard
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">
+                            National livestock tracking and surveillance overview
                         </p>
                     </div>
-                    <div className="card-body">
-                        <div className="h-80">
+
+                    {/* Primary KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <StatCard
+                            title="Total Livestock"
+                            value={formatNumber(dashboardStats.totalLivestock)}
+                            subtitle={`${formatNumber(dashboardStats.activeLivestock)} active animals`}
+                            icon={Beef}
+                            trend={{ value: 5.2, label: 'growth' }} // Mock trend
+                            color="primary"
+                        />
+                        <StatCard
+                            title="Active Farms"
+                            value={formatNumber(dashboardStats.activeFarms)}
+                            subtitle={`Out of ${formatNumber(dashboardStats.totalFarms)} registered`}
+                            icon={Building2}
+                            color="secondary"
+                        />
+                        <StatCard
+                            title="Vaccination Rate"
+                            value={formatPercentage(dashboardStats.vaccinationCoverage)}
+                            subtitle="Nationwide coverage"
+                            icon={Syringe}
+                            color={dashboardStats.vaccinationCoverage > 70 ? 'success' : 'warning'}
+                        />
+                        <StatCard
+                            title="System Users"
+                            value={formatNumber(dashboardStats.totalFarmers + dashboardStats.totalOfficers + dashboardStats.totalVets)}
+                            subtitle={`${dashboardStats.totalOfficers} Officers, ${dashboardStats.totalVets} Vets`}
+                            icon={Users}
+                            color="info"
+                        />
+                    </div>
+                </div>
+
+                {/* Account Widget Column */}
+                <div className="lg:col-span-1">
+                    <AccountWidget />
+                </div>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Left Column (Charts) */}
+                <div className="lg:col-span-2 space-y-6">
+
+                    {/* Livestock Trend Chart */}
+                    <div className="card">
+                        <div className="card-header">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                Population Growth
+                            </h2>
+                            <p className="text-sm text-slate-500">Registrations over the last 12 months</p>
+                        </div>
+                        <div className="card-body h-80">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={livestockTrend}>
                                     <defs>
@@ -317,151 +449,99 @@ export function Dashboard() {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                     <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val}`} />
                                     <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: '#1e293b',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            color: '#fff'
-                                        }}
-                                        formatter={(value) => formatNumber(value as number)}
+                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
                                     />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="cattle"
-                                        stroke="#3b82f6"
-                                        fillOpacity={1}
-                                        fill="url(#colorCattle)"
-                                        name="Cattle"
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="goats"
-                                        stroke="#10b981"
-                                        fillOpacity={1}
-                                        fill="url(#colorGoats)"
-                                        name="Goats"
-                                    />
+                                    <Area type="monotone" dataKey="cattle" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCattle)" name="Cattle" />
+                                    <Area type="monotone" dataKey="goats" stroke="#10b981" fillOpacity={1} fill="url(#colorGoats)" name="Goats" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
+
+                    {/* Regional & Species Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Species Distribution */}
+                        <div className="card">
+                            <div className="card-header">
+                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                    Species Mix
+                                </h2>
+                            </div>
+                            <div className="card-body h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={speciesDistribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                        >
+                                            {speciesDistribution.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                        />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Top Regions */}
+                        <div className="card">
+                            <div className="card-header">
+                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                    Top Regions
+                                </h2>
+                            </div>
+                            <div className="card-body h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={regionalComparison} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="region" type="category" stroke="#94a3b8" fontSize={11} width={80} />
+                                        <Tooltip
+                                            cursor={{ fill: 'transparent' }}
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                        />
+                                        <Bar dataKey="livestock" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Livestock" barSize={20} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Pie Chart - Species Distribution */}
-                <div className="card">
-                    <div className="card-header">
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Distribution by Species
-                        </h2>
-                    </div>
-                    <div className="card-body">
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={speciesDistribution}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                    >
-                                        {speciesDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        formatter={(value) => formatNumber(value as number ?? 0)}
-                                        contentStyle={{
-                                            backgroundColor: '#1e293b',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            color: '#fff'
-                                        }}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="mt-4 space-y-2">
-                            {speciesDistribution.map((item) => (
-                                <div key={item.name} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-3 h-3 rounded-full"
-                                            style={{ backgroundColor: item.color }}
-                                        />
-                                        <span className="text-sm text-slate-600 dark:text-slate-300">{item.name}</span>
-                                    </div>
-                                    <span className="text-sm font-medium text-slate-900 dark:text-white">
-                                        {formatNumber(item.value)}
-                                    </span>
-                                </div>
+                {/* Right Column (Feed & Alerts) */}
+                <div className="lg:col-span-1 space-y-6">
+                    {/* Alerts Section */}
+                    {alerts.length > 0 && (
+                        <div className="space-y-3">
+                            <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                <AlertCircle className="w-5 h-5 text-red-500" />
+                                Critical Alerts
+                            </h3>
+                            {alerts.map((alert) => (
+                                <AlertCard key={alert.id} {...alert} />
                             ))}
                         </div>
-                    </div>
-                </div>
-            </div>
+                    )}
 
-            {/* Regional Comparison & Alerts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Regional Bar Chart */}
-                <div className="lg:col-span-2 card">
-                    <div className="card-header">
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Regional Comparison (Top 10)
-                        </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Livestock population and vaccination rates by region
-                        </p>
-                    </div>
-                    <div className="card-body">
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={regionalComparison} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis type="number" stroke="#94a3b8" fontSize={12} tickFormatter={(val) => `${val / 1000}k`} />
-                                    <YAxis dataKey="region" type="category" stroke="#94a3b8" fontSize={11} width={80} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: '#1e293b',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            color: '#fff'
-                                        }}
-                                        formatter={(value, name) => [
-                                            name === 'vaccinationRate' ? `${value}%` : formatNumber(value as number),
-                                            name === 'vaccinationRate' ? 'Vaccination Rate' : 'Livestock'
-                                        ]}
-                                    />
-                                    <Legend />
-                                    <Bar dataKey="livestock" fill="#3b82f6" name="Livestock" radius={[0, 4, 4, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Alerts Panel */}
-                <div className="card">
-                    <div className="card-header">
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Alerts & Notifications
-                        </h2>
-                    </div>
-                    <div className="card-body space-y-4">
-                        {alerts.length > 0 ? (
-                            alerts.map((alert) => (
-                                <AlertCard key={alert.id} {...alert} />
-                            ))
-                        ) : (
-                            <p className="text-sm text-slate-500 text-center py-4">No active alerts</p>
-                        )}
+                    {/* Activity Feed */}
+                    <div className="h-[600px]">
+                        <RecentActivityFeed activities={activities} />
                     </div>
                 </div>
             </div>
         </div>
     );
 }
+
+export default Dashboard;

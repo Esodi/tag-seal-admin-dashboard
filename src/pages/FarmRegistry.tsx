@@ -1,303 +1,321 @@
-import { useState, useMemo } from 'react';
-import {
-    Search,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-    Eye,
-    MapPin,
-} from 'lucide-react';
-import { useApi } from '../hooks/useApi';
-import { api } from '../services/api';
-import { PageLoader } from '../components/ui/LoadingSpinner';
-import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { formatDate, formatNumber, cn } from '../lib/utils';
-
-const ITEMS_PER_PAGE = 10;
-
-// Farm item interface based on backend response
-interface FarmItem {
-    id: number;
-    uuid: string;
-    name: string;
-    referenceNo?: string;
-    farmerName?: string;
-    farmerId?: number;
-    regionName?: string;
-    regionId?: number;
-    districtName?: string;
-    districtId?: number;
-    wardName?: string;
-    wardId?: number;
-    livestock?: number;
-    status?: 'active' | 'inactive';
-    registeredAt?: string;
-    created_at?: string;
-    updated_at?: string;
-    latitude?: number;
-    longitude?: number;
-    size?: number | string;
-    sizeUnit?: string;
-    [key: string]: unknown;
-}
-
-// Region item interface
-interface RegionItem {
-    id: number;
-    name: string;
-    [key: string]: unknown;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { CrudPage, DataTableColumn, FormField, SelectOption } from '../components/crud';
+import { farmApi, farmerApi, locationApi, referenceApi } from '../services/api';
+import { Farm, Farmer, LegalStatus } from '../types/entities';
+import { formatDate } from '../lib/utils';
 
 export function FarmRegistry() {
-    const { data: farmsData, loading, error, refetch } = useApi<FarmItem[]>(() => api.farms.list() as Promise<FarmItem[]>, []);
-    const { data: regionsData } = useApi<RegionItem[]>(() => api.regions.list() as Promise<RegionItem[]>, []);
+    const [farms, setFarms] = useState<Farm[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | undefined>();
 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [regionFilter, setRegionFilter] = useState('All');
-    const [statusFilter, setStatusFilter] = useState('All');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [selectedFarm, setSelectedFarm] = useState<FarmItem | null>(null);
+    // Reference data for dropdowns
+    const [farmers, setFarmers] = useState<SelectOption[]>([]);
+    const [countries, setCountries] = useState<SelectOption[]>([]);
+    const [regions, setRegions] = useState<SelectOption[]>([]);
+    const [districts, setDistricts] = useState<SelectOption[]>([]);
+    const [wards, setWards] = useState<SelectOption[]>([]);
+    const [villages, setVillages] = useState<SelectOption[]>([]);
+    const [legalStatuses, setLegalStatuses] = useState<SelectOption[]>([]);
 
-    // Use API data or empty arrays
-    const farms = farmsData ?? [];
-    const regions = regionsData ?? [];
+    // Lookup maps for displaying names
+    const [farmersMap, setFarmersMap] = useState<Map<number, string>>(new Map());
+    const [regionsMap, setRegionsMap] = useState<Map<number, string>>(new Map());
+    const [districtsMap, setDistrictsMap] = useState<Map<number, string>>(new Map());
+    const [legalStatusesMap, setLegalStatusesMap] = useState<Map<number, string>>(new Map());
 
-    // Filter and search logic
-    const filteredFarms = useMemo(() => {
-        return farms.filter((item: FarmItem) => {
-            const matchesSearch =
-                searchQuery === '' ||
-                (item.name ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (item.referenceNo ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (item.farmerName ?? '').toLowerCase().includes(searchQuery.toLowerCase());
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        setError(undefined);
+        try {
+            const [farmsData, farmersData, countriesData, regionsData, districtsData, legalStatusesData] = await Promise.all([
+                farmApi.list(),
+                farmerApi.list(),
+                locationApi.countries.list(),
+                locationApi.regions.list(),
+                locationApi.districts.list(),
+                referenceApi.legalStatuses.list(),
+            ]);
 
-            const matchesRegion = regionFilter === 'All' || item.regionName === regionFilter;
-            const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+            setFarms(farmsData);
 
-            return matchesSearch && matchesRegion && matchesStatus;
-        });
-    }, [farms, searchQuery, regionFilter, statusFilter]);
+            // Build farmer options with full name
+            const farmerOptions = farmersData.map(f => ({
+                value: f.id,
+                label: `${f.firstName} ${f.middleName || ''} ${f.surname}`.trim() + (f.farmerNo ? ` (${f.farmerNo})` : ''),
+            }));
+            setFarmers(farmerOptions);
+            setFarmersMap(new Map(farmersData.map(f => [f.id, `${f.firstName} ${f.surname}`])));
 
-    // Pagination
-    const totalPages = Math.ceil(filteredFarms.length / ITEMS_PER_PAGE) || 1;
-    const paginatedFarms = filteredFarms.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+            setCountries(countriesData.map(c => ({ value: c.id, label: c.name })));
+            setRegions(regionsData.map(r => ({ value: r.id, label: r.name })));
+            setDistricts(districtsData.map(d => ({ value: d.id, label: d.name })));
+            setLegalStatuses(legalStatusesData.map(l => ({ value: l.id, label: l.name })));
 
-    // Loading state
-    if (loading) {
-        return <PageLoader />;
-    }
+            // Build lookup maps
+            setRegionsMap(new Map(regionsData.map(r => [r.id, r.name])));
+            setDistrictsMap(new Map(districtsData.map(d => [d.id, d.name])));
+            setLegalStatusesMap(new Map(legalStatusesData.map(l => [l.id, l.name])));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load farms');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-    // Error state
-    if (error) {
-        return <ErrorMessage message={error.message} onRetry={refetch} />;
-    }
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const columns: DataTableColumn<Farm>[] = [
+        { id: 'referenceNo', header: 'Farm Ref', accessorKey: 'referenceNo', size: 120 },
+        { id: 'name', header: 'Farm Name', accessorKey: 'name' },
+        {
+            id: 'farmer',
+            header: 'Owner',
+            accessorFn: (row) => farmersMap.get(row.farmerId) || '-',
+        },
+        {
+            id: 'region',
+            header: 'Region',
+            accessorFn: (row) => regionsMap.get(row.regionId || 0) || '-',
+        },
+        {
+            id: 'district',
+            header: 'District',
+            accessorFn: (row) => districtsMap.get(row.districtId || 0) || '-',
+        },
+        {
+            id: 'size',
+            header: 'Size',
+            accessorFn: (row) => row.size ? `${row.size} ${row.sizeUnit || 'ha'}` : '-',
+        },
+        {
+            id: 'legalStatus',
+            header: 'Legal Status',
+            accessorFn: (row) => legalStatusesMap.get(row.legalStatusId || 0) || '-',
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            accessorKey: 'status',
+            cell: ({ getValue }) => {
+                const status = String(getValue()).toLowerCase();
+                return (
+                    <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                        {status}
+                    </span>
+                );
+            },
+        },
+    ];
+
+    const formFields: FormField<Partial<Farm>>[] = [
+        // Basic Information
+        {
+            name: 'name',
+            label: 'Farm Name',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter farm name',
+        },
+        {
+            name: 'farmerId',
+            label: 'Farm Owner',
+            type: 'select',
+            required: true,
+            options: farmers,
+            placeholder: 'Select farmer',
+        },
+        {
+            name: 'referenceNo',
+            label: 'Reference Number',
+            type: 'text',
+            placeholder: 'Auto-generated if empty',
+            helpText: 'Leave blank to auto-generate',
+        },
+        {
+            name: 'regionalRegNo',
+            label: 'Regional Reg. Number',
+            type: 'text',
+            placeholder: 'Regional registration number',
+        },
+
+        // Size and Location
+        {
+            name: 'size',
+            label: 'Farm Size',
+            type: 'number',
+            placeholder: 'Enter size',
+            min: 0,
+        },
+        {
+            name: 'sizeUnit',
+            label: 'Size Unit',
+            type: 'select',
+            options: [
+                { value: 'ha', label: 'Hectares (ha)' },
+                { value: 'acres', label: 'Acres' },
+                { value: 'sqm', label: 'Square Meters' },
+            ],
+            defaultValue: 'ha',
+        },
+
+        // GPS Coordinates
+        {
+            name: 'latitudes',
+            label: 'Latitude',
+            type: 'text',
+            placeholder: '-6.7924',
+        },
+        {
+            name: 'longitudes',
+            label: 'Longitude',
+            type: 'text',
+            placeholder: '39.2083',
+        },
+
+        // Location (cascading)
+        {
+            name: 'countryId',
+            label: 'Country',
+            type: 'select',
+            options: countries,
+            placeholder: 'Select country',
+        },
+        {
+            name: 'regionId',
+            label: 'Region',
+            type: 'select',
+            options: regions,
+            placeholder: 'Select region',
+        },
+        {
+            name: 'districtId',
+            label: 'District',
+            type: 'select',
+            options: districts,
+            placeholder: 'Select district',
+        },
+        {
+            name: 'wardId',
+            label: 'Ward',
+            type: 'select',
+            options: wards,
+            placeholder: 'Select ward',
+        },
+        {
+            name: 'villageId',
+            label: 'Village',
+            type: 'select',
+            options: villages,
+            placeholder: 'Select village',
+        },
+        {
+            name: 'physicalAddress',
+            label: 'Physical Address',
+            type: 'textarea',
+            placeholder: 'Enter physical address or directions',
+            colSpan: 2,
+        },
+
+        // Legal and Status
+        {
+            name: 'legalStatusId',
+            label: 'Legal Status',
+            type: 'select',
+            options: legalStatuses,
+            placeholder: 'Select legal status',
+        },
+        {
+            name: 'status',
+            label: 'Status',
+            type: 'select',
+            options: [
+                { value: 'Active', label: 'Active' },
+                { value: 'Inactive', label: 'Inactive' },
+            ],
+            defaultValue: 'Active',
+        },
+    ];
+
+    const detailFields = [
+        { key: 'referenceNo' as keyof Farm, label: 'Reference Number' },
+        { key: 'regionalRegNo' as keyof Farm, label: 'Regional Reg. Number' },
+        { key: 'name' as keyof Farm, label: 'Farm Name' },
+        {
+            key: 'farmerId' as keyof Farm,
+            label: 'Owner',
+            render: (value: unknown) => farmersMap.get(Number(value)) || '-',
+        },
+        {
+            key: 'size' as keyof Farm,
+            label: 'Farm Size',
+            render: (value: unknown, data: Farm) => value ? `${value} ${data.sizeUnit || 'ha'}` : '-',
+        },
+        {
+            key: 'legalStatusId' as keyof Farm,
+            label: 'Legal Status',
+            render: (value: unknown) => legalStatusesMap.get(Number(value)) || '-',
+        },
+        { key: 'latitudes' as keyof Farm, label: 'Latitude' },
+        { key: 'longitudes' as keyof Farm, label: 'Longitude' },
+        {
+            key: 'regionId' as keyof Farm,
+            label: 'Region',
+            render: (value: unknown) => regionsMap.get(Number(value)) || '-',
+        },
+        {
+            key: 'districtId' as keyof Farm,
+            label: 'District',
+            render: (value: unknown) => districtsMap.get(Number(value)) || '-',
+        },
+        { key: 'physicalAddress' as keyof Farm, label: 'Physical Address' },
+        { key: 'status' as keyof Farm, label: 'Status' },
+        {
+            key: 'created_at' as keyof Farm,
+            label: 'Registered',
+            render: (value: unknown) => value ? formatDate(String(value)) : '-',
+        },
+    ];
+
+    const handleCreate = async (data: Partial<Farm>) => {
+        await farmApi.create(data);
+    };
+
+    const handleUpdate = async (id: number | string, data: Partial<Farm>) => {
+        await farmApi.update(Number(id), data);
+    };
+
+    const handleDelete = async (id: number | string) => {
+        await farmApi.delete(Number(id));
+    };
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    Farm Registry
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    National farm database - {filteredFarms.length.toLocaleString()} records found
-                </p>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="card p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by name, reference, or farmer..."
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-slate-400" />
-                        <select
-                            value={regionFilter}
-                            onChange={(e) => {
-                                setRegionFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option value="All">All Regions</option>
-                            {regions.map((region: RegionItem) => (
-                                <option key={region.id} value={region.name}>
-                                    {region.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <option value="All">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Data Table */}
-            <div className="card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Reference</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Farm Name</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Farmer</th>
-                                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Region</th>
-                                <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Livestock</th>
-                                <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Size (ha)</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Status</th>
-                                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedFarms.map((item) => (
-                                <tr
-                                    key={item.id}
-                                    className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                >
-                                    <td className="py-3 px-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                                        {item.referenceNo}
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-medium">{item.name}</td>
-                                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{item.farmerName}</td>
-                                    <td className="py-3 px-4">
-                                        <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                                            <MapPin className="w-3 h-3" />
-                                            {item.regionName}
-                                        </div>
-                                    </td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">
-                                        {formatNumber(typeof item.livestock === 'number' ? item.livestock : 0)}
-                                    </td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{item.size ?? '-'}</td>
-                                    <td className="py-3 px-4 text-center">
-                                        <span className={cn('badge', item.status === 'active' ? 'badge-success' : 'badge-danger')}>
-                                            {item.status}
-                                        </span>
-                                    </td>
-                                    <td className="py-3 px-4 text-center">
-                                        <button
-                                            onClick={() => setSelectedFarm(item)}
-                                            className="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-                        {Math.min(currentPage * ITEMS_PER_PAGE, filteredFarms.length)} of {filteredFarms.length}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="text-sm">Page {currentPage} of {totalPages}</span>
-                        <button
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Detail Modal */}
-            {selectedFarm && (
-                <>
-                    <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setSelectedFarm(null)} />
-                    <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-lg bg-white dark:bg-slate-800 rounded-xl shadow-xl z-50 overflow-auto max-h-[90vh]">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedFarm.name}</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{selectedFarm.referenceNo}</p>
-                        </div>
-                        <div className="p-6 grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farmer</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarm.farmerName}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Status</label>
-                                <span className={cn('badge', selectedFarm.status === 'active' ? 'badge-success' : 'badge-danger')}>
-                                    {selectedFarm.status}
-                                </span>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Region</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarm.regionName}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">District</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarm.districtName}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Ward</label>
-                                <p className="text-slate-900 dark:text-white">{selectedFarm.wardName}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white">{formatNumber(typeof selectedFarm.livestock === 'number' ? selectedFarm.livestock : 0)}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Size</label>
-                                <p className="text-slate-900 dark:text-white">{String(selectedFarm.size ?? '-')} {String(selectedFarm.sizeUnit ?? '')}</p>
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered</label>
-                                <p className="text-slate-900 dark:text-white">{formatDate(selectedFarm.registeredAt ?? selectedFarm.created_at ?? '')}</p>
-                            </div>
-                        </div>
-                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-                            <button
-                                onClick={() => setSelectedFarm(null)}
-                                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
+        <CrudPage
+            title="Farm Registry"
+            description={`Registered farms - ${farms.length.toLocaleString()} records`}
+            data={farms}
+            loading={loading}
+            error={error}
+            columns={columns}
+            formFields={formFields}
+            detailFields={detailFields}
+            formColumns={2}
+            onCreate={handleCreate}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onRefresh={fetchData}
+            createLabel="Add Farm"
+            createModalSize="xl"
+            editModalSize="xl"
+            viewModalSize="lg"
+            tableProps={{
+                searchPlaceholder: 'Search by name, reference, or owner...',
+                enableRowSelection: true,
+            }}
+        />
     );
 }
+
+export default FarmRegistry;

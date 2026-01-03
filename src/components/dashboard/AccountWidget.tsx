@@ -1,0 +1,56 @@
+import { useAuth } from '../../contexts/AuthContext';
+import { User, getUserDisplayName } from '../../types/entities/user';
+import { UserCircle, Shield, Calendar, MapPin } from 'lucide-react';
+
+export function AccountWidget() {
+    const { user } = useAuth();
+
+    if (!user) return null;
+
+    const displayName = getUserDisplayName(user);
+    const roleLabel = user.role.replace(/([A-Z])/g, ' $1').trim(); // CamelCase to spaced
+    const dateJoined = new Date(user.created_at || Date.now()).toLocaleDateString();
+
+    // Determine location if applicable (for officers/farmers)
+    let location = 'System Wide';
+    if (user.profile && 'district' in user.profile && user.profile.district) {
+        location = user.profile.district.name;
+    } else if (user.profile && 'ward' in user.profile && user.profile.ward) {
+        location = user.profile.ward.name;
+    }
+
+    return (
+        <div className="card p-6 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-xl">
+            <div className="flex items-start gap-4">
+                <div className="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-full">
+                    <UserCircle className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                </div>
+                <div className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        Welcome back, {displayName}
+                    </h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
+                        {user.email}
+                    </p>
+
+                    <div className="flex flex-wrap gap-3 mt-2">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">
+                            <Shield className="w-3.5 h-3.5" />
+                            <span className="capitalize">{roleLabel}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Joined {dateJoined}</span>
+                        </div>
+                        {location && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span>{location}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

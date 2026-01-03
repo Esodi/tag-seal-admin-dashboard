@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// API Service with generic CRUD factory
+// This replaces the basic api.ts with a more robust implementation
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 // Token management
 let authToken: string | null = localStorage.getItem('auth_token');
@@ -21,39 +24,17 @@ export function isAuthenticated(): boolean {
     return !!authToken;
 }
 
-// Generic fetch wrapper with error handling
-async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-        ...options.headers,
-    };
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
-
-    if (!response.ok) {
-        if (response.status === 401) {
-            clearAuthToken();
-            // Redirect to login if unauthorized
-            window.location.href = '/login';
-        }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `API Error: ${response.status}`);
-    }
-
-    return response.json();
+// List parameters for pagination/filtering
+export interface ListParams {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    [key: string]: string | number | boolean | undefined;
 }
 
-// API Response Types
-export interface ApiResponse<T> {
-    data: T;
-    message?: string;
-}
-
+// Paginated response from API
 export interface PaginatedResponse<T> {
     data: T[];
     current_page: number;
@@ -62,7 +43,133 @@ export interface PaginatedResponse<T> {
     last_page: number;
 }
 
-// Auth Types
+// API Error class
+export class ApiError extends Error {
+    status: number;
+    data?: Record<string, unknown>;
+
+    constructor(message: string, status: number, data?: Record<string, unknown>) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.data = data;
+    }
+}
+
+// Build query string from params
+function buildQueryString(params?: ListParams): string {
+    if (!params) return '';
+    const filtered = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+    return filtered.length > 0 ? `?${filtered.join('&')}` : '';
+}
+
+// Generic fetch wrapper with error handling
+async function fetchAPI<T>(
+    endpoint: string,
+    options: RequestInit & { params?: ListParams } = {}
+): Promise<T> {
+    const { params, ...fetchOptions } = options;
+    const queryString = buildQueryString(params);
+    const url = `${API_BASE_URL}${endpoint}${queryString}`;
+
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        ...fetchOptions.headers,
+    };
+
+    try {
+        const response = await fetch(url, {
+            ...fetchOptions,
+            headers,
+        });
+
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+            clearAuthToken();
+            window.location.href = '/login';
+            throw new ApiError('Unauthorized', 401);
+        }
+
+        // Handle error responses
+        if (!response.ok) {
+            let errorData: Record<string, unknown> = {};
+            try {
+                errorData = await response.json();
+            } catch {
+                // Response might not be JSON
+            }
+            const message =
+                (errorData.message as string) ||
+                (errorData.error as string) ||
+                `API Error: ${response.status}`;
+            throw new ApiError(message, response.status, errorData);
+        }
+
+        // Handle 204 No Content
+        if (response.status === 204) {
+            return undefined as T;
+        }
+
+        return response.json();
+    } catch (error) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        // Network or other error
+        throw new ApiError(
+            error instanceof Error ? error.message : 'Network error',
+            0
+        );
+    }
+}
+
+// Generic CRUD endpoints factory
+export interface CrudEndpoints<T, CreateDTO = Partial<T>, UpdateDTO = Partial<T>> {
+    list: (params?: ListParams) => Promise<T[]>;
+    listPaginated: (params?: ListParams) => Promise<PaginatedResponse<T>>;
+    get: (id: number | string) => Promise<T>;
+    create: (data: CreateDTO) => Promise<T>;
+    update: (id: number | string, data: UpdateDTO) => Promise<T>;
+    delete: (id: number | string) => Promise<void>;
+}
+
+export function createCrudEndpoints<T, CreateDTO = Partial<T>, UpdateDTO = Partial<T>>(
+    basePath: string
+): CrudEndpoints<T, CreateDTO, UpdateDTO> {
+    return {
+        list: (params?: ListParams) =>
+            fetchAPI<T[]>(basePath, { params }),
+
+        listPaginated: (params?: ListParams) =>
+            fetchAPI<PaginatedResponse<T>>(basePath, { params }),
+
+        get: (id: number | string) =>
+            fetchAPI<T>(`${basePath}/${id}`),
+
+        create: (data: CreateDTO) =>
+            fetchAPI<T>(basePath, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            }),
+
+        update: (id: number | string, data: UpdateDTO) =>
+            fetchAPI<T>(`${basePath}/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            }),
+
+        delete: (id: number | string) =>
+            fetchAPI<void>(`${basePath}/${id}`, {
+                method: 'DELETE',
+            }),
+    };
+}
+
+// Auth types
 export interface LoginCredentials {
     login: string;
     password: string;
@@ -78,158 +185,306 @@ export interface AuthResponse {
     };
 }
 
-// API methods organized by domain
+export interface CurrentUser {
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+    status: string;
+    profile?: Record<string, unknown>;
+}
+
+// ============================================
+// API Endpoints organized by domain
+// ============================================
+
+// Authentication
+export const authApi = {
+    login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+        const response = await fetchAPI<AuthResponse>('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ ...credentials, device_name: 'Admin Dashboard' }),
+        });
+        if (response.token) {
+            setAuthToken(response.token);
+        }
+        return response;
+    },
+
+    logout: () => {
+        const promise = fetchAPI('/auth/logout', { method: 'POST' });
+        clearAuthToken();
+        return promise;
+    },
+
+    profile: () => fetchAPI<CurrentUser>('/auth/profile'),
+
+    refreshToken: () => fetchAPI<{ token: string }>('/auth/refresh', { method: 'POST' }),
+};
+
+// Import types for type safety
+import type {
+    Country,
+    Region,
+    District,
+    Ward,
+    Village,
+    Street,
+    Division,
+} from '../types/entities/location';
+import type {
+    Livestock,
+    Specie,
+    Breed,
+    LivestockType,
+    LivestockObtainedMethod,
+    LivestockFormData,
+} from '../types/entities/livestock';
+import type { Farm, FarmFormData, LegalStatus, FarmUser } from '../types/entities/farm';
+import type { Farmer, FarmerFormData, IdentityCardType, SchoolLevel } from '../types/entities/farmer';
+import type {
+    User,
+    SystemUser,
+    ExtensionOfficer,
+    Vet,
+    ExtensionOfficerFarmInvite,
+    OtpVerification,
+} from '../types/entities/user';
+import type {
+    Disease,
+    Vaccine,
+    VaccineType,
+    Medicine,
+    MedicineType,
+    AdministrationRoute,
+    Vaccination,
+    Medication,
+    Deworming,
+    VaccinationFormData,
+    MedicationFormData,
+    DewormingFormData,
+} from '../types/entities/health';
+import type {
+    BirthType,
+    BirthProblem,
+    CalvingType,
+    CalvingProblem,
+    HeatType,
+    SemenStrawType,
+    InseminationService,
+    ReproductiveProblem,
+    Pregnancy,
+    BirthEvent,
+    Calving,
+    Insemination,
+    AbortedPregnancy,
+    Dryoff,
+} from '../types/entities/reproduction';
+import type {
+    DisposalType,
+    FeedingType,
+    MilkingMethod,
+    Transfer,
+    Disposal,
+    WeightChange,
+    Feeding,
+    Milking,
+} from '../types/entities/lifecycle';
+
+// ============================================
+// Location Endpoints
+// ============================================
+export const locationApi = {
+    countries: createCrudEndpoints<Country>('/v1/admin/locations/countries'),
+    regions: createCrudEndpoints<Region>('/v1/admin/locations/regions'),
+    districts: createCrudEndpoints<District>('/v1/admin/locations/districts'),
+    wards: createCrudEndpoints<Ward>('/v1/admin/locations/wards'),
+    villages: createCrudEndpoints<Village>('/v1/admin/locations/villages'),
+    streets: createCrudEndpoints<Street>('/v1/admin/locations/streets'),
+    divisions: createCrudEndpoints<Division>('/v1/admin/locations/divisions'),
+
+    // Convenience methods for cascading selects
+    getRegionsByCountry: (countryId: number) =>
+        fetchAPI<Region[]>(`/v1/admin/locations/countries/${countryId}/regions`),
+    getDistrictsByRegion: (regionId: number) =>
+        fetchAPI<District[]>(`/v1/admin/locations/regions/${regionId}/districts`),
+    getWardsByDistrict: (districtId: number) =>
+        fetchAPI<Ward[]>(`/v1/admin/locations/districts/${districtId}/wards`),
+    getVillagesByWard: (wardId: number) =>
+        fetchAPI<Village[]>(`/v1/admin/locations/wards/${wardId}/villages`),
+    getStreetsByVillage: (villageId: number) =>
+        fetchAPI<Street[]>(`/v1/admin/locations/villages/${villageId}/streets`),
+};
+
+// ============================================
+// Core Entity Endpoints
+// ============================================
+export const livestockApi = {
+    ...createCrudEndpoints<Livestock, LivestockFormData>('/v1/admin/entities/livestock'),
+    getByFarm: (farmUuid: string) =>
+        fetchAPI<Livestock[]>(`/v1/admin/entities/farms/${farmUuid}/livestock`),
+};
+
+export const farmApi = {
+    ...createCrudEndpoints<Farm, FarmFormData>('/v1/admin/entities/farms'),
+    getByFarmer: (farmerId: number) =>
+        fetchAPI<Farm[]>(`/v1/admin/entities/farmers/${farmerId}/farms`),
+};
+
+export const farmerApi = createCrudEndpoints<Farmer, FarmerFormData>('/v1/admin/entities/farmers');
+
+// ============================================
+// User Endpoints
+// ============================================
+export const userApi = {
+    ...createCrudEndpoints<User>('/v1/admin/users'),
+    statistics: () => fetchAPI<Record<string, number>>('/v1/admin/users/statistics'),
+};
+
+export const systemUserApi = createCrudEndpoints<SystemUser>('/v1/admin/users/system-users');
+export const extensionOfficerApi = createCrudEndpoints<ExtensionOfficer>('/v1/admin/entities/extension-officers');
+export const vetApi = createCrudEndpoints<Vet>('/v1/admin/entities/vets');
+export const farmUserApi = createCrudEndpoints<FarmUser>('/v1/admin/entities/farm-users');
+export const extensionOfficerFarmInviteApi = createCrudEndpoints<ExtensionOfficerFarmInvite>('/v1/admin/entities/extension-officer-farm-invites');
+export const otpVerificationApi = createCrudEndpoints<OtpVerification>('/v1/admin/entities/otp-verifications');
+
+// ============================================
+// Reference Data Endpoints
+// ============================================
+export const referenceApi = {
+    // Livestock reference
+    species: createCrudEndpoints<Specie>('/v1/admin/reference/species'),
+    breeds: createCrudEndpoints<Breed>('/v1/admin/reference/breeds'),
+    livestockTypes: createCrudEndpoints<LivestockType>('/v1/admin/reference/livestock-types'),
+    livestockObtainedMethods: createCrudEndpoints<LivestockObtainedMethod>('/v1/admin/reference/livestock-obtained-methods'),
+    legalStatuses: createCrudEndpoints<LegalStatus>('/v1/admin/reference/legal-statuses'),
+
+    // User reference
+    identityCardTypes: createCrudEndpoints<IdentityCardType>('/v1/admin/reference/identity-card-types'),
+    schoolLevels: createCrudEndpoints<SchoolLevel>('/v1/admin/reference/school-levels'),
+
+    // Health reference
+    diseases: createCrudEndpoints<Disease>('/v1/admin/reference/diseases'),
+    vaccines: createCrudEndpoints<Vaccine>('/v1/admin/reference/vaccines'),
+    vaccineTypes: createCrudEndpoints<VaccineType>('/v1/admin/reference/vaccine-types'),
+    medicines: createCrudEndpoints<Medicine>('/v1/admin/reference/medicines'),
+    medicineTypes: createCrudEndpoints<MedicineType>('/v1/admin/reference/medicine-types'),
+    administrationRoutes: createCrudEndpoints<AdministrationRoute>('/v1/admin/reference/administration-routes'),
+
+    // Reproduction reference
+    birthTypes: createCrudEndpoints<BirthType>('/v1/admin/reference/birth-types'),
+    birthProblems: createCrudEndpoints<BirthProblem>('/v1/admin/reference/birth-problems'),
+    calvingTypes: createCrudEndpoints<CalvingType>('/v1/admin/reference/calving-types'),
+    calvingProblems: createCrudEndpoints<CalvingProblem>('/v1/admin/reference/calving-problems'),
+    heatTypes: createCrudEndpoints<HeatType>('/v1/admin/reference/heat-types'),
+    semenStrawTypes: createCrudEndpoints<SemenStrawType>('/v1/admin/reference/semen-straw-types'),
+    inseminationServices: createCrudEndpoints<InseminationService>('/v1/admin/reference/insemination-services'),
+    reproductiveProblems: createCrudEndpoints<ReproductiveProblem>('/v1/admin/reference/reproductive-problems'),
+
+    // Lifecycle reference
+    disposalTypes: createCrudEndpoints<DisposalType>('/v1/admin/reference/disposal-types'),
+    feedingTypes: createCrudEndpoints<FeedingType>('/v1/admin/reference/feeding-types'),
+    milkingMethods: createCrudEndpoints<MilkingMethod>('/v1/admin/reference/milking-methods'),
+};
+
+// ============================================
+// Event Log Endpoints
+// ============================================
+export const healthLogApi = {
+    vaccinations: createCrudEndpoints<Vaccination, VaccinationFormData>('/v1/admin/logs/vaccinations'),
+    medications: createCrudEndpoints<Medication, MedicationFormData>('/v1/admin/logs/medications'),
+    dewormings: createCrudEndpoints<Deworming, DewormingFormData>('/v1/admin/logs/dewormings'),
+};
+
+export const reproductionLogApi = {
+    pregnancies: createCrudEndpoints<Pregnancy>('/v1/admin/logs/pregnancies'),
+    birthEvents: createCrudEndpoints<BirthEvent>('/v1/admin/logs/birth-events'),
+    calvings: createCrudEndpoints<Calving>('/v1/admin/logs/calvings'),
+    inseminations: createCrudEndpoints<Insemination>('/v1/admin/logs/inseminations'),
+    abortedPregnancies: createCrudEndpoints<AbortedPregnancy>('/v1/admin/logs/aborted-pregnancies'),
+    dryoffs: createCrudEndpoints<Dryoff>('/v1/admin/logs/dryoffs'),
+};
+
+export const lifecycleLogApi = {
+    transfers: createCrudEndpoints<Transfer>('/v1/admin/logs/transfers'),
+    disposals: createCrudEndpoints<Disposal>('/v1/admin/logs/disposals'),
+    weightChanges: createCrudEndpoints<WeightChange>('/v1/admin/logs/weight-changes'),
+    feedings: createCrudEndpoints<Feeding>('/v1/admin/logs/feedings'),
+    milkings: createCrudEndpoints<Milking>('/v1/admin/logs/milkings'),
+};
+
+// ============================================
+// Legacy API object for backwards compatibility
+// ============================================
+// ============================================
+// API Aliases for easier imports
+// ============================================
+export const vaccinationApi = healthLogApi.vaccinations;
+export const medicationApi = healthLogApi.medications;
+export const dewormingApi = healthLogApi.dewormings;
+
+export const diseaseApi = referenceApi.diseases;
+export const vaccineApi = referenceApi.vaccines;
+export const vaccineTypeApi = referenceApi.vaccineTypes;
+export const medicineApi = referenceApi.medicines;
+export const medicineTypeApi = referenceApi.medicineTypes;
+export const administrationRouteApi = referenceApi.administrationRoutes;
+
+// Reproduction Reference Aliases
+export const birthTypeApi = referenceApi.birthTypes;
+export const birthProblemApi = referenceApi.birthProblems;
+export const calvingTypeApi = referenceApi.calvingTypes;
+export const calvingProblemApi = referenceApi.calvingProblems;
+export const heatTypeApi = referenceApi.heatTypes;
+export const semenStrawTypeApi = referenceApi.semenStrawTypes;
+export const inseminationServiceApi = referenceApi.inseminationServices;
+export const reproductiveProblemApi = referenceApi.reproductiveProblems;
+
+// Lifecycle Reference Aliases
+export const disposalTypeApi = referenceApi.disposalTypes;
+export const feedingTypeApi = referenceApi.feedingTypes;
+export const milkingMethodApi = referenceApi.milkingMethods;
+
+// Reproduction Logs Aliases
+export const pregnancyApi = reproductionLogApi.pregnancies;
+export const birthEventApi = reproductionLogApi.birthEvents;
+export const calvingApi = reproductionLogApi.calvings;
+export const inseminationApi = reproductionLogApi.inseminations;
+export const abortedPregnancyApi = reproductionLogApi.abortedPregnancies;
+export const dryoffApi = reproductionLogApi.dryoffs;
+
+// Lifecycle Logs Aliases
+export const transferApi = lifecycleLogApi.transfers;
+export const disposalApi = lifecycleLogApi.disposals;
+export const weightChangeApi = lifecycleLogApi.weightChanges;
+export const feedingApi = lifecycleLogApi.feedings;
+export const milkingApi = lifecycleLogApi.milkings;
+
+// ============================================
+// Legacy API object for backwards compatibility
+// ============================================
 export const api = {
-    // Authentication
-    auth: {
-        login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-            const response = await fetchAPI<AuthResponse>('/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ ...credentials, device_name: 'Admin Dashboard' }),
-            });
-            if (response.token) {
-                setAuthToken(response.token);
-            }
-            return response;
-        },
-        logout: () => fetchAPI('/auth/logout', { method: 'POST' }),
-        profile: () => fetchAPI('/auth/profile'),
-    },
-
-    // Entities - Livestock
-    livestock: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/entities/livestock'),
-        get: (id: number) => fetchAPI(`/v1/admin/entities/livestock/${id}`),
-        create: (data: unknown) => fetchAPI('/v1/admin/entities/livestock', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
-        update: (id: number, data: unknown) => fetchAPI(`/v1/admin/entities/livestock/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        }),
-        delete: (id: number) => fetchAPI(`/v1/admin/entities/livestock/${id}`, {
-            method: 'DELETE',
-        }),
-    },
-
-    // Entities - Farms
-    farms: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/entities/farms'),
-        get: (id: number) => fetchAPI(`/v1/admin/entities/farms/${id}`),
-        create: (data: unknown) => fetchAPI('/v1/admin/entities/farms', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
-        update: (id: number, data: unknown) => fetchAPI(`/v1/admin/entities/farms/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        }),
-        delete: (id: number) => fetchAPI(`/v1/admin/entities/farms/${id}`, {
-            method: 'DELETE',
-        }),
-    },
-
-    // Entities - Farmers
-    farmers: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/entities/farmers'),
-        get: (id: number) => fetchAPI(`/v1/admin/entities/farmers/${id}`),
-        create: (data: unknown) => fetchAPI('/v1/admin/entities/farmers', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        }),
-        update: (id: number, data: unknown) => fetchAPI(`/v1/admin/entities/farmers/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        }),
-        delete: (id: number) => fetchAPI(`/v1/admin/entities/farmers/${id}`, {
-            method: 'DELETE',
-        }),
-    },
-
-    // Entities - Vets
-    vets: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/entities/vets'),
-        get: (id: number) => fetchAPI(`/v1/admin/entities/vets/${id}`),
-    },
-
-    // Locations - Regions
-    regions: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/locations/regions'),
-        get: (id: number) => fetchAPI(`/v1/admin/locations/regions/${id}`),
-    },
-
-    // Locations - Districts
-    districts: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/locations/districts'),
-        get: (id: number) => fetchAPI(`/v1/admin/locations/districts/${id}`),
-    },
-
-    // Locations - Wards
-    wards: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/locations/wards'),
-        get: (id: number) => fetchAPI(`/v1/admin/locations/wards/${id}`),
-    },
-
-    // Locations - Villages
-    villages: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/locations/villages'),
-        get: (id: number) => fetchAPI(`/v1/admin/locations/villages/${id}`),
-    },
-
-    // Logs - Vaccinations
-    vaccinations: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/logs/vaccinations'),
-        get: (id: number) => fetchAPI(`/v1/admin/logs/vaccinations/${id}`),
-    },
-
-    // Logs - Transfers (Movement Tracking)
-    transfers: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/logs/transfers'),
-        get: (id: number) => fetchAPI(`/v1/admin/logs/transfers/${id}`),
-    },
-
-    // Logs - Medications
-    medications: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/logs/medications'),
-        get: (id: number) => fetchAPI(`/v1/admin/logs/medications/${id}`),
-    },
-
-    // Logs - Dewormings
-    dewormings: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/logs/dewormings'),
-        get: (id: number) => fetchAPI(`/v1/admin/logs/dewormings/${id}`),
-    },
-
-    // Logs - Birth Events
-    birthEvents: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/logs/birth-events'),
-        get: (id: number) => fetchAPI(`/v1/admin/logs/birth-events/${id}`),
-    },
-
-    // Logs - Disposals
-    disposals: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/logs/disposals'),
-        get: (id: number) => fetchAPI(`/v1/admin/logs/disposals/${id}`),
-    },
-
-    // Reference Data
+    auth: authApi,
+    livestock: livestockApi,
+    farms: farmApi,
+    farmers: farmerApi,
+    users: userApi,
+    regions: locationApi.regions,
+    districts: locationApi.districts,
+    wards: locationApi.wards,
+    villages: locationApi.villages,
+    vaccinations: healthLogApi.vaccinations,
+    medications: healthLogApi.medications,
+    transfers: lifecycleLogApi.transfers,
     reference: {
-        livestockTypes: () => fetchAPI<unknown[]>('/v1/admin/reference/livestock-types'),
-        species: () => fetchAPI<unknown[]>('/v1/admin/reference/species'),
-        breeds: () => fetchAPI<unknown[]>('/v1/admin/reference/breeds'),
-        diseases: () => fetchAPI<unknown[]>('/v1/admin/reference/diseases'),
-        vaccineTypes: () => fetchAPI<unknown[]>('/v1/admin/reference/vaccine-types'),
-        disposalTypes: () => fetchAPI<unknown[]>('/v1/admin/reference/disposal-types'),
-        medicineTypes: () => fetchAPI<unknown[]>('/v1/admin/reference/medicine-types'),
-        medicines: () => fetchAPI<unknown[]>('/v1/admin/reference/medicines'),
-    },
-
-    // Users (Admin)
-    users: {
-        list: () => fetchAPI<unknown[]>('/v1/admin/users'),
-        get: (id: number) => fetchAPI(`/v1/admin/users/${id}`),
-        statistics: () => fetchAPI('/v1/admin/users/statistics'),
+        livestockTypes: () => referenceApi.livestockTypes.list(),
+        species: () => referenceApi.species.list(),
+        breeds: () => referenceApi.breeds.list(),
+        diseases: () => referenceApi.diseases.list(),
+        vaccineTypes: () => referenceApi.vaccineTypes.list(),
+        disposalTypes: () => referenceApi.disposalTypes.list(),
+        medicineTypes: () => referenceApi.medicineTypes.list(),
+        medicines: () => referenceApi.medicines.list(),
     },
 };
 

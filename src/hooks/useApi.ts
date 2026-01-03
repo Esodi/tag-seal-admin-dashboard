@@ -7,24 +7,55 @@ interface UseApiState<T> {
     refetch: () => void;
 }
 
+interface UseApiOptions {
+    cacheKey?: string;
+    ttl?: number; // milliseconds
+}
+
+const apiCache = new Map<string, { data: any; timestamp: number }>();
+
 /**
  * Custom hook for fetching data from API
  * @param fetcher - Function that returns a Promise
  * @param deps - Dependencies array for re-fetching
+ * @param options - Optional configuration for caching
  */
 export function useApi<T>(
     fetcher: () => Promise<T>,
-    deps: unknown[] = []
+    deps: unknown[] = [],
+    options: UseApiOptions = {}
 ): UseApiState<T> {
     const [data, setData] = useState<T | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
     const fetchData = useCallback(async () => {
+        // Check cache first
+        if (options.cacheKey) {
+            const cached = apiCache.get(options.cacheKey);
+            const ttl = options.ttl || 5 * 60 * 1000; // Default 5 minutes
+
+            if (cached && Date.now() - cached.timestamp < ttl) {
+                setData(cached.data);
+                setLoading(false);
+                setError(null);
+                return;
+            }
+        }
+
         setLoading(true);
         setError(null);
         try {
             const result = await fetcher();
+
+            // Update cache
+            if (options.cacheKey) {
+                apiCache.set(options.cacheKey, {
+                    data: result,
+                    timestamp: Date.now()
+                });
+            }
+
             setData(result);
         } catch (err) {
             setError(err instanceof Error ? err : new Error('An unknown error occurred'));
@@ -32,7 +63,7 @@ export function useApi<T>(
             setLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, deps);
+    }, [...deps, options.cacheKey, options.ttl]);
 
     useEffect(() => {
         fetchData();
