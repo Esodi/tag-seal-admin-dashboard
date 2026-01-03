@@ -22,7 +22,7 @@ import { useApi } from '../hooks/useApi';
 import { api } from '../services/api';
 import { PageLoader } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { formatNumber, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { differenceInMonths } from 'date-fns';
 
 // Tab Button Component
@@ -182,7 +182,7 @@ export function Analytics() {
             'Artificial Insemination': 0,
             'Natural Service': 0
         };
-        inseminations.forEach((i: any) => {
+        inseminations.forEach(() => {
             // Logic to determine type, mock if field missing
             inseminationTypes['Artificial Insemination']++;
         });
@@ -357,9 +357,9 @@ export function Analytics() {
                                             cy="50%"
                                             outerRadius={100}
                                             dataKey="count"
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                                         >
-                                            {stats.vaccinationByDisease.map((entry, index) => (
+                                            {stats.vaccinationByDisease.map((_, index) => (
                                                 <Cell key={`cell-${index}`} fill={['#6366f1', '#e11d48', '#d946ef', '#f43f5e', '#f97316'][index % 5]} />
                                             ))}
                                         </Pie>

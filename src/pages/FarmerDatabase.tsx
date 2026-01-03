@@ -13,8 +13,8 @@ export function FarmerDatabase() {
     const [countries, setCountries] = useState<SelectOption[]>([]);
     const [regions, setRegions] = useState<SelectOption[]>([]);
     const [districts, setDistricts] = useState<SelectOption[]>([]);
-    const [wards, setWards] = useState<SelectOption[]>([]);
-    const [villages, setVillages] = useState<SelectOption[]>([]);
+    const [wards] = useState<SelectOption[]>([]);
+    const [villages] = useState<SelectOption[]>([]);
     const [identityCardTypes, setIdentityCardTypes] = useState<SelectOption[]>([]);
     const [schoolLevels, setSchoolLevels] = useState<SelectOption[]>([]);
 
@@ -55,43 +55,6 @@ export function FarmerDatabase() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
-
-    // Load cascading location data
-    const loadRegions = useCallback(async (countryId: number) => {
-        try {
-            const data = await locationApi.getRegionsByCountry(countryId);
-            setRegions(data.map(r => ({ value: r.id, label: r.name })));
-        } catch (err) {
-            console.error('Failed to load regions:', err);
-        }
-    }, []);
-
-    const loadDistricts = useCallback(async (regionId: number) => {
-        try {
-            const data = await locationApi.getDistrictsByRegion(regionId);
-            setDistricts(data.map(d => ({ value: d.id, label: d.name })));
-        } catch (err) {
-            console.error('Failed to load districts:', err);
-        }
-    }, []);
-
-    const loadWards = useCallback(async (districtId: number) => {
-        try {
-            const data = await locationApi.getWardsByDistrict(districtId);
-            setWards(data.map(w => ({ value: w.id, label: w.name })));
-        } catch (err) {
-            console.error('Failed to load wards:', err);
-        }
-    }, []);
-
-    const loadVillages = useCallback(async (wardId: number) => {
-        try {
-            const data = await locationApi.getVillagesByWard(wardId);
-            setVillages(data.map(v => ({ value: v.id, label: v.name })));
-        } catch (err) {
-            console.error('Failed to load villages:', err);
-        }
-    }, []);
 
     const columns: DataTableColumn<Farmer>[] = [
         { id: 'farmerNo', header: 'Farmer ID', accessorKey: 'farmerNo', size: 120 },
@@ -346,11 +309,11 @@ export function FarmerDatabase() {
     ];
 
     const handleCreate = async (data: Partial<Farmer>) => {
-        await farmerApi.create(data);
+        await farmerApi.create(data as any);
     };
 
     const handleUpdate = async (id: number | string, data: Partial<Farmer>) => {
-        await farmerApi.update(Number(id), data);
+        await farmerApi.update(Number(id), data as any);
     };
 
     const handleDelete = async (id: number | string) => {

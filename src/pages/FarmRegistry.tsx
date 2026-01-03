@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CrudPage, DataTableColumn, FormField, SelectOption } from '../components/crud';
 import { farmApi, farmerApi, locationApi, referenceApi } from '../services/api';
-import { Farm, Farmer, LegalStatus } from '../types/entities';
+import { Farm } from '../types/entities';
 import { formatDate } from '../lib/utils';
 
 export function FarmRegistry() {
@@ -14,8 +14,8 @@ export function FarmRegistry() {
     const [countries, setCountries] = useState<SelectOption[]>([]);
     const [regions, setRegions] = useState<SelectOption[]>([]);
     const [districts, setDistricts] = useState<SelectOption[]>([]);
-    const [wards, setWards] = useState<SelectOption[]>([]);
-    const [villages, setVillages] = useState<SelectOption[]>([]);
+    const [wards] = useState<SelectOption[]>([]);
+    const [villages] = useState<SelectOption[]>([]);
     const [legalStatuses, setLegalStatuses] = useState<SelectOption[]>([]);
 
     // Lookup maps for displaying names
@@ -280,11 +280,12 @@ export function FarmRegistry() {
     ];
 
     const handleCreate = async (data: Partial<Farm>) => {
-        await farmApi.create(data);
+        if (!data.farmerId) throw new Error('Farmer is required');
+        await farmApi.create(data as any);
     };
 
     const handleUpdate = async (id: number | string, data: Partial<Farm>) => {
-        await farmApi.update(Number(id), data);
+        await farmApi.update(Number(id), data as any);
     };
 
     const handleDelete = async (id: number | string) => {

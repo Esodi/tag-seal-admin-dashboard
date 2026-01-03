@@ -476,6 +476,11 @@ export const api = {
     vaccinations: healthLogApi.vaccinations,
     medications: healthLogApi.medications,
     transfers: lifecycleLogApi.transfers,
+    // Add missing endpoints for Dashboard/Analytics
+    birthEvents: reproductionLogApi.birthEvents,
+    inseminations: reproductionLogApi.inseminations,
+    vets: vetApi,
+    extensionOfficers: extensionOfficerApi,
     reference: {
         livestockTypes: () => referenceApi.livestockTypes.list(),
         species: () => referenceApi.species.list(),

@@ -6,10 +6,7 @@ import {
     AlertCircle,
     Info,
     ArrowUpRight,
-    Beef,
-    Stethoscope,
-    Activity,
-    Shield
+    Beef
 } from 'lucide-react';
 import { useMemo } from 'react';
 import {
@@ -129,7 +126,8 @@ function AlertCard({ type, title, message, region, createdAt }: {
 }
 
 export function Dashboard() {
-    const { user } = useAuth();
+    // Fetch user for potential welcome message (used indirectly)
+    useAuth();
 
     // Fetch all necessary data for dashboard
     const { data, loading, error, refetch } = useApi(async () => {
@@ -141,7 +139,6 @@ export function Dashboard() {
             medications,
             transfers,
             births,
-            users,
             vets,
             officers
         ] = await Promise.all([
@@ -152,7 +149,6 @@ export function Dashboard() {
             api.medications.list(),
             api.transfers.list(),
             api.birthEvents.list(),
-            api.users.list(),
             api.vets.list(),
             api.extensionOfficers.list()
         ]);
@@ -164,7 +160,6 @@ export function Dashboard() {
             medications,
             transfers,
             births,
-            users,
             vets,
             officers
         };
@@ -180,7 +175,6 @@ export function Dashboard() {
             medications,
             transfers,
             births,
-            users,
             vets,
             officers
         } = data;
@@ -192,7 +186,7 @@ export function Dashboard() {
         const totalFarms = farms.length;
         const activeFarms = farms.filter((f: any) => f.status?.toLowerCase() === 'active').length;
 
-        const totalUsers = users.length + farmers.length; // Approximate total system users
+        // const totalUsers = users.length + farmers.length; // Approximate total system users
 
         const uniqueVaccinatedLivestock = new Set(vaccinations.map((v: any) => v.livestockId)).size;
         const vaccinationCoverage = totalLivestock > 0 ? (uniqueVaccinatedLivestock / totalLivestock) * 100 : 0;
@@ -336,8 +330,8 @@ export function Dashboard() {
                 activeFarms,
                 totalFarmers: farmers.length,
                 vaccinationCoverage,
-                totalVets: vets.length,
-                totalOfficers: officers.length
+                totalVets: vets?.length || 0,
+                totalOfficers: officers?.length || 0
             },
             livestockTrend,
             speciesDistribution,

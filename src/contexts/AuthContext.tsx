@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { authApi, CurrentUser, LoginCredentials, setAuthToken, clearAuthToken, getAuthToken } from '../services/api';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { authApi, CurrentUser, LoginCredentials, clearAuthToken, getAuthToken } from '../services/api';
 
 interface AuthContextType {
     user: CurrentUser | null;
@@ -47,7 +47,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await authApi.login(credentials);
+            // Login to get the token set
+            await authApi.login(credentials);
 
             // Fetch full user profile after login
             const profile = await authApi.profile();

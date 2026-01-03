@@ -46,7 +46,7 @@ interface TransferRecord {
 
 export function MovementTracking() {
     const { data: transfersData, loading, error, refetch } = useApi<TransferRecord[]>(
-        () => api.transfers.list() as Promise<TransferRecord[]>,
+        () => api.transfers.list() as unknown as Promise<TransferRecord[]>,
         []
     );
 

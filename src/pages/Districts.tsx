@@ -46,11 +46,11 @@ interface RegionData {
 
 export function Districts() {
     const { data: districtsData, loading, error, refetch } = useApi<DistrictData[]>(
-        () => api.districts.list() as Promise<DistrictData[]>,
+        () => api.districts.list() as unknown as Promise<DistrictData[]>,
         []
     );
     const { data: regionsData } = useApi<RegionData[]>(
-        () => api.regions.list() as Promise<RegionData[]>,
+        () => api.regions.list() as unknown as Promise<RegionData[]>,
         []
     );
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, X, ChevronDown, Check } from 'lucide-react';
+import { X, ChevronDown, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface SelectOption {
@@ -56,7 +56,7 @@ export function RelationshipSelect({
     const [loading, setLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const debounceRef = useRef<NodeJS.Timeout>();
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
     // Get selected option label
     const selectedOption = options.find((opt) => opt.value === value);

@@ -23,7 +23,6 @@ import {
     Search,
     Download,
     Columns,
-    MoreHorizontal,
     Trash2,
     Edit,
     Eye,

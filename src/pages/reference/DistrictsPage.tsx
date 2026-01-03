@@ -75,11 +75,11 @@ export function DistrictsPage() {
     ];
 
     const handleCreate = async (data: Partial<District>) => {
-        await locationApi.districts.create(data as District);
+        await locationApi.districts.create(data as any);
     };
 
     const handleUpdate = async (id: number | string, data: Partial<District>) => {
-        await locationApi.districts.update(Number(id), data as District);
+        await locationApi.districts.update(Number(id), data as any);
     };
 
     const handleDelete = async (id: number | string) => {

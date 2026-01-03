@@ -1,5 +1,4 @@
 import { useAuth } from '../../contexts/AuthContext';
-import { User, getUserDisplayName } from '../../types/entities/user';
 import { UserCircle, Shield, Calendar, MapPin } from 'lucide-react';
 
 export function AccountWidget() {
@@ -7,16 +6,18 @@ export function AccountWidget() {
 
     if (!user) return null;
 
-    const displayName = getUserDisplayName(user);
-    const roleLabel = user.role.replace(/([A-Z])/g, ' $1').trim(); // CamelCase to spaced
-    const dateJoined = new Date(user.created_at || Date.now()).toLocaleDateString();
+    // Create display name from user properties
+    const displayName = user.email?.split('@')[0] || 'User';
+    const roleLabel = user.role?.replace(/([A-Z])/g, ' $1').trim() || 'User'; // CamelCase to spaced
+    const dateJoined = new Date(Date.now()).toLocaleDateString();
 
     // Determine location if applicable (for officers/farmers)
     let location = 'System Wide';
-    if (user.profile && 'district' in user.profile && user.profile.district) {
-        location = user.profile.district.name;
-    } else if (user.profile && 'ward' in user.profile && user.profile.ward) {
-        location = user.profile.ward.name;
+    const profile = user.profile as Record<string, { name?: string }> | undefined;
+    if (profile && 'district' in profile && profile.district?.name) {
+        location = profile.district.name;
+    } else if (profile && 'ward' in profile && profile.ward?.name) {
+        location = profile.ward.name;
     }
 
     return (

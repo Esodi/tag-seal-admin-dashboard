@@ -431,7 +431,7 @@ export function CrudPage<T extends { id: number | string }>({
                 size={viewModalSize}
             >
                 {selectedItem && detailFields && (
-                    <DetailView data={selectedItem as Record<string, unknown>} fields={detailFields} />
+                    <DetailView data={selectedItem as unknown as Record<string, unknown>} fields={detailFields as { key: string; label: string; render?: (value: unknown, data: Record<string, unknown>) => React.ReactNode }[]} />
                 )}
             </Modal>
 
