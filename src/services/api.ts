@@ -1,6 +1,4 @@
 // API Service with generic CRUD factory
-// This replaces the basic api.ts with a more robust implementation
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 // Token management
@@ -114,7 +112,14 @@ async function fetchAPI<T>(
             return undefined as T;
         }
 
-        return response.json();
+        const result = await response.json();
+
+        // Unwrap data property if it exists (Laravel standard)
+        if (result && typeof result === 'object' && 'data' in result && result.data !== null && result.data !== undefined) {
+            return result.data as T;
+        }
+
+        return result as T;
     } catch (error) {
         if (error instanceof ApiError) {
             throw error;
@@ -176,13 +181,17 @@ export interface LoginCredentials {
 }
 
 export interface AuthResponse {
-    token: string;
+    token?: string;
+    access_token?: string;
+    accessToken?: string;
     user: {
         id: number;
         email: string;
         username: string;
         role: string;
+        [key: string]: any;
     };
+    [key: string]: any;
 }
 
 export interface CurrentUser {
@@ -191,7 +200,11 @@ export interface CurrentUser {
     email: string;
     role: string;
     status: string;
-    profile?: Record<string, unknown>;
+    firstName?: string;
+    surname?: string;
+    phone?: string;
+    profile?: Record<string, any>;
+    [key: string]: any;
 }
 
 // ============================================
@@ -205,8 +218,13 @@ export const authApi = {
             method: 'POST',
             body: JSON.stringify({ ...credentials, device_name: 'Admin Dashboard' }),
         });
-        if (response.token) {
-            setAuthToken(response.token);
+
+        // The response is already unwrapped by fetchAPI if it was in 'data'
+        // Check all common token locations
+        const token = response.access_token || response.accessToken || response.token;
+
+        if (token) {
+            setAuthToken(token);
         }
         return response;
     },
@@ -217,7 +235,17 @@ export const authApi = {
         return promise;
     },
 
-    profile: () => fetchAPI<CurrentUser>('/auth/profile'),
+    profile: async () => {
+        const response = await fetchAPI<any>('/auth/profile');
+        // Handle Laravel structure where it might return {user, profile} under data
+        if (response.user) {
+            return {
+                ...response.user,
+                profile: response.profile || {}
+            } as CurrentUser;
+        }
+        return response as CurrentUser;
+    },
 
     refreshToken: () => fetchAPI<{ token: string }>('/auth/refresh', { method: 'POST' }),
 };
