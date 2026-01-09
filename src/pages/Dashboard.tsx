@@ -131,12 +131,12 @@ export function Dashboard() {
 
     // Fetch all necessary data for dashboard
     const { data, loading, error, refetch } = useApi(async () => {
+        // Use Promise.allSettled for medications since that endpoint may not exist yet
         const [
             livestock,
             farms,
             farmers,
             vaccinations,
-            medications,
             transfers,
             births,
             vets,
@@ -146,12 +146,20 @@ export function Dashboard() {
             api.farms.list(),
             api.farmers.list(),
             api.vaccinations.list(),
-            api.medications.list(),
             api.transfers.list(),
             api.birthEvents.list(),
             api.vets.list(),
             api.extensionOfficers.list()
         ]);
+
+        // Medications endpoint may not exist - fetch separately with error handling
+        let medications: any[] = [];
+        try {
+            medications = await api.medications.list();
+        } catch (e) {
+            console.warn('Medications endpoint not available:', e);
+        }
+
         return {
             livestock,
             farms,
@@ -247,7 +255,7 @@ export function Dashboard() {
         });
 
         // Mapping vaccinations to regions (assuming vaccination record has region or linking via livestock)
-        // For accurate data, we would join with livestock, but assuming mock-ish structure or direct region field
+        // Map vaccinations to regions via the region field on vaccination records
         vaccinations.forEach((v: any) => {
             const region = v.region || 'Unknown';
             if (regionStats[region]) {
@@ -381,7 +389,6 @@ export function Dashboard() {
                             value={formatNumber(dashboardStats.totalLivestock)}
                             subtitle={`${formatNumber(dashboardStats.activeLivestock)} active animals`}
                             icon={Beef}
-                            trend={{ value: 5.2, label: 'growth' }} // Mock trend
                             color="primary"
                         />
                         <StatCard

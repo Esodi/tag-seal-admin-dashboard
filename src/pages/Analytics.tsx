@@ -169,7 +169,7 @@ export function Analytics() {
 
         // --- Reproduction Analytics ---
 
-        // 1. Calving Success Rate (Births vs Eligible Females - Mocking eligible females count approx)
+        // 1. Calving Success Rate (Births vs Eligible Females - estimated from available data)
         // Assume 'cows' > 2 years are eligible roughly
         // Real logic would be complex. Simplified metric:
         const totalBirths = births.length;
@@ -182,9 +182,14 @@ export function Analytics() {
             'Artificial Insemination': 0,
             'Natural Service': 0
         };
-        inseminations.forEach(() => {
-            // Logic to determine type, mock if field missing
-            inseminationTypes['Artificial Insemination']++;
+        inseminations.forEach((i: any) => {
+            // Determine type from insemination record (default to AI if not specified)
+            const type = i.type || i.serviceType || 'Artificial Insemination';
+            if (type.toLowerCase().includes('natural')) {
+                inseminationTypes['Natural Service']++;
+            } else {
+                inseminationTypes['Artificial Insemination']++;
+            }
         });
 
         const reproductionStats = [
