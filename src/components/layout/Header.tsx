@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Bell,
     Search,
@@ -10,6 +11,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { MobileMenuButton } from './Sidebar';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -20,6 +22,16 @@ interface HeaderProps {
 export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProps) {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
+
+    const displayName = user?.username || user?.email || 'Admin User';
+    const displayEmail = user?.email || 'admin@example.com';
 
     return (
         <header className="sticky top-0 z-30 h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 lg:px-6">
@@ -56,7 +68,7 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                         )}
                     </button>
 
-                    {/* Notifications */}
+                    {/* Notifications - TODO: Connect to real notifications API endpoint */}
                     <div className="relative">
                         <button
                             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -77,20 +89,10 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                                         <h3 className="font-semibold text-slate-900 dark:text-white">Notifications</h3>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700">
-                                            <p className="text-sm font-medium text-red-600 dark:text-red-400">Disease Alert</p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-300">Foot-and-mouth detected in Manyara</p>
-                                            <p className="text-xs text-slate-400 mt-1">2 hours ago</p>
-                                        </div>
-                                        <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700">
-                                            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Low Vaccination</p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-300">Mtwara region below 60%</p>
-                                            <p className="text-xs text-slate-400 mt-1">1 day ago</p>
-                                        </div>
-                                        <div className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700">
-                                            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Milestone</p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-300">1.2M livestock registered</p>
-                                            <p className="text-xs text-slate-400 mt-1">3 days ago</p>
+                                        {/* Placeholder: Replace with real notifications from API */}
+                                        <div className="p-4 text-center text-slate-500 dark:text-slate-400">
+                                            <p className="text-sm">No new notifications</p>
+                                            <p className="text-xs mt-1">Notifications will appear here when available</p>
                                         </div>
                                     </div>
                                     <div className="p-3 border-t border-slate-200 dark:border-slate-700">
@@ -113,7 +115,7 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                                 <User className="w-4 h-4 text-white" />
                             </div>
                             <span className="hidden md:block text-sm font-medium text-slate-700 dark:text-slate-200">
-                                Admin User
+                                {displayName}
                             </span>
                             <ChevronDown className="hidden md:block w-4 h-4 text-slate-400" />
                         </button>
@@ -126,15 +128,18 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                                 />
                                 <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50">
                                     <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                                        <p className="font-semibold text-slate-900 dark:text-white">Admin User</p>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">admin@gov.tz</p>
+                                        <p className="font-semibold text-slate-900 dark:text-white">{displayName}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">{displayEmail}</p>
                                     </div>
                                     <div className="py-2">
                                         <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
                                             <Settings className="w-4 h-4" />
                                             Settings
                                         </button>
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-slate-50 dark:hover:bg-slate-700">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                        >
                                             <LogOut className="w-4 h-4" />
                                             Sign out
                                         </button>
@@ -148,3 +153,4 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
         </header>
     );
 }
+
