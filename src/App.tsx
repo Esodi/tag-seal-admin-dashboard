@@ -75,8 +75,6 @@ const MilkingsPage = lazy(() => import('./pages/lifecycle/MilkingsPage').then(m 
 // Reference Data - Reproduction
 const BirthTypesPage = lazy(() => import('./pages/reference/BirthTypesPage').then(m => ({ default: m.BirthTypesPage })));
 const BirthProblemsPage = lazy(() => import('./pages/reference/BirthProblemsPage').then(m => ({ default: m.BirthProblemsPage })));
-const CalvingTypesPage = lazy(() => import('./pages/reference/CalvingTypesPage').then(m => ({ default: m.CalvingTypesPage })));
-const CalvingProblemsPage = lazy(() => import('./pages/reference/CalvingProblemsPage').then(m => ({ default: m.CalvingProblemsPage })));
 const HeatTypesPage = lazy(() => import('./pages/reference/HeatTypesPage').then(m => ({ default: m.HeatTypesPage })));
 const SemenStrawTypesPage = lazy(() => import('./pages/reference/SemenStrawTypesPage').then(m => ({ default: m.SemenStrawTypesPage })));
 const InseminationServicesPage = lazy(() => import('./pages/reference/InseminationServicesPage').then(m => ({ default: m.InseminationServicesPage })));
@@ -92,9 +90,7 @@ const UsersPage = lazy(() => import('./pages/users/UsersPage').then(m => ({ defa
 const SystemUsersPage = lazy(() => import('./pages/users/SystemUsersPage').then(m => ({ default: m.SystemUsersPage })));
 const ExtensionOfficersPage = lazy(() => import('./pages/users/ExtensionOfficersPage').then(m => ({ default: m.ExtensionOfficersPage })));
 const VetsPage = lazy(() => import('./pages/users/VetsPage').then(m => ({ default: m.VetsPage })));
-const FarmUsersPage = lazy(() => import('./pages/users/FarmUsersPage').then(m => ({ default: m.FarmUsersPage })));
 const ExtensionOfficerFarmInvitesPage = lazy(() => import('./pages/users/ExtensionOfficerFarmInvitesPage').then(m => ({ default: m.ExtensionOfficerFarmInvitesPage })));
-const OtpVerificationsPage = lazy(() => import('./pages/users/OtpVerificationsPage').then(m => ({ default: m.OtpVerificationsPage })));
 
 function App() {
   return (
@@ -183,8 +179,6 @@ function App() {
                 {/* Reference Data - Reproduction */}
                 <Route path="/reference/birth-types" element={<BirthTypesPage />} />
                 <Route path="/reference/birth-problems" element={<BirthProblemsPage />} />
-                <Route path="/reference/calving-types" element={<CalvingTypesPage />} />
-                <Route path="/reference/calving-problems" element={<CalvingProblemsPage />} />
                 <Route path="/reference/heat-types" element={<HeatTypesPage />} />
                 <Route path="/reference/semen-straw-types" element={<SemenStrawTypesPage />} />
                 <Route path="/reference/insemination-services" element={<InseminationServicesPage />} />
@@ -200,9 +194,7 @@ function App() {
                 <Route path="/users/system" element={<SystemUsersPage />} />
                 <Route path="/users/extension-officers" element={<ExtensionOfficersPage />} />
                 <Route path="/users/vets" element={<VetsPage />} />
-                <Route path="/users/farm-users" element={<FarmUsersPage />} />
                 <Route path="/users/farm-invites" element={<ExtensionOfficerFarmInvitesPage />} />
-                <Route path="/users/otp" element={<OtpVerificationsPage />} />
 
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />

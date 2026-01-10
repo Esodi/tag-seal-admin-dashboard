@@ -29,8 +29,6 @@ export { AdministrationRoutesPage } from './AdministrationRoutesPage';
 // Reproduction reference pages
 export { BirthTypesPage } from './BirthTypesPage';
 export { BirthProblemsPage } from './BirthProblemsPage';
-export { CalvingTypesPage } from './CalvingTypesPage';
-export { CalvingProblemsPage } from './CalvingProblemsPage';
 export { HeatTypesPage } from './HeatTypesPage';
 export { SemenStrawTypesPage } from './SemenStrawTypesPage';
 export { InseminationServicesPage } from './InseminationServicesPage';

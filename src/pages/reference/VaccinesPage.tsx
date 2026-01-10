@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CrudPage, DataTableColumn, FormField, SelectOption } from '../../components/crud';
-import { referenceApi } from '../../services/api';
+import { vaccineEntityApi, referenceApi } from '../../services/api';
 import { Vaccine, VaccineType } from '../../types/entities';
 import { formatDate } from '../../lib/utils';
 
@@ -20,7 +20,7 @@ export function VaccinesPage() {
         setError(undefined);
         try {
             const [vaccinesData, typesData] = await Promise.all([
-                referenceApi.vaccines.list(),
+                vaccineEntityApi.list(),
                 referenceApi.vaccineTypes.list(),
             ]);
 
@@ -95,15 +95,15 @@ export function VaccinesPage() {
     ];
 
     const handleCreate = async (item: Partial<Vaccine>) => {
-        await referenceApi.vaccines.create(item as Vaccine);
+        await vaccineEntityApi.create(item as Vaccine);
     };
 
     const handleUpdate = async (id: number | string, item: Partial<Vaccine>) => {
-        await referenceApi.vaccines.update(Number(id), item as Vaccine);
+        await vaccineEntityApi.update(Number(id), item as Vaccine);
     };
 
     const handleDelete = async (id: number | string) => {
-        await referenceApi.vaccines.delete(Number(id));
+        await vaccineEntityApi.delete(Number(id));
     };
 
     return (
@@ -128,3 +128,4 @@ export function VaccinesPage() {
 }
 
 export default VaccinesPage;
+

@@ -267,8 +267,9 @@ import type {
     LivestockType,
     LivestockObtainedMethod,
     LivestockFormData,
+    Stage,
 } from '../types/entities/livestock';
-import type { Farm, FarmFormData, LegalStatus, FarmUser } from '../types/entities/farm';
+import type { Farm, FarmFormData, LegalStatus } from '../types/entities/farm';
 import type { Farmer, FarmerFormData, IdentityCardType, SchoolLevel } from '../types/entities/farmer';
 import type {
     User,
@@ -276,7 +277,6 @@ import type {
     ExtensionOfficer,
     Vet,
     ExtensionOfficerFarmInvite,
-    OtpVerification,
 } from '../types/entities/user';
 import type {
     Disease,
@@ -295,8 +295,6 @@ import type {
 import type {
     BirthType,
     BirthProblem,
-    CalvingType,
-    CalvingProblem,
     HeatType,
     SemenStrawType,
     InseminationService,
@@ -312,6 +310,7 @@ import type {
     DisposalType,
     FeedingType,
     MilkingMethod,
+    TestResult,
     Transfer,
     Disposal,
     WeightChange,
@@ -330,34 +329,14 @@ export const locationApi = {
     villages: createCrudEndpoints<Village>('/v1/admin/locations/villages'),
     streets: createCrudEndpoints<Street>('/v1/admin/locations/streets'),
     divisions: createCrudEndpoints<Division>('/v1/admin/locations/divisions'),
-
-    // Convenience methods for cascading selects
-    getRegionsByCountry: (countryId: number) =>
-        fetchAPI<Region[]>(`/v1/admin/locations/countries/${countryId}/regions`),
-    getDistrictsByRegion: (regionId: number) =>
-        fetchAPI<District[]>(`/v1/admin/locations/regions/${regionId}/districts`),
-    getWardsByDistrict: (districtId: number) =>
-        fetchAPI<Ward[]>(`/v1/admin/locations/districts/${districtId}/wards`),
-    getVillagesByWard: (wardId: number) =>
-        fetchAPI<Village[]>(`/v1/admin/locations/wards/${wardId}/villages`),
-    getStreetsByVillage: (villageId: number) =>
-        fetchAPI<Street[]>(`/v1/admin/locations/villages/${villageId}/streets`),
 };
 
 // ============================================
 // Core Entity Endpoints
 // ============================================
-export const livestockApi = {
-    ...createCrudEndpoints<Livestock, LivestockFormData>('/v1/admin/entities/livestock'),
-    getByFarm: (farmUuid: string) =>
-        fetchAPI<Livestock[]>(`/v1/admin/entities/farms/${farmUuid}/livestock`),
-};
+export const livestockApi = createCrudEndpoints<Livestock, LivestockFormData>('/v1/admin/entities/livestock');
 
-export const farmApi = {
-    ...createCrudEndpoints<Farm, FarmFormData>('/v1/admin/entities/farms'),
-    getByFarmer: (farmerId: number) =>
-        fetchAPI<Farm[]>(`/v1/admin/entities/farmers/${farmerId}/farms`),
-};
+export const farmApi = createCrudEndpoints<Farm, FarmFormData>('/v1/admin/entities/farms');
 
 export const farmerApi = createCrudEndpoints<Farmer, FarmerFormData>('/v1/admin/entities/farmers');
 
@@ -372,9 +351,8 @@ export const userApi = {
 export const systemUserApi = createCrudEndpoints<SystemUser>('/v1/admin/users/system-users');
 export const extensionOfficerApi = createCrudEndpoints<ExtensionOfficer>('/v1/admin/entities/extension-officers');
 export const vetApi = createCrudEndpoints<Vet>('/v1/admin/entities/vets');
-export const farmUserApi = createCrudEndpoints<FarmUser>('/v1/admin/entities/farm-users');
 export const extensionOfficerFarmInviteApi = createCrudEndpoints<ExtensionOfficerFarmInvite>('/v1/admin/entities/extension-officer-farm-invites');
-export const otpVerificationApi = createCrudEndpoints<OtpVerification>('/v1/admin/entities/otp-verifications');
+export const vaccineEntityApi = createCrudEndpoints<Vaccine>('/v1/admin/entities/vaccines');
 
 // ============================================
 // Reference Data Endpoints
@@ -393,7 +371,6 @@ export const referenceApi = {
 
     // Health reference
     diseases: createCrudEndpoints<Disease>('/v1/admin/reference/diseases'),
-    vaccines: createCrudEndpoints<Vaccine>('/v1/admin/reference/vaccines'),
     vaccineTypes: createCrudEndpoints<VaccineType>('/v1/admin/reference/vaccine-types'),
     medicines: createCrudEndpoints<Medicine>('/v1/admin/reference/medicines'),
     medicineTypes: createCrudEndpoints<MedicineType>('/v1/admin/reference/medicine-types'),
@@ -402,8 +379,6 @@ export const referenceApi = {
     // Reproduction reference
     birthTypes: createCrudEndpoints<BirthType>('/v1/admin/reference/birth-types'),
     birthProblems: createCrudEndpoints<BirthProblem>('/v1/admin/reference/birth-problems'),
-    calvingTypes: createCrudEndpoints<CalvingType>('/v1/admin/reference/calving-types'),
-    calvingProblems: createCrudEndpoints<CalvingProblem>('/v1/admin/reference/calving-problems'),
     heatTypes: createCrudEndpoints<HeatType>('/v1/admin/reference/heat-types'),
     semenStrawTypes: createCrudEndpoints<SemenStrawType>('/v1/admin/reference/semen-straw-types'),
     inseminationServices: createCrudEndpoints<InseminationService>('/v1/admin/reference/insemination-services'),
@@ -413,6 +388,8 @@ export const referenceApi = {
     disposalTypes: createCrudEndpoints<DisposalType>('/v1/admin/reference/disposal-types'),
     feedingTypes: createCrudEndpoints<FeedingType>('/v1/admin/reference/feeding-types'),
     milkingMethods: createCrudEndpoints<MilkingMethod>('/v1/admin/reference/milking-methods'),
+    stages: createCrudEndpoints<Stage>('/v1/admin/reference/stages'),
+    testResults: createCrudEndpoints<TestResult>('/v1/admin/reference/test-results'),
 };
 
 // ============================================
@@ -452,7 +429,7 @@ export const medicationApi = healthLogApi.medications;
 export const dewormingApi = healthLogApi.dewormings;
 
 export const diseaseApi = referenceApi.diseases;
-export const vaccineApi = referenceApi.vaccines;
+export const vaccineApi = vaccineEntityApi;
 export const vaccineTypeApi = referenceApi.vaccineTypes;
 export const medicineApi = referenceApi.medicines;
 export const medicineTypeApi = referenceApi.medicineTypes;
@@ -461,8 +438,6 @@ export const administrationRouteApi = referenceApi.administrationRoutes;
 // Reproduction Reference Aliases
 export const birthTypeApi = referenceApi.birthTypes;
 export const birthProblemApi = referenceApi.birthProblems;
-export const calvingTypeApi = referenceApi.calvingTypes;
-export const calvingProblemApi = referenceApi.calvingProblems;
 export const heatTypeApi = referenceApi.heatTypes;
 export const semenStrawTypeApi = referenceApi.semenStrawTypes;
 export const inseminationServiceApi = referenceApi.inseminationServices;
@@ -472,6 +447,8 @@ export const reproductiveProblemApi = referenceApi.reproductiveProblems;
 export const disposalTypeApi = referenceApi.disposalTypes;
 export const feedingTypeApi = referenceApi.feedingTypes;
 export const milkingMethodApi = referenceApi.milkingMethods;
+export const stageApi = referenceApi.stages;
+export const testResultApi = referenceApi.testResults;
 
 // Reproduction Logs Aliases
 export const pregnancyApi = reproductionLogApi.pregnancies;
