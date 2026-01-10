@@ -369,7 +369,7 @@ export function FormBuilder<T extends Record<string, unknown>>({
     className,
 }: FormBuilderProps<T>) {
     // Initialize form data with defaults
-    const getInitialData = useCallback(() => {
+    const [formData, setFormData] = useState<T>(() => {
         const data: Record<string, unknown> = {};
         fields.forEach((field) => {
             if (field.name in initialValues) {
@@ -383,29 +383,49 @@ export function FormBuilder<T extends Record<string, unknown>>({
             }
         });
         return data as T;
-    }, [fields, initialValues]);
-
-    const [formData, setFormData] = useState<T>(getInitialData);
+    });
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Reset form when initialValues change
-    useEffect(() => {
-        setFormData(getInitialData());
-    }, [getInitialData]);
+    // Track previous initialValues to detect when editing a different item
+    const prevInitialValuesId = React.useRef<string | number | null>(null);
+    const currentId = (initialValues as any)?.id ?? null;
 
-    // Handle field change
+    // Reset form only when switching to edit a different record
+    React.useEffect(() => {
+        if (currentId !== prevInitialValuesId.current) {
+            prevInitialValuesId.current = currentId;
+            const data: Record<string, unknown> = {};
+            fields.forEach((field) => {
+                if (field.name in initialValues) {
+                    data[field.name] = initialValues[field.name as keyof typeof initialValues];
+                } else if (field.defaultValue !== undefined) {
+                    data[field.name] = field.defaultValue;
+                } else if (field.type === 'checkbox' || field.type === 'toggle') {
+                    data[field.name] = false;
+                } else {
+                    data[field.name] = '';
+                }
+            });
+            setFormData(data as T);
+            setErrors({});
+        }
+    }, [currentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Handle field change - no dependencies to avoid re-render loops
     const handleChange = useCallback((name: string, value: unknown) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
-        // Clear error when field is modified
-        if (errors[name]) {
-            setErrors((prev) => {
+        // Clear error when field is modified - use functional update
+        setErrors((prev) => {
+            if (prev[name]) {
                 const newErrors = { ...prev };
                 delete newErrors[name];
                 return newErrors;
-            });
-        }
-    }, [errors]);
+            }
+            return prev;
+        });
+    }, []);
+
 
     // Validate all fields
     const validate = useCallback((): boolean => {
