@@ -155,7 +155,7 @@ export function Dashboard() {
         // Medications endpoint may not exist - fetch separately with error handling
         let medications: any[] = [];
         try {
-            medications = await api.medications.list();
+            medications = await api.treatments.list();
         } catch (e) {
             console.warn('Medications endpoint not available:', e);
         }

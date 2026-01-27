@@ -348,7 +348,8 @@ export const userApi = {
     statistics: () => fetchAPI<Record<string, number>>('/v1/admin/users/statistics'),
 };
 
-export const systemUserApi = createCrudEndpoints<SystemUser>('/v1/admin/users/system-users');
+// System users are just users with role=systemUser - using the same users endpoint
+export const systemUserApi = createCrudEndpoints<SystemUser>('/v1/admin/users');
 export const extensionOfficerApi = createCrudEndpoints<ExtensionOfficer>('/v1/admin/entities/extension-officers');
 export const vetApi = createCrudEndpoints<Vet>('/v1/admin/entities/vets');
 export const extensionOfficerFarmInviteApi = createCrudEndpoints<ExtensionOfficerFarmInvite>('/v1/admin/entities/extension-officer-farm-invites');
@@ -397,7 +398,7 @@ export const referenceApi = {
 // ============================================
 export const healthLogApi = {
     vaccinations: createCrudEndpoints<Vaccination, VaccinationFormData>('/v1/admin/logs/vaccinations'),
-    medications: createCrudEndpoints<Medication, MedicationFormData>('/v1/admin/logs/medications'),
+    treatments: createCrudEndpoints<Medication, MedicationFormData>('/v1/admin/logs/treatments'),
     dewormings: createCrudEndpoints<Deworming, DewormingFormData>('/v1/admin/logs/dewormings'),
 };
 
@@ -425,7 +426,7 @@ export const lifecycleLogApi = {
 // API Aliases for easier imports
 // ============================================
 export const vaccinationApi = healthLogApi.vaccinations;
-export const medicationApi = healthLogApi.medications;
+export const treatmentApi = healthLogApi.treatments;
 export const dewormingApi = healthLogApi.dewormings;
 
 export const diseaseApi = referenceApi.diseases;
@@ -479,7 +480,7 @@ export const api = {
     wards: locationApi.wards,
     villages: locationApi.villages,
     vaccinations: healthLogApi.vaccinations,
-    medications: healthLogApi.medications,
+    treatments: healthLogApi.treatments,
     transfers: lifecycleLogApi.transfers,
     // Add missing endpoints for Dashboard/Analytics
     birthEvents: reproductionLogApi.birthEvents,

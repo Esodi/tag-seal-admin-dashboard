@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CrudPage, DataTableColumn, FormField, SelectOption } from '../components/crud';
-import { medicationApi, referenceApi, livestockApi, vetApi } from '../services/api';
+import { treatmentApi, referenceApi, livestockApi, vetApi } from '../services/api';
 import { Medication, Medicine, Disease, Livestock, Vet, AdministrationRoute } from '../types/entities';
 import { formatDate } from '../lib/utils';
 
@@ -29,7 +29,7 @@ export function HealthEvents() {
         setError(undefined);
         try {
             const [medicationsData, medicinesData, diseasesData, livestockData, vetsData, routesData] = await Promise.all([
-                medicationApi.list(),
+                treatmentApi.list(),
                 referenceApi.medicines.list(),
                 referenceApi.diseases.list(),
                 livestockApi.list(),
@@ -197,15 +197,15 @@ export function HealthEvents() {
     ];
 
     const handleCreate = async (item: Partial<Medication>) => {
-        await medicationApi.create(item as Medication);
+        await treatmentApi.create(item as Medication);
     };
 
     const handleUpdate = async (id: number | string, item: Partial<Medication>) => {
-        await medicationApi.update(Number(id), item as Medication);
+        await treatmentApi.update(Number(id), item as Medication);
     };
 
     const handleDelete = async (id: number | string) => {
-        await medicationApi.delete(Number(id));
+        await treatmentApi.delete(Number(id));
     };
 
     return (
