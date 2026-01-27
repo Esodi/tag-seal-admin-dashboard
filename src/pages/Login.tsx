@@ -51,8 +51,8 @@ export function Login() {
                             <path d="M2 12l10 5 10-5" />
                         </svg>
                     </div>
-                    <h1 className="text-3xl font-bold text-white">Tag &amp; Seal</h1>
-                    <p className="text-slate-400 mt-2">Livestock Management System</p>
+                    <h1 className="text-3xl font-bold text-white">Livestock Admin</h1>
+                    <p className="text-slate-400 mt-2">Management System</p>
                 </div>
 
                 {/* Login Card */}
@@ -78,7 +78,7 @@ export function Login() {
                         {/* Username Field */}
                         <div className="space-y-1">
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                Username
+                                Username or Email
                             </label>
                             <div className="relative">
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -86,7 +86,7 @@ export function Login() {
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    placeholder="Enter your username"
+                                    placeholder="Enter your username or email"
                                     required
                                     className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                                 />
@@ -173,7 +173,7 @@ export function Login() {
 
                 {/* Footer */}
                 <p className="text-center text-slate-500 text-sm mt-6">
-                    © 2026 Tag &amp; Seal. All rights reserved.
+                    © 2026 Livestock Admin. All rights reserved.
                 </p>
             </div>
         </div>

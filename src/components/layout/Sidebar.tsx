@@ -7,11 +7,15 @@ import {
     Building2,
     Users,
     MapPin,
-    Shield,
     ChevronDown,
     ChevronRight,
     Menu,
     X,
+    Heart,
+    Baby,
+    Activity,
+    Database,
+    Settings,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -20,54 +24,140 @@ interface NavItem {
     href: string;
     icon: React.ComponentType<{ className?: string }>;
     children?: { name: string; href: string }[];
+    badge?: number;
 }
 
+// Clean, standard admin dashboard navigation
 const navigation: NavItem[] = [
+    // Main
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    
+    // User Management
     {
-        name: 'Livestock Registry',
+        name: 'User Management',
+        href: '/users',
+        icon: Users,
+        children: [
+            { name: 'All Users', href: '/users' },
+            { name: 'System Admins', href: '/users/admins' },
+            { name: 'Field Officers', href: '/users/officers' },
+            { name: 'Veterinarians', href: '/users/vets' },
+            { name: 'Farm Invites', href: '/users/invites' },
+        ],
+    },
+
+    // Core Data Management
+    {
+        name: 'Livestock',
         href: '/livestock',
         icon: Beef,
         children: [
             { name: 'All Livestock', href: '/livestock' },
-            { name: 'By Species', href: '/livestock/species' },
-            { name: 'By Region', href: '/livestock/regions' },
+            { name: 'Species', href: '/data/species' },
+            { name: 'Breeds', href: '/data/breeds' },
+            { name: 'Types', href: '/data/livestock-types' },
         ],
     },
     {
-        name: 'Farm Registry',
+        name: 'Farms',
         href: '/farms',
         icon: Building2,
         children: [
             { name: 'All Farms', href: '/farms' },
-            { name: 'By Region', href: '/farms/regions' },
+            { name: 'Farmers', href: '/farmers' },
         ],
     },
+
+    // Health & Medical
     {
-        name: 'Farmer Database',
-        href: '/farmers',
-        icon: Users,
+        name: 'Health Records',
+        href: '/health',
+        icon: Heart,
+        children: [
+            { name: 'Vaccinations', href: '/health/vaccinations' },
+            { name: 'Treatments', href: '/health/treatments' },
+            { name: 'Dewormings', href: '/health/dewormings' },
+            { name: 'Diseases', href: '/data/diseases' },
+            { name: 'Vaccines', href: '/data/vaccines' },
+            { name: 'Medicines', href: '/data/medicines' },
+        ],
     },
+
+    // Reproduction
     {
-        name: 'Geographic Data',
-        href: '/geographic',
+        name: 'Reproduction',
+        href: '/reproduction',
+        icon: Baby,
+        children: [
+            { name: 'Pregnancies', href: '/reproduction/pregnancies' },
+            { name: 'Births', href: '/reproduction/births' },
+            { name: 'Calvings', href: '/reproduction/calvings' },
+            { name: 'Inseminations', href: '/reproduction/inseminations' },
+            { name: 'Abortions', href: '/reproduction/abortions' },
+            { name: 'Dry-offs', href: '/reproduction/dryoffs' },
+        ],
+    },
+
+    // Lifecycle & Production
+    {
+        name: 'Production',
+        href: '/production',
+        icon: Activity,
+        children: [
+            { name: 'Milkings', href: '/production/milkings' },
+            { name: 'Weight Records', href: '/production/weights' },
+            { name: 'Feedings', href: '/production/feedings' },
+            { name: 'Transfers', href: '/production/transfers' },
+            { name: 'Disposals', href: '/production/disposals' },
+        ],
+    },
+
+    // Location Management
+    {
+        name: 'Locations',
+        href: '/locations',
         icon: MapPin,
         children: [
-            { name: 'Regions', href: '/geographic/regions' },
-            { name: 'Districts', href: '/geographic/districts' },
+            { name: 'Countries', href: '/locations/countries' },
+            { name: 'Regions', href: '/locations/regions' },
+            { name: 'Districts', href: '/locations/districts' },
+            { name: 'Wards', href: '/locations/wards' },
+            { name: 'Villages', href: '/locations/villages' },
+            { name: 'Streets', href: '/locations/streets' },
+            { name: 'Divisions', href: '/locations/divisions' },
         ],
     },
+
+    // Reference Data
     {
-        name: 'Compliance',
-        href: '/compliance',
-        icon: Shield,
+        name: 'Reference Data',
+        href: '/data',
+        icon: Database,
         children: [
-            { name: 'Vaccination Monitoring', href: '/compliance/vaccinations' },
-            { name: 'Movement Tracking', href: '/compliance/movements' },
-            { name: 'Health Events', href: '/compliance/health' },
+            { name: 'Birth Types', href: '/data/birth-types' },
+            { name: 'Birth Problems', href: '/data/birth-problems' },
+            { name: 'Heat Types', href: '/data/heat-types' },
+            { name: 'Disposal Types', href: '/data/disposal-types' },
+            { name: 'Feeding Types', href: '/data/feeding-types' },
+            { name: 'Milking Methods', href: '/data/milking-methods' },
+            { name: 'Admin Routes', href: '/data/admin-routes' },
+            { name: 'ID Card Types', href: '/data/id-types' },
+            { name: 'School Levels', href: '/data/school-levels' },
+            { name: 'Legal Statuses', href: '/data/legal-statuses' },
+            { name: 'Obtained Methods', href: '/data/obtained-methods' },
+            { name: 'Vaccine Types', href: '/data/vaccine-types' },
+            { name: 'Medicine Types', href: '/data/medicine-types' },
+            { name: 'Insemination Services', href: '/data/insemination-services' },
+            { name: 'Semen Straw Types', href: '/data/semen-types' },
+            { name: 'Reproductive Problems', href: '/data/reproductive-problems' },
+            { name: 'Stages', href: '/data/stages' },
+            { name: 'Test Results', href: '/data/test-results' },
         ],
     },
+
+    // Settings
+    { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -77,7 +167,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const location = useLocation();
-    const [expandedItems, setExpandedItems] = useState<string[]>(['Livestock Registry']);
+    const [expandedItems, setExpandedItems] = useState<string[]>(['User Management']);
 
     const toggleExpand = (name: string) => {
         setExpandedItems((prev) =>
@@ -88,6 +178,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const isActive = (href: string) => {
         if (href === '/') return location.pathname === '/';
         return location.pathname.startsWith(href);
+    };
+
+    const isChildActive = (children?: { name: string; href: string }[]) => {
+        if (!children) return false;
+        return children.some(child => location.pathname === child.href);
     };
 
     return (
@@ -110,10 +205,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {/* Logo */}
                 <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200 dark:border-slate-700">
                     <Link to="/" className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+                        <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                             <Beef className="w-5 h-5 text-white" />
                         </div>
-                        <span className="font-bold text-lg text-slate-900 dark:text-white">Tag & Seal</span>
+                        <span className="font-bold text-lg text-slate-900 dark:text-white">Livestock Admin</span>
                     </Link>
                     <button
                         onClick={onClose}
@@ -127,7 +222,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <nav className="flex-1 overflow-y-auto py-4">
                     <div className="px-3 mb-2">
                         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                            Government Portal
+                            Main Menu
                         </span>
                     </div>
                     <ul className="space-y-1 px-2">
@@ -139,8 +234,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                             onClick={() => toggleExpand(item.name)}
                                             className={cn(
                                                 'w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors',
-                                                isActive(item.href)
-                                                    ? 'bg-primary-600 text-white'
+                                                isActive(item.href) || isChildActive(item.children)
+                                                    ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
                                                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                                             )}
                                         >
@@ -164,7 +259,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                                             className={cn(
                                                                 'block px-3 py-2 text-sm rounded-lg transition-colors',
                                                                 location.pathname === child.href
-                                                                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white'
+                                                                    ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
                                                                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                                                             )}
                                                         >
@@ -188,6 +283,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                     >
                                         <item.icon className="w-5 h-5" />
                                         <span>{item.name}</span>
+                                        {item.badge !== undefined && (
+                                            <span className="ml-auto bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 text-xs font-medium px-2 py-0.5 rounded-full">
+                                                {item.badge}
+                                            </span>
+                                        )}
                                     </Link>
                                 )}
                             </li>
@@ -198,8 +298,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {/* Footer */}
                 <div className="p-4 border-t border-slate-200 dark:border-slate-700">
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                        <p>Ministry of Livestock</p>
-                        <p>United Republic of Tanzania</p>
+                        <p className="font-medium">Livestock Management</p>
+                        <p>Admin Dashboard v1.0</p>
                     </div>
                 </div>
             </aside>

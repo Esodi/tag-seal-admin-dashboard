@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Bell,
     Search,
@@ -46,7 +46,7 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
-                                placeholder="Search livestock, farms, farmers..."
+                                placeholder="Search..."
                                 className="w-64 lg:w-80 pl-10 pr-4 py-2 text-sm bg-slate-100 dark:bg-slate-700 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
@@ -68,7 +68,7 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                         )}
                     </button>
 
-                    {/* Notifications - TODO: Connect to real notifications API endpoint */}
+                    {/* Notifications */}
                     <div className="relative">
                         <button
                             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -89,7 +89,6 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                                         <h3 className="font-semibold text-slate-900 dark:text-white">Notifications</h3>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        {/* Placeholder: Replace with real notifications from API */}
                                         <div className="p-4 text-center text-slate-500 dark:text-slate-400">
                                             <p className="text-sm">No new notifications</p>
                                             <p className="text-xs mt-1">Notifications will appear here when available</p>
@@ -132,10 +131,14 @@ export function Header({ onMenuClick, isDarkMode, onToggleDarkMode }: HeaderProp
                                         <p className="text-sm text-slate-500 dark:text-slate-400">{displayEmail}</p>
                                     </div>
                                     <div className="py-2">
-                                        <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
+                                        <Link
+                                            to="/settings"
+                                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                            onClick={() => setIsProfileOpen(false)}
+                                        >
                                             <Settings className="w-4 h-4" />
                                             Settings
-                                        </button>
+                                        </Link>
                                         <button
                                             onClick={handleLogout}
                                             className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-slate-50 dark:hover:bg-slate-700"

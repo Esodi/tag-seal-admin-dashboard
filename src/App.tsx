@@ -19,17 +19,12 @@ const LivestockRegistry = lazy(() => import('./pages/LivestockRegistry').then(m 
 const FarmRegistry = lazy(() => import('./pages/FarmRegistry').then(m => ({ default: m.FarmRegistry })));
 const FarmerDatabase = lazy(() => import('./pages/FarmerDatabase').then(m => ({ default: m.FarmerDatabase })));
 
-// Geographic Pages (in pages root)
-const Regions = lazy(() => import('./pages/Regions').then(m => ({ default: m.Regions })));
-const Districts = lazy(() => import('./pages/Districts').then(m => ({ default: m.Districts })));
-
-// Compliance / Health Events
+// Health Records
 const VaccinationMonitoring = lazy(() => import('./pages/VaccinationMonitoring').then(m => ({ default: m.VaccinationMonitoring })));
-const MovementTracking = lazy(() => import('./pages/MovementTracking').then(m => ({ default: m.MovementTracking })));
 const HealthEvents = lazy(() => import('./pages/HealthEvents').then(m => ({ default: m.HealthEvents })));
 const DewormingsPage = lazy(() => import('./pages/DewormingsPage').then(m => ({ default: m.DewormingsPage })));
 
-// Reference Data - Geographic
+// Location Pages
 const CountriesPage = lazy(() => import('./pages/reference/CountriesPage').then(m => ({ default: m.CountriesPage })));
 const RegionsPage = lazy(() => import('./pages/reference/RegionsPage').then(m => ({ default: m.RegionsPage })));
 const DistrictsPage = lazy(() => import('./pages/reference/DistrictsPage').then(m => ({ default: m.DistrictsPage })));
@@ -65,7 +60,7 @@ const InseminationsPage = lazy(() => import('./pages/reproduction/InseminationsP
 const AbortedPregnanciesPage = lazy(() => import('./pages/reproduction/AbortedPregnanciesPage').then(m => ({ default: m.AbortedPregnanciesPage })));
 const DryoffsPage = lazy(() => import('./pages/reproduction/DryoffsPage').then(m => ({ default: m.DryoffsPage })));
 
-// Lifecycle Events
+// Lifecycle/Production Events
 const TransfersPage = lazy(() => import('./pages/lifecycle/TransfersPage').then(m => ({ default: m.TransfersPage })));
 const DisposalsPage = lazy(() => import('./pages/lifecycle/DisposalsPage').then(m => ({ default: m.DisposalsPage })));
 const WeightChangesPage = lazy(() => import('./pages/lifecycle/WeightChangesPage').then(m => ({ default: m.WeightChangesPage })));
@@ -92,6 +87,9 @@ const ExtensionOfficersPage = lazy(() => import('./pages/users/ExtensionOfficers
 const VetsPage = lazy(() => import('./pages/users/VetsPage').then(m => ({ default: m.VetsPage })));
 const ExtensionOfficerFarmInvitesPage = lazy(() => import('./pages/users/ExtensionOfficerFarmInvitesPage').then(m => ({ default: m.ExtensionOfficerFarmInvitesPage })));
 
+// Settings
+const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default: m.SettingsPage })));
+
 function App() {
   return (
     <AuthProvider>
@@ -110,58 +108,28 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                {/* ... existing routes ... */}
                 {/* Dashboard & Analytics */}
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/analytics" element={<Analytics />} />
 
-                {/* Core entities */}
+                {/* User Management */}
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/users/admins" element={<SystemUsersPage />} />
+                <Route path="/users/officers" element={<ExtensionOfficersPage />} />
+                <Route path="/users/vets" element={<VetsPage />} />
+                <Route path="/users/invites" element={<ExtensionOfficerFarmInvitesPage />} />
+
+                {/* Core Entities */}
                 <Route path="/livestock" element={<LivestockRegistry />} />
-                <Route path="/livestock/species" element={<LivestockRegistry />} />
-                <Route path="/livestock/regions" element={<LivestockRegistry />} />
                 <Route path="/farms" element={<FarmRegistry />} />
-                <Route path="/farms/regions" element={<FarmRegistry />} />
                 <Route path="/farmers" element={<FarmerDatabase />} />
 
-                {/* Existing geographic pages */}
-                <Route path="/geographic/regions" element={<Regions />} />
-                <Route path="/geographic/districts" element={<Districts />} />
+                {/* Health Records */}
+                <Route path="/health/vaccinations" element={<VaccinationMonitoring />} />
+                <Route path="/health/treatments" element={<HealthEvents />} />
+                <Route path="/health/dewormings" element={<DewormingsPage />} />
 
-                {/* Compliance */}
-                <Route path="/compliance/vaccinations" element={<VaccinationMonitoring />} />
-                <Route path="/compliance/movements" element={<MovementTracking />} />
-                <Route path="/compliance/health" element={<HealthEvents />} />
-                <Route path="/compliance/deworming" element={<DewormingsPage />} />
-
-                {/* Reference Data - Geographic */}
-                <Route path="/reference/countries" element={<CountriesPage />} />
-                <Route path="/reference/regions" element={<RegionsPage />} />
-                <Route path="/reference/districts" element={<DistrictsPage />} />
-                <Route path="/reference/wards" element={<WardsPage />} />
-                <Route path="/reference/villages" element={<VillagesPage />} />
-                <Route path="/reference/streets" element={<StreetsPage />} />
-                <Route path="/reference/divisions" element={<DivisionsPage />} />
-
-                {/* Reference Data - Livestock */}
-                <Route path="/reference/species" element={<SpeciesPage />} />
-                <Route path="/reference/breeds" element={<BreedsPage />} />
-                <Route path="/reference/livestock-types" element={<LivestockTypesPage />} />
-                <Route path="/reference/livestock-obtained-methods" element={<LivestockObtainedMethodsPage />} />
-
-                {/* Reference Data - User */}
-                <Route path="/reference/identity-card-types" element={<IdentityCardTypesPage />} />
-                <Route path="/reference/school-levels" element={<SchoolLevelsPage />} />
-                <Route path="/reference/legal-statuses" element={<LegalStatusesPage />} />
-
-                {/* Reference Data - Health */}
-                <Route path="/reference/diseases" element={<DiseasesPage />} />
-                <Route path="/reference/vaccines" element={<VaccinesPage />} />
-                <Route path="/reference/vaccine-types" element={<VaccineTypesPage />} />
-                <Route path="/reference/medicines" element={<MedicinesPage />} />
-                <Route path="/reference/medicine-types" element={<MedicineTypesPage />} />
-                <Route path="/reference/administration-routes" element={<AdministrationRoutesPage />} />
-
-                {/* Reproduction Events */}
+                {/* Reproduction */}
                 <Route path="/reproduction/pregnancies" element={<PregnanciesPage />} />
                 <Route path="/reproduction/births" element={<BirthEventsPage />} />
                 <Route path="/reproduction/calvings" element={<CalvingsPage />} />
@@ -169,32 +137,56 @@ function App() {
                 <Route path="/reproduction/abortions" element={<AbortedPregnanciesPage />} />
                 <Route path="/reproduction/dryoffs" element={<DryoffsPage />} />
 
-                {/* Lifecycle Events */}
-                <Route path="/lifecycle/transfers" element={<TransfersPage />} />
-                <Route path="/lifecycle/disposals" element={<DisposalsPage />} />
-                <Route path="/lifecycle/weights" element={<WeightChangesPage />} />
-                <Route path="/lifecycle/feedings" element={<FeedingsPage />} />
-                <Route path="/lifecycle/milkings" element={<MilkingsPage />} />
+                {/* Production / Lifecycle */}
+                <Route path="/production/milkings" element={<MilkingsPage />} />
+                <Route path="/production/weights" element={<WeightChangesPage />} />
+                <Route path="/production/feedings" element={<FeedingsPage />} />
+                <Route path="/production/transfers" element={<TransfersPage />} />
+                <Route path="/production/disposals" element={<DisposalsPage />} />
+
+                {/* Locations */}
+                <Route path="/locations/countries" element={<CountriesPage />} />
+                <Route path="/locations/regions" element={<RegionsPage />} />
+                <Route path="/locations/districts" element={<DistrictsPage />} />
+                <Route path="/locations/wards" element={<WardsPage />} />
+                <Route path="/locations/villages" element={<VillagesPage />} />
+                <Route path="/locations/streets" element={<StreetsPage />} />
+                <Route path="/locations/divisions" element={<DivisionsPage />} />
+
+                {/* Reference Data - Livestock */}
+                <Route path="/data/species" element={<SpeciesPage />} />
+                <Route path="/data/breeds" element={<BreedsPage />} />
+                <Route path="/data/livestock-types" element={<LivestockTypesPage />} />
+                <Route path="/data/obtained-methods" element={<LivestockObtainedMethodsPage />} />
+
+                {/* Reference Data - Health */}
+                <Route path="/data/diseases" element={<DiseasesPage />} />
+                <Route path="/data/vaccines" element={<VaccinesPage />} />
+                <Route path="/data/vaccine-types" element={<VaccineTypesPage />} />
+                <Route path="/data/medicines" element={<MedicinesPage />} />
+                <Route path="/data/medicine-types" element={<MedicineTypesPage />} />
+                <Route path="/data/admin-routes" element={<AdministrationRoutesPage />} />
 
                 {/* Reference Data - Reproduction */}
-                <Route path="/reference/birth-types" element={<BirthTypesPage />} />
-                <Route path="/reference/birth-problems" element={<BirthProblemsPage />} />
-                <Route path="/reference/heat-types" element={<HeatTypesPage />} />
-                <Route path="/reference/semen-straw-types" element={<SemenStrawTypesPage />} />
-                <Route path="/reference/insemination-services" element={<InseminationServicesPage />} />
-                <Route path="/reference/reproductive-problems" element={<ReproductiveProblemsPage />} />
+                <Route path="/data/birth-types" element={<BirthTypesPage />} />
+                <Route path="/data/birth-problems" element={<BirthProblemsPage />} />
+                <Route path="/data/heat-types" element={<HeatTypesPage />} />
+                <Route path="/data/semen-types" element={<SemenStrawTypesPage />} />
+                <Route path="/data/insemination-services" element={<InseminationServicesPage />} />
+                <Route path="/data/reproductive-problems" element={<ReproductiveProblemsPage />} />
 
                 {/* Reference Data - Lifecycle */}
-                <Route path="/reference/disposal-types" element={<DisposalTypesPage />} />
-                <Route path="/reference/feeding-types" element={<FeedingTypesPage />} />
-                <Route path="/reference/milking-methods" element={<MilkingMethodsPage />} />
+                <Route path="/data/disposal-types" element={<DisposalTypesPage />} />
+                <Route path="/data/feeding-types" element={<FeedingTypesPage />} />
+                <Route path="/data/milking-methods" element={<MilkingMethodsPage />} />
 
-                {/* User Management */}
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/users/system" element={<SystemUsersPage />} />
-                <Route path="/users/extension-officers" element={<ExtensionOfficersPage />} />
-                <Route path="/users/vets" element={<VetsPage />} />
-                <Route path="/users/farm-invites" element={<ExtensionOfficerFarmInvitesPage />} />
+                {/* Reference Data - User/General */}
+                <Route path="/data/id-types" element={<IdentityCardTypesPage />} />
+                <Route path="/data/school-levels" element={<SchoolLevelsPage />} />
+                <Route path="/data/legal-statuses" element={<LegalStatusesPage />} />
+
+                {/* Settings */}
+                <Route path="/settings" element={<SettingsPage />} />
 
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />

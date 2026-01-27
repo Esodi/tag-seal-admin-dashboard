@@ -378,7 +378,7 @@ export function Dashboard() {
                             Dashboard
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">
-                            National livestock tracking and surveillance overview
+                            Livestock management and monitoring overview
                         </p>
                     </div>
 
@@ -401,7 +401,7 @@ export function Dashboard() {
                         <StatCard
                             title="Vaccination Rate"
                             value={formatPercentage(dashboardStats.vaccinationCoverage)}
-                            subtitle="Nationwide coverage"
+                            subtitle="Overall coverage"
                             icon={Syringe}
                             color={dashboardStats.vaccinationCoverage > 70 ? 'success' : 'warning'}
                         />
