@@ -1,6 +1,6 @@
 export { Dashboard } from './Dashboard';
 export { Analytics } from './Analytics';
-export { Settings } from './Settings';
+export { SettingsPage } from './Settings';
 
 // Core entities
 export { LivestockRegistry } from './LivestockRegistry';
