@@ -204,7 +204,7 @@ export function Dashboard() {
         // 1. Species Distribution Pie Chart
         const speciesCounts: Record<string, number> = {};
         livestock.forEach((l: any) => {
-            const species = l.species || 'Unknown';
+            const species = l.species || l.species_name || l.specie || 'Unknown';
             speciesCounts[species] = (speciesCounts[species] || 0) + 1;
         });
 
@@ -311,8 +311,8 @@ export function Dashboard() {
             id: `med-${m.id}`,
             type: 'treatment',
             title: 'Medical Treatment',
-            description: `Treatment for ${m.disease || 'illness'} recorded`,
-            date: m.treatmentDate || m.created_at || new Date().toISOString(),
+            description: `Treatment for ${m.disease?.name || m.disease || 'illness'} recorded`,
+            date: m.medicationDate || m.created_at || new Date().toISOString(),
             link: '/health/medications'
         }));
 
@@ -324,9 +324,9 @@ export function Dashboard() {
                 id: m.id,
                 type: m.severity === 'critical' ? 'danger' : 'warning',
                 title: 'Disease Alert',
-                message: `${m.disease || 'Unknown Disease'} outbreak reported in ${m.region || 'Unknown Region'}`,
+                message: `${m.disease?.name || m.disease || 'Unknown Disease'} outbreak reported in ${m.region || 'Unknown Region'}`,
                 region: m.region,
-                createdAt: m.treatmentDate || new Date().toISOString()
+                createdAt: m.medicationDate || m.created_at || new Date().toISOString()
             }))
             .slice(0, 5) as any[];
 
@@ -435,7 +435,7 @@ export function Dashboard() {
                             </h2>
                             <p className="text-sm text-slate-500">Registrations over the last 12 months</p>
                         </div>
-                        <div className="card-body h-80">
+                        <div className="card-body h-80 min-w-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={livestockTrend}>
                                     <defs>
@@ -470,7 +470,7 @@ export function Dashboard() {
                                     Species Mix
                                 </h2>
                             </div>
-                            <div className="card-body h-64">
+                            <div className="card-body h-64 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -502,7 +502,7 @@ export function Dashboard() {
                                     Top Regions
                                 </h2>
                             </div>
-                            <div className="card-body h-64">
+                            <div className="card-body h-64 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={regionalComparison} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

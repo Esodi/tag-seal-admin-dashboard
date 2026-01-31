@@ -9,7 +9,7 @@ export function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(() => {
         const saved = localStorage.getItem('darkMode');
-        return saved ? JSON.parse(saved) : false;
+        return saved ? JSON.parse(saved) : true;
     });
 
     useEffect(() => {

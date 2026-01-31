@@ -16,6 +16,7 @@ import {
     Activity,
     Database,
     Settings,
+    ScrollText,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -32,7 +33,8 @@ const navigation: NavItem[] = [
     // Main
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    
+    { name: 'Reports', href: '/reports', icon: ScrollText },
+
     // User Management
     {
         name: 'User Management',

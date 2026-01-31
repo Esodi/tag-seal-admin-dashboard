@@ -21,13 +21,16 @@ import {
     ChevronsLeft,
     ChevronsRight,
     Search,
-    Download,
     Columns,
     Trash2,
     Edit,
     Eye,
+    FileText,
+    FileSpreadsheet,
+    FileDown,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { exportToCSV, exportToExcel, exportToPDF } from '../../lib/exportUtils';
 
 // Types
 export interface DataTableColumn<T> {
@@ -152,7 +155,7 @@ export function DataTable<T extends { id: number | string }>({
                 accessorFn: col.accessorFn,
                 cell: col.cell
                     ? (info) => col.cell!({ row: info.row, getValue: info.getValue })
-                    : undefined,
+                    : (info) => info.getValue() as React.ReactNode,
                 enableSorting: col.enableSorting !== false,
                 size: col.size,
                 meta: col.meta,
@@ -233,32 +236,20 @@ export function DataTable<T extends { id: number | string }>({
         return table.getSelectedRowModel().rows.map((row) => row.original);
     }, [table.getSelectedRowModel().rows]);
 
-    // Export to CSV
-    const exportToCSV = useCallback(() => {
-        const headers = columns.map((col) => col.header).join(',');
-        const rows = table.getFilteredRowModel().rows.map((row) => {
-            return columns
-                .map((col) => {
-                    const value = col.accessorKey
-                        ? (row.original as Record<string, unknown>)[col.accessorKey as string]
-                        : col.accessorFn
-                            ? col.accessorFn(row.original)
-                            : '';
-                    // Escape quotes and wrap in quotes if contains comma
-                    const stringValue = String(value ?? '').replace(/"/g, '""');
-                    return stringValue.includes(',') ? `"${stringValue}"` : stringValue;
-                })
-                .join(',');
-        });
+    // Export Handlers
+    const handleExportCSV = useCallback(() => {
+        const exportData = table.getFilteredRowModel().rows.map(row => row.original);
+        exportToCSV(exportData, columns as any, exportFilename);
+    }, [columns, table, exportFilename]);
 
-        const csv = [headers, ...rows].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${exportFilename}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
+    const handleExportExcel = useCallback(() => {
+        const exportData = table.getFilteredRowModel().rows.map(row => row.original);
+        exportToExcel(exportData, columns as any, exportFilename);
+    }, [columns, table, exportFilename]);
+
+    const handleExportPDF = useCallback(() => {
+        const exportData = table.getFilteredRowModel().rows.map(row => row.original);
+        exportToPDF(exportData, columns as any, exportFilename);
     }, [columns, table, exportFilename]);
 
     // Notify parent of selection changes
@@ -331,15 +322,36 @@ export function DataTable<T extends { id: number | string }>({
                         )}
                     </div>
 
-                    {/* Export */}
+                    {/* Export Options */}
                     {enableExport && (
-                        <button
-                            onClick={exportToCSV}
-                            className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                            title="Export to CSV"
-                        >
-                            <Download className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1 bg-white dark:bg-slate-800">
+                            <button
+                                onClick={handleExportCSV}
+                                className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1"
+                                title="Export to CSV"
+                            >
+                                <FileDown className="w-4 h-4" />
+                                <span className="text-[10px] font-bold">CSV</span>
+                            </button>
+                            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+                            <button
+                                onClick={handleExportExcel}
+                                className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1"
+                                title="Export to Excel"
+                            >
+                                <FileSpreadsheet className="w-4 h-4" />
+                                <span className="text-[10px] font-bold">XLS</span>
+                            </button>
+                            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+                            <button
+                                onClick={handleExportPDF}
+                                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1"
+                                title="Export to PDF"
+                            >
+                                <FileText className="w-4 h-4" />
+                                <span className="text-[10px] font-bold">PDF</span>
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>

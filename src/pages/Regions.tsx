@@ -28,10 +28,15 @@ interface RegionData {
     name: string;
     code?: string;
     districts?: number;
+    districts_count?: number;
     farms?: number;
+    farms_count?: number;
     livestock?: number;
+    livestock_count?: number;
     farmers?: number;
+    farmers_count?: number;
     vaccinationRate?: number;
+    vaccination_rate?: number;
     status?: string;
     [key: string]: unknown;
 }
@@ -51,17 +56,17 @@ export function Regions() {
     // Compute stats from data
     const regionStats = useMemo(() => ({
         totalRegions: regions.length,
-        totalDistricts: regions.reduce((sum, r) => sum + (r.districts ?? 0), 0),
-        totalFarms: regions.reduce((sum, r) => sum + (r.farms ?? 0), 0),
-        totalLivestock: regions.reduce((sum, r) => sum + (r.livestock ?? 0), 0),
+        totalDistricts: regions.reduce((sum, r) => sum + (r.districts ?? r.districts_count ?? 0), 0),
+        totalFarms: regions.reduce((sum, r) => sum + (r.farms ?? r.farms_count ?? 0), 0),
+        totalLivestock: regions.reduce((sum, r) => sum + (r.livestock ?? r.livestock_count ?? 0), 0),
     }), [regions]);
 
     // Chart data for top regions
     const topRegionsChart = useMemo(() =>
         [...regions]
-            .sort((a, b) => (b.livestock ?? 0) - (a.livestock ?? 0))
+            .sort((a, b) => (b.livestock ?? b.livestock_count ?? 0) - (a.livestock ?? a.livestock_count ?? 0))
             .slice(0, 10)
-            .map((r) => ({ name: r.name, livestock: r.livestock ?? 0, farms: r.farms ?? 0 })),
+            .map((r) => ({ name: r.name, livestock: r.livestock ?? r.livestock_count ?? 0, farms: r.farms ?? r.farms_count ?? 0 })),
         [regions]
     );
 
@@ -157,7 +162,7 @@ export function Regions() {
                     <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Top 10 Regions by Livestock</h2>
                 </div>
                 <div className="card-body">
-                    <div className="h-72">
+                    <div className="h-72 min-w-0">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={topRegionsChart} layout="vertical">
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -215,13 +220,13 @@ export function Regions() {
                                     <td className="py-3 px-4 text-center">
                                         <span className="font-mono text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{region.code}</span>
                                     </td>
-                                    <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-300">{region.districts ?? 0}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farms ?? 0)}</td>
-                                    <td className="py-3 px-4 text-right text-slate-900 dark:text-white font-medium">{formatNumber(region.livestock ?? 0)}</td>
-                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farmers ?? 0)}</td>
+                                    <td className="py-3 px-4 text-center text-slate-600 dark:text-slate-300">{region.districts ?? region.districts_count ?? 0}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farms ?? region.farms_count ?? 0)}</td>
+                                    <td className="py-3 px-4 text-right text-slate-900 dark:text-white font-medium">{formatNumber(region.livestock ?? region.livestock_count ?? 0)}</td>
+                                    <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-300">{formatNumber(region.farmers ?? region.farmers_count ?? 0)}</td>
                                     <td className="py-3 px-4 text-center">
-                                        <span className={cn('font-medium', getVaccinationColor(region.vaccinationRate ?? 0))}>
-                                            {region.vaccinationRate ?? 0}%
+                                        <span className={cn('font-medium', getVaccinationColor(region.vaccinationRate ?? region.vaccination_rate ?? 0))}>
+                                            {region.vaccinationRate ?? region.vaccination_rate ?? 0}%
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
@@ -251,31 +256,31 @@ export function Regions() {
                         <div className="p-6 grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Districts</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{selectedRegion.districts ?? 0}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{selectedRegion.districts ?? selectedRegion.districts_count ?? 0}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farmers</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farmers ?? 0)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farmers ?? selectedRegion.farmers_count ?? 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Farms</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farms ?? 0)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.farms ?? selectedRegion.farms_count ?? 0)}</p>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Livestock</label>
-                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.livestock ?? 0)}</p>
+                                <p className="text-slate-900 dark:text-white text-lg font-bold">{formatNumber(selectedRegion.livestock ?? selectedRegion.livestock_count ?? 0)}</p>
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Vaccination Rate</label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div
-                                            className={cn('h-full rounded-full', (selectedRegion.vaccinationRate ?? 0) >= 80 ? 'bg-green-500' : (selectedRegion.vaccinationRate ?? 0) >= 70 ? 'bg-amber-500' : 'bg-red-500')}
-                                            style={{ width: `${selectedRegion.vaccinationRate ?? 0}%` }}
+                                            className={cn('h-full rounded-full', (selectedRegion.vaccinationRate ?? selectedRegion.vaccination_rate ?? 0) >= 80 ? 'bg-green-500' : (selectedRegion.vaccinationRate ?? selectedRegion.vaccination_rate ?? 0) >= 70 ? 'bg-amber-500' : 'bg-red-500')}
+                                            style={{ width: `${selectedRegion.vaccinationRate ?? selectedRegion.vaccination_rate ?? 0}%` }}
                                         />
                                     </div>
-                                    <span className={cn('font-bold', getVaccinationColor(selectedRegion.vaccinationRate ?? 0))}>
-                                        {selectedRegion.vaccinationRate ?? 0}%
+                                    <span className={cn('font-bold', getVaccinationColor(selectedRegion.vaccinationRate ?? selectedRegion.vaccination_rate ?? 0))}>
+                                        {selectedRegion.vaccinationRate ?? selectedRegion.vaccination_rate ?? 0}%
                                     </span>
                                 </div>
                             </div>

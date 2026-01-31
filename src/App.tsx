@@ -13,6 +13,7 @@ const NotFound = lazy(() => import('./pages/NotFound').then(m => ({ default: m.N
 // Dashboard & Analytics
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Analytics = lazy(() => import('./pages/Analytics').then(m => ({ default: m.Analytics })));
+const ReportsPage = lazy(() => import('./pages/Reports').then(m => ({ default: m.ReportsPage })));
 
 // Core entities
 const LivestockRegistry = lazy(() => import('./pages/LivestockRegistry').then(m => ({ default: m.LivestockRegistry })));
@@ -79,6 +80,8 @@ const ReproductiveProblemsPage = lazy(() => import('./pages/reference/Reproducti
 const DisposalTypesPage = lazy(() => import('./pages/reference/DisposalTypesPage').then(m => ({ default: m.DisposalTypesPage })));
 const FeedingTypesPage = lazy(() => import('./pages/reference/FeedingTypesPage').then(m => ({ default: m.FeedingTypesPage })));
 const MilkingMethodsPage = lazy(() => import('./pages/reference/MilkingMethodsPage').then(m => ({ default: m.MilkingMethodsPage })));
+const StagesPage = lazy(() => import('./pages/Stages'));
+const TestResultsPage = lazy(() => import('./pages/TestResults'));
 
 // User Management
 const UsersPage = lazy(() => import('./pages/users/UsersPage').then(m => ({ default: m.UsersPage })));
@@ -93,7 +96,7 @@ const SettingsPage = lazy(() => import('./pages/Settings').then(m => ({ default:
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -111,6 +114,7 @@ function App() {
                 {/* Dashboard & Analytics */}
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/reports" element={<ReportsPage />} />
 
                 {/* User Management */}
                 <Route path="/users" element={<UsersPage />} />
@@ -179,6 +183,8 @@ function App() {
                 <Route path="/data/disposal-types" element={<DisposalTypesPage />} />
                 <Route path="/data/feeding-types" element={<FeedingTypesPage />} />
                 <Route path="/data/milking-methods" element={<MilkingMethodsPage />} />
+                <Route path="/data/stages" element={<StagesPage />} />
+                <Route path="/data/test-results" element={<TestResultsPage />} />
 
                 {/* Reference Data - User/General */}
                 <Route path="/data/id-types" element={<IdentityCardTypesPage />} />

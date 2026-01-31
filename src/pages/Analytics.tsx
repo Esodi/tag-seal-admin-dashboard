@@ -270,7 +270,7 @@ export function Analytics() {
                                 <h3 className="font-semibold text-slate-900 dark:text-white">Age Distribution</h3>
                                 <p className="text-sm text-slate-500">Calculated from Date of Birth</p>
                             </div>
-                            <div className="card-body h-80">
+                            <div className="card-body h-80 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={stats.ageDistribution}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -292,7 +292,7 @@ export function Analytics() {
                                 <h3 className="font-semibold text-slate-900 dark:text-white">Top Breeds</h3>
                                 <p className="text-sm text-slate-500">Most common breeds registered</p>
                             </div>
-                            <div className="card-body h-80">
+                            <div className="card-body h-80 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
@@ -327,7 +327,7 @@ export function Analytics() {
                                 <h3 className="font-semibold text-slate-900 dark:text-white">Farm Size Classification</h3>
                                 <p className="text-sm text-slate-500">Distribution of farms by land size</p>
                             </div>
-                            <div className="card-body h-96">
+                            <div className="card-body h-96 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={stats.farmSizeData} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
@@ -353,7 +353,7 @@ export function Analytics() {
                                 <h3 className="font-semibold text-slate-900 dark:text-white">Disease Vaccination Profile</h3>
                                 <p className="text-sm text-slate-500">Top diseases targeted by vaccination</p>
                             </div>
-                            <div className="card-body h-80">
+                            <div className="card-body h-80 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie

@@ -230,7 +230,7 @@ export const authApi = {
     },
 
     logout: () => {
-        const promise = fetchAPI('/auth/logout', { method: 'POST' });
+        const promise = fetchAPI('/auth/logout-all', { method: 'POST' });
         clearAuthToken();
         return promise;
     },
