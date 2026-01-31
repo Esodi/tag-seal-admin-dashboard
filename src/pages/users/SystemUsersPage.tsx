@@ -120,7 +120,7 @@ export function SystemUsersPage() {
             type: 'select',
             options: [
                 { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
+                { value: 'notActive', label: 'Inactive' },
             ],
             defaultValue: 'active',
         },

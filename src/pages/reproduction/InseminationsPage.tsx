@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CrudPage, DataTableColumn, FormField, SelectOption } from '../../components/crud';
-import { inseminationApi, livestockApi, inseminationServiceApi, semenStrawTypeApi, heatTypeApi, vetApi } from '../../services/api';
-import { Insemination, Livestock, InseminationService, SemenStrawType, HeatType, Vet } from '../../types/entities';
+import { inseminationApi, livestockApi, inseminationServiceApi, semenStrawTypeApi, heatTypeApi, farmApi } from '../../services/api';
+import { Insemination, Livestock, InseminationService, SemenStrawType, HeatType, Farm } from '../../types/entities';
 import { formatDate } from '../../lib/utils';
 
 // Extended type for display
 interface InseminationDisplay extends Insemination {
     livestockName?: string;
+    farmName?: string;
     serviceName?: string;
     strawTypeName?: string;
-    heatTypeName?: string;
-    technicianName?: string;
 }
 
 export function InseminationsPage() {
@@ -18,11 +17,11 @@ export function InseminationsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | undefined>();
 
-    const [females, setFemales] = useState<SelectOption[]>([]);
+    const [livestock, setLivestock] = useState<SelectOption[]>([]);
+    const [farms, setFarms] = useState<SelectOption[]>([]);
     const [services, setServices] = useState<SelectOption[]>([]);
     const [strawTypes, setStrawTypes] = useState<SelectOption[]>([]);
     const [heatTypes, setHeatTypes] = useState<SelectOption[]>([]);
-    const [technicians, setTechnicians] = useState<SelectOption[]>([]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -31,47 +30,44 @@ export function InseminationsPage() {
             const [
                 inseminationsData,
                 livestockData,
+                farmsData,
                 servicesData,
                 strawsData,
-                heatsData,
-                vetsData
+                heatsData
             ] = await Promise.all([
                 inseminationApi.list(),
                 livestockApi.list(),
+                farmApi.list(),
                 inseminationServiceApi.list(),
                 semenStrawTypeApi.list(),
                 heatTypeApi.list(),
-                vetApi.list(),
             ]);
 
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const farmMap = new Map(farmsData.map((f: Farm) => [f.uuid, f.name]));
             const serviceMap = new Map(servicesData.map((s: InseminationService) => [s.id, s.name]));
             const strawMap = new Map(strawsData.map((s: SemenStrawType) => [s.id, s.name]));
-            const heatMap = new Map(heatsData.map((h: HeatType) => [h.id, h.name]));
-            const vetMap = new Map(vetsData.map((v: Vet) => [v.id, `${v.firstName} ${v.lastName}`]));
 
             const enrichedData = inseminationsData.map((i: Insemination) => ({
                 ...i,
-                livestockName: i.livestockId ? livestockMap.get(i.livestockId) : '-',
+                livestockName: i.livestockUuid ? livestockMap.get(i.livestockUuid) : '-',
+                farmName: i.farmUuid ? farmMap.get(i.farmUuid) : '-',
                 serviceName: i.inseminationServiceId ? serviceMap.get(i.inseminationServiceId) : '-',
                 strawTypeName: i.semenStrawTypeId ? strawMap.get(i.semenStrawTypeId) : '-',
-                heatTypeName: i.heatTypeId ? heatMap.get(i.heatTypeId) : '-',
-                technicianName: i.technicianId ? vetMap.get(i.technicianId) : '-',
             }));
 
             setData(enrichedData);
 
-            setFemales(livestockData
-                .filter((l: Livestock) => l.gender === 'female')
+            setLivestock(livestockData
                 .map((l: Livestock) => ({
-                    value: l.id,
+                    value: l.uuid,
                     label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
                 })));
 
+            setFarms(farmsData.map((f: Farm) => ({ value: f.uuid, label: f.name })));
             setServices(servicesData.map((s: InseminationService) => ({ value: s.id, label: s.name })));
             setStrawTypes(strawsData.map((s: SemenStrawType) => ({ value: s.id, label: s.name })));
             setHeatTypes(heatsData.map((h: HeatType) => ({ value: h.id, label: h.name })));
-            setTechnicians(vetsData.map((v: Vet) => ({ value: v.id, label: `${v.firstName} ${v.lastName}` })));
 
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load insemination records');
@@ -85,79 +81,89 @@ export function InseminationsPage() {
     }, [fetchData]);
 
     const columns: DataTableColumn<InseminationDisplay>[] = [
-        { id: 'id', header: 'ID', accessorKey: 'id', size: 80 },
-        { id: 'livestockName', header: 'Female', accessorKey: 'livestockName' },
+        { id: 'uuid', header: 'UUID', accessorKey: 'uuid', size: 100 },
+        { id: 'livestockName', header: 'Animal', accessorKey: 'livestockName' },
+        { id: 'farmName', header: 'Farm', accessorKey: 'farmName' },
         {
             id: 'inseminationDate',
             header: 'Date',
-            accessorFn: (row) => formatDate(row.inseminationDate),
+            accessorFn: (row) => row.inseminationDate ? formatDate(row.inseminationDate) : '-',
         },
         { id: 'serviceName', header: 'Service', accessorKey: 'serviceName' },
-        { id: 'technicianName', header: 'Technician', accessorKey: 'technicianName' },
-        {
-            id: 'successful',
-            header: 'Successful',
-            accessorFn: (row) => row.successful === undefined ? '-' : (row.successful ? 'Yes' : 'No'),
-            size: 100
-        },
+        { id: 'bullCode', header: 'Bull Code', accessorKey: 'bullCode' },
     ];
 
-    const formFields: FormField<Partial<Insemination>>[] = [
+    const formFields: FormField<Insemination>[] = [
         {
-            name: 'livestockId',
+            name: 'farmUuid' as keyof Insemination,
+            label: 'Farm',
+            type: 'select',
+            required: true,
+            options: farms,
+            placeholder: 'Select farm',
+        },
+        {
+            name: 'livestockUuid' as keyof Insemination,
             label: 'Animal',
             type: 'select',
             required: true,
-            options: females,
-            placeholder: 'Select female',
+            options: livestock,
+            placeholder: 'Select livestock',
         },
         {
-            name: 'inseminationDate',
-            label: 'Date',
+            name: 'inseminationDate' as keyof Insemination,
+            label: 'Insemination Date',
             type: 'date',
             required: true,
         },
         {
-            name: 'inseminationServiceId',
+            name: 'inseminationServiceId' as keyof Insemination,
             label: 'Service Type',
             type: 'select',
             options: services,
             placeholder: 'Select service',
         },
         {
-            name: 'semenStrawTypeId',
+            name: 'semenStrawTypeId' as keyof Insemination,
             label: 'Semen/Straw Type',
             type: 'select',
             options: strawTypes,
             placeholder: 'Select type',
         },
         {
-            name: 'sireId',
-            label: 'Sire / Bull / Straw ID',
-            type: 'text',
-            placeholder: 'Bull Name or Straw Code',
-        },
-        {
-            name: 'technicianId',
-            label: 'Technician / Vet',
-            type: 'select',
-            options: technicians,
-            placeholder: 'Select technician',
-        },
-        {
-            name: 'heatTypeId',
+            name: 'currentHeatTypeId' as keyof Insemination,
             label: 'Heat Signs',
             type: 'select',
             options: heatTypes,
             placeholder: 'Observed heat',
         },
         {
-            name: 'successful',
-            label: 'Successful?',
-            type: 'checkbox',
+            name: 'bullCode' as keyof Insemination,
+            label: 'Bull Code',
+            type: 'text',
         },
         {
-            name: 'notes',
+            name: 'bullBreed' as keyof Insemination,
+            label: 'Bull Breed',
+            type: 'text',
+        },
+        {
+            name: 'semenProductionDate' as keyof Insemination,
+            label: 'Semen Production Date',
+            type: 'date',
+        },
+        {
+            name: 'productionCountry' as keyof Insemination,
+            label: 'Production Country',
+            type: 'text',
+        },
+        {
+            name: 'semenBatchNumber' as keyof Insemination,
+            label: 'Semen Batch Number',
+            type: 'text',
+        },
+        {
+            name: 'notes' as keyof Insemination,
             label: 'Notes',
             type: 'textarea',
             placeholder: 'Comments',
@@ -165,15 +171,17 @@ export function InseminationsPage() {
     ];
 
     const detailFields = [
-        { key: 'id' as keyof InseminationDisplay, label: 'ID' },
+        { key: 'uuid' as keyof InseminationDisplay, label: 'UUID' },
         { key: 'livestockName' as keyof InseminationDisplay, label: 'Animal' },
-        { key: 'inseminationDate' as keyof InseminationDisplay, label: 'Date', render: (val: unknown) => formatDate(String(val)) },
+        { key: 'farmName' as keyof InseminationDisplay, label: 'Farm' },
+        { key: 'inseminationDate' as keyof InseminationDisplay, label: 'Date', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
         { key: 'serviceName' as keyof InseminationDisplay, label: 'Service' },
         { key: 'strawTypeName' as keyof InseminationDisplay, label: 'Straw Type' },
-        { key: 'sireId' as keyof InseminationDisplay, label: 'Sire/Straw ID' },
-        { key: 'technicianName' as keyof InseminationDisplay, label: 'Technician' },
-        { key: 'heatTypeName' as keyof InseminationDisplay, label: 'Heat Sign' },
-        { key: 'successful' as keyof InseminationDisplay, label: 'Successful', render: (val: unknown) => val === undefined ? '-' : (val ? 'Yes' : 'No') },
+        { key: 'bullCode' as keyof InseminationDisplay, label: 'Bull Code' },
+        { key: 'bullBreed' as keyof InseminationDisplay, label: 'Bull Breed' },
+        { key: 'semenProductionDate' as keyof InseminationDisplay, label: 'Production Date', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
+        { key: 'productionCountry' as keyof InseminationDisplay, label: 'Production Country' },
+        { key: 'semenBatchNumber' as keyof InseminationDisplay, label: 'Batch Number' },
         { key: 'notes' as keyof InseminationDisplay, label: 'Notes' },
         { key: 'created_at' as keyof InseminationDisplay, label: 'Created At', render: (val: unknown) => formatDate(String(val)) },
     ];
@@ -198,7 +206,7 @@ export function InseminationsPage() {
             loading={loading}
             error={error}
             columns={columns}
-            formFields={formFields}
+            formFields={formFields as any}
             detailFields={detailFields}
             formColumns={2}
             onCreate={handleCreate}

@@ -436,7 +436,7 @@ export function Dashboard() {
                             <p className="text-sm text-slate-500">Registrations over the last 12 months</p>
                         </div>
                         <div className="card-body h-80 min-w-0">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                 <AreaChart data={livestockTrend}>
                                     <defs>
                                         <linearGradient id="colorCattle" x1="0" y1="0" x2="0" y2="1">
@@ -471,7 +471,7 @@ export function Dashboard() {
                                 </h2>
                             </div>
                             <div className="card-body h-64 min-w-0">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                     <PieChart>
                                         <Pie
                                             data={speciesDistribution}
@@ -503,7 +503,7 @@ export function Dashboard() {
                                 </h2>
                             </div>
                             <div className="card-body h-64 min-w-0">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                     <BarChart data={regionalComparison} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                         <XAxis type="number" hide />

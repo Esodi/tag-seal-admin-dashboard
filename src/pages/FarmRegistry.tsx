@@ -232,10 +232,10 @@ export function FarmRegistry() {
             label: 'Status',
             type: 'select',
             options: [
-                { value: 'Active', label: 'Active' },
-                { value: 'Inactive', label: 'Inactive' },
+                { value: 'active', label: 'Active' },
+                { value: 'not-active', label: 'Inactive' },
             ],
-            defaultValue: 'Active',
+            defaultValue: 'active',
         },
     ];
 

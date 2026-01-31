@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CrudPage, DataTableColumn, FormField, SelectOption } from '../components/crud';
-import { treatmentApi, referenceApi, livestockApi, vetApi } from '../services/api';
-import { Medication, Medicine, Disease, Livestock, Vet, AdministrationRoute } from '../types/entities';
+import { treatmentApi, referenceApi, livestockApi, vetApi, farmApi } from '../services/api';
+import { Medication, Medicine, Disease, Livestock, Vet, AdministrationRoute, Farm } from '../types/entities';
 import { formatDate } from '../lib/utils';
 
 // Extended type for display
@@ -11,6 +11,7 @@ interface MedicationDisplay extends Medication {
     diseaseName?: string;
     vetName?: string;
     routeName?: string;
+    farmName?: string;
 }
 
 export function HealthEvents() {
@@ -21,6 +22,7 @@ export function HealthEvents() {
     const [medicines, setMedicines] = useState<SelectOption[]>([]);
     const [diseases, setDiseases] = useState<SelectOption[]>([]);
     const [livestock, setLivestock] = useState<SelectOption[]>([]);
+    const [farms, setFarms] = useState<SelectOption[]>([]);
     const [vets, setVets] = useState<SelectOption[]>([]);
     const [routes, setRoutes] = useState<SelectOption[]>([]);
 
@@ -28,37 +30,41 @@ export function HealthEvents() {
         setLoading(true);
         setError(undefined);
         try {
-            const [medicationsData, medicinesData, diseasesData, livestockData, vetsData, routesData] = await Promise.all([
+            const [medicationsData, medicinesData, diseasesData, livestockData, vetsData, routesData, farmsData] = await Promise.all([
                 treatmentApi.list(),
                 referenceApi.medicines.list(),
                 referenceApi.diseases.list(),
                 livestockApi.list(),
                 vetApi.list(),
                 referenceApi.administrationRoutes.list(),
+                farmApi.list(),
             ]);
 
             const medicineMap = new Map(medicinesData.map((m: Medicine) => [m.id, m.name]));
             const diseaseMap = new Map(diseasesData.map((d: Disease) => [d.id, d.name]));
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
             const vetMap = new Map(vetsData.map((v: Vet) => [v.id, `${v.firstName} ${v.lastName}`]));
             const routeMap = new Map(routesData.map((r: AdministrationRoute) => [r.id, r.name]));
+            const farmMap = new Map(farmsData.map((f: Farm) => [f.uuid, f.name]));
 
             const enrichedData = medicationsData.map((m: Medication) => ({
                 ...m,
                 medicineName: m.medicineId ? medicineMap.get(m.medicineId) : '-',
                 diseaseName: m.diseaseId ? diseaseMap.get(m.diseaseId) : 'General/Unknown',
-                livestockName: livestockMap.get(m.livestockId) || 'Unknown Livestock',
-                vetName: m.veterinarianId ? vetMap.get(m.veterinarianId) : '-',
+                livestockName: livestockMap.get(m.livestockUuid) || 'Unknown Livestock',
+                vetName: m.vetId ? vetMap.get(Number(m.vetId)) : '-',
                 routeName: m.administrationRouteId ? routeMap.get(m.administrationRouteId) : '-',
+                farmName: m.farmUuid ? farmMap.get(m.farmUuid) : '-',
             }));
 
             setData(enrichedData);
             setMedicines(medicinesData.map((m: Medicine) => ({ value: m.id, label: m.name })));
             setDiseases(diseasesData.map((d: Disease) => ({ value: d.id, label: d.name })));
             setLivestock(livestockData.map((l: Livestock) => ({
-                value: l.id,
+                value: l.uuid,
                 label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
             })));
+            setFarms(farmsData.map((f: Farm) => ({ value: f.uuid, label: f.name })));
             setVets(vetsData.map((v: Vet) => ({ value: v.id, label: `${v.firstName} ${v.lastName}` })));
             setRoutes(routesData.map((r: AdministrationRoute) => ({ value: r.id, label: r.name })));
         } catch (err) {
@@ -80,7 +86,7 @@ export function HealthEvents() {
         {
             id: 'medicationDate',
             header: 'Date',
-            accessorFn: (row) => formatDate(row.medicationDate),
+            accessorFn: (row) => row.medicationDate ? formatDate(row.medicationDate) : '-',
         },
         {
             id: 'severity',
@@ -101,7 +107,15 @@ export function HealthEvents() {
 
     const formFields: FormField<Partial<Medication>>[] = [
         {
-            name: 'livestockId',
+            name: 'farmUuid' as keyof Medication,
+            label: 'Farm',
+            type: 'select',
+            required: true,
+            options: farms,
+            placeholder: 'Select farm',
+        },
+        {
+            name: 'livestockUuid' as keyof Medication,
             label: 'Livestock',
             type: 'select',
             required: true,
@@ -141,10 +155,16 @@ export function HealthEvents() {
             required: true,
         },
         {
-            name: 'dosage',
-            label: 'Dosage',
+            name: 'quantity' as keyof Medication,
+            label: 'Quantity',
             type: 'text',
             placeholder: 'e.g. 10ml',
+        },
+        {
+            name: 'withdrawalPeriod' as keyof Medication,
+            label: 'Withdrawal Period (Days)',
+            type: 'text',
+            placeholder: 'e.g. 7',
         },
         {
             name: 'frequency',
@@ -166,7 +186,7 @@ export function HealthEvents() {
             placeholder: 'Select route',
         },
         {
-            name: 'veterinarianId',
+            name: 'vetId' as keyof Medication,
             label: 'Veterinarian',
             type: 'select',
             options: vets,

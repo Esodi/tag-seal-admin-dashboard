@@ -36,8 +36,9 @@ export interface ReproductiveProblem extends BaseEntity {
 
 // Reproduction event logs
 export interface Pregnancy extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
     conceptionDate?: string;
     expectedDeliveryDate?: string;
     actualDeliveryDate?: string;
@@ -45,6 +46,7 @@ export interface Pregnancy extends BaseEntity {
     fatherUuid?: string;
     inseminationId?: number;
     notes?: string;
+    eventDate?: string;
     createdBy?: number;
 
     livestock?: Livestock;
@@ -52,8 +54,9 @@ export interface Pregnancy extends BaseEntity {
 }
 
 export interface BirthEvent extends BaseEntity {
-    livestockId: number;  // Mother
-    livestockUuid?: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
     birthDate: string;
     birthTypeId?: number;
     birthProblemId?: number;
@@ -63,6 +66,7 @@ export interface BirthEvent extends BaseEntity {
     stillbornCount?: number;
     assistanceRequired: boolean;
     notes?: string;
+    eventDate?: string;
     createdBy?: number;
 
     livestock?: Livestock;  // Mother
@@ -71,9 +75,11 @@ export interface BirthEvent extends BaseEntity {
 }
 
 export interface Calving extends BaseEntity {
-    livestockId: number;  // Mother cow
-    livestockUuid?: string;
-    calvingDate: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;  // Mother cow
+    eventDate: string;
+    calvingDate?: string;
     calvingTypeId?: number;
     calvingProblemId?: number;
     calfCount: number;
@@ -81,7 +87,7 @@ export interface Calving extends BaseEntity {
     femaleCalfCount?: number;
     stillbornCount?: number;
     assistanceRequired: boolean;
-    notes?: string;
+    remarks?: string;
     createdBy?: number;
 
     livestock?: Livestock;
@@ -90,15 +96,24 @@ export interface Calving extends BaseEntity {
 }
 
 export interface Insemination extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    inseminationDate: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    lastHeatDate?: string;
+    currentHeatTypeId?: number;
     inseminationServiceId?: number;
     semenStrawTypeId?: number;
-    sireId?: string;  // Sire identifier/name
-    technicianId?: number;
-    heatTypeId?: number;
-    successful?: boolean;
+    inseminationDate: string;
+    bullCode?: string;
+    bullBreed?: string;
+    semenProductionDate?: string;
+    productionCountry?: string;
+    semenBatchNumber?: string;
+    internationalId?: string;
+    aiCode?: string;
+    manufacturerName?: string;
+    semenSupplier?: string;
+    eventDate?: string;
     notes?: string;
     createdBy?: number;
 
@@ -109,14 +124,16 @@ export interface Insemination extends BaseEntity {
 }
 
 export interface AbortedPregnancy extends BaseEntity {
-    pregnancyId?: number;
-    livestockId: number;
-    livestockUuid?: string;
-    abortionDate: string;
-    reason?: string;
+    uuid: string;
+    farmUuid: string;
+    pregnancyUuid?: string;
+    livestockUuid: string;
+    eventDate: string;
+    reasons?: string;
     gestationStage?: string;
     reproductiveProblemId?: number;
-    notes?: string;
+    remarks?: string;
+    status: 'completed' | 'pending';
     createdBy?: number;
 
     pregnancy?: Pregnancy;
@@ -125,12 +142,14 @@ export interface AbortedPregnancy extends BaseEntity {
 }
 
 export interface Dryoff extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    dryoffDate: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    eventDate: string;
     reason?: string;
+    remarks?: string;
     expectedCalvingDate?: string;
-    notes?: string;
+    status: 'active' | 'inactive';
     createdBy?: number;
 
     livestock?: Livestock;

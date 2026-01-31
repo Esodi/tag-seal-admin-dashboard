@@ -21,16 +21,17 @@ export interface TestResult extends BaseEntity {
 
 // Lifecycle event logs
 export interface Transfer extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    sourceFarmId?: number;
-    sourceFarmUuid?: string;
-    destinationFarmId?: number;
-    destinationFarmUuid?: string;
-    transferDate: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    toFarmUuid: string;
+    transporterId?: string;
     reason?: string;
-    transportMethod?: string;
-    notes?: string;
+    price?: number;
+    transferDate: string;
+    eventDate: string;
+    remarks?: string;
+    status: 'active' | 'pending' | 'completed' | 'cancelled';
     createdBy?: number;
 
     livestock?: Livestock;
@@ -39,16 +40,14 @@ export interface Transfer extends BaseEntity {
 }
 
 export interface Disposal extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    disposalDate: string;
-    disposalTypeId?: number;
-    reason?: string;
-    salePrice?: number;
-    buyerName?: string;
-    buyerContact?: string;
-    slaughterLocation?: string;
-    notes?: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    disposalTypeId: number;
+    reasons: string;
+    remarks: string;
+    eventDate: string;
+    status: 'pending' | 'completed' | 'failed';
     createdBy?: number;
 
     livestock?: Livestock;
@@ -56,27 +55,27 @@ export interface Disposal extends BaseEntity {
 }
 
 export interface WeightChange extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    recordDate: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    eventDate: string;
     weight: number;
     weightUnit?: string;
-    notes?: string;
+    remarks?: string;
     createdBy?: number;
 
     livestock?: Livestock;
 }
 
 export interface Feeding extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    feedingDate: string;
-    feedingTypeId?: number;
-    feedName?: string;
-    quantity?: number;
-    quantityUnit?: string;
-    cost?: number;
-    notes?: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    feedingTypeId: number;
+    nextFeedingTime: string;
+    amount: string;
+    remarks?: string;
+    eventDate?: string;
     createdBy?: number;
 
     livestock?: Livestock;
@@ -84,15 +83,22 @@ export interface Feeding extends BaseEntity {
 }
 
 export interface Milking extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    milkingDate: string;
-    milkingTime?: 'morning' | 'afternoon' | 'evening';
-    quantity: number;
-    quantityUnit?: string;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
     milkingMethodId?: number;
-    quality?: string;
-    notes?: string;
+    amount: string;
+    lactometerReading?: string;
+    solid?: string;
+    solidNonFat?: string;
+    protein?: string;
+    correctedLactometerReading?: string;
+    totalSolids?: string;
+    colonyFormingUnits?: string;
+    acidity?: string;
+    session: 'morning' | 'evening' | 'night' | 'midnight';
+    status: 'pending' | 'not-active' | 'active';
+    eventDate?: string;
     createdBy?: number;
 
     livestock?: Livestock;

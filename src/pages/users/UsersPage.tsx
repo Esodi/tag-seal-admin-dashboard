@@ -121,8 +121,7 @@ export function UsersPage() {
             type: 'select',
             options: [
                 { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-                { value: 'suspended', label: 'Suspended' },
+                { value: 'notActive', label: 'Inactive' },
             ],
             defaultValue: 'active',
         },

@@ -29,26 +29,25 @@ export function TransfersPage() {
                 farmApi.list(),
             ]);
 
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
-            const farmMap = new Map(farmsData.map((f: Farm) => [f.id, f.name]));
-            const farmUuidMap = new Map(farmsData.map((f: Farm) => [f.uuid, f.name]));
+            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const farmMap = new Map(farmsData.map((f: Farm) => [f.uuid, f.name]));
 
             const enrichedData = transfersData.map((t: Transfer) => ({
                 ...t,
-                livestockName: t.livestockId ? livestockMap.get(t.livestockId) : '-',
-                sourceFarmName: (t.sourceFarmId ? farmMap.get(t.sourceFarmId) : undefined) || (t.sourceFarmUuid ? farmUuidMap.get(t.sourceFarmUuid) : '-'),
-                destinationFarmName: (t.destinationFarmId ? farmMap.get(t.destinationFarmId) : undefined) || (t.destinationFarmUuid ? farmUuidMap.get(t.destinationFarmUuid) : '-'),
+                livestockName: t.livestockUuid ? livestockMap.get(t.livestockUuid) : '-',
+                sourceFarmName: t.farmUuid ? farmMap.get(t.farmUuid) : '-',
+                destinationFarmName: t.toFarmUuid ? farmMap.get(t.toFarmUuid) : '-',
             }));
 
             setData(enrichedData);
 
             setLivestock(livestockData.map((l: Livestock) => ({
-                value: l.id,
+                value: l.uuid,
                 label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
             })));
 
             setFarms(farmsData.map((f: Farm) => ({
-                value: f.uuid, // Using UUID for transfers as per typical requirements
+                value: f.uuid,
                 label: f.name
             })));
 
@@ -64,21 +63,29 @@ export function TransfersPage() {
     }, [fetchData]);
 
     const columns: DataTableColumn<TransferDisplay>[] = [
-        { id: 'id', header: 'ID', accessorKey: 'id', size: 80 },
+        { id: 'uuid', header: 'UUID', accessorKey: 'uuid', size: 100 },
         { id: 'livestockName', header: 'Livestock', accessorKey: 'livestockName' },
         {
             id: 'transferDate',
-            header: 'Date',
-            accessorFn: (row) => formatDate(row.transferDate),
+            header: 'Transfer Date',
+            accessorFn: (row) => row.transferDate ? formatDate(row.transferDate) : '-',
         },
         { id: 'sourceFarmName', header: 'From', accessorKey: 'sourceFarmName' },
         { id: 'destinationFarmName', header: 'To', accessorKey: 'destinationFarmName' },
-        { id: 'reason', header: 'Reason', accessorKey: 'reason' },
+        { id: 'status', header: 'Status', accessorKey: 'status' },
     ];
 
-    const formFields: FormField<Partial<Transfer>>[] = [
+    const formFields: FormField<Transfer>[] = [
         {
-            name: 'livestockId',
+            name: 'farmUuid' as keyof Transfer,
+            label: 'Source Farm',
+            type: 'select',
+            required: true,
+            options: farms,
+            placeholder: 'Select source farm',
+        },
+        {
+            name: 'livestockUuid' as keyof Transfer,
             label: 'Livestock',
             type: 'select',
             required: true,
@@ -86,20 +93,7 @@ export function TransfersPage() {
             placeholder: 'Select livestock',
         },
         {
-            name: 'transferDate',
-            label: 'Date',
-            type: 'date',
-            required: true,
-        },
-        {
-            name: 'sourceFarmUuid',
-            label: 'Source Farm',
-            type: 'select',
-            options: farms,
-            placeholder: 'Select source farm',
-        },
-        {
-            name: 'destinationFarmUuid',
+            name: 'toFarmUuid' as keyof Transfer,
             label: 'Destination Farm',
             type: 'select',
             required: true,
@@ -107,34 +101,64 @@ export function TransfersPage() {
             placeholder: 'Select destination farm',
         },
         {
-            name: 'reason',
+            name: 'transferDate' as keyof Transfer,
+            label: 'Transfer Date',
+            type: 'date',
+            required: true,
+        },
+        {
+            name: 'eventDate' as keyof Transfer,
+            label: 'Event Date (Metadata)',
+            type: 'date',
+            required: true,
+        },
+        {
+            name: 'transporterId' as keyof Transfer,
+            label: 'Transporter ID/Name',
+            type: 'text',
+        },
+        {
+            name: 'price' as keyof Transfer,
+            label: 'Price',
+            type: 'number',
+        },
+        {
+            name: 'reason' as keyof Transfer,
             label: 'Reason',
             type: 'text',
             placeholder: 'Reason for transfer',
         },
         {
-            name: 'transportMethod',
-            label: 'Transport Method',
-            type: 'text',
-            placeholder: 'e.g. Truck, Walking',
+            name: 'status' as keyof Transfer,
+            label: 'Status',
+            type: 'select',
+            options: [
+                { value: 'active', label: 'Active' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'cancelled', label: 'Cancelled' },
+            ],
+            defaultValue: 'active',
         },
         {
-            name: 'notes',
-            label: 'Notes',
+            name: 'remarks' as keyof Transfer,
+            label: 'Remarks',
             type: 'textarea',
             placeholder: 'Comments',
         },
     ];
 
     const detailFields = [
-        { key: 'id' as keyof TransferDisplay, label: 'ID' },
+        { key: 'uuid' as keyof TransferDisplay, label: 'UUID' },
         { key: 'livestockName' as keyof TransferDisplay, label: 'Livestock' },
-        { key: 'transferDate' as keyof TransferDisplay, label: 'Date', render: (val: unknown) => formatDate(String(val)) },
+        { key: 'transferDate' as keyof TransferDisplay, label: 'Transfer Date', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
         { key: 'sourceFarmName' as keyof TransferDisplay, label: 'From' },
         { key: 'destinationFarmName' as keyof TransferDisplay, label: 'To' },
+        { key: 'transporterId' as keyof TransferDisplay, label: 'Transporter' },
+        { key: 'price' as keyof TransferDisplay, label: 'Price' },
         { key: 'reason' as keyof TransferDisplay, label: 'Reason' },
-        { key: 'transportMethod' as keyof TransferDisplay, label: 'Transport' },
-        { key: 'notes' as keyof TransferDisplay, label: 'Notes' },
+        { key: 'status' as keyof TransferDisplay, label: 'Status' },
+        { key: 'remarks' as keyof TransferDisplay, label: 'Remarks' },
         { key: 'created_at' as keyof TransferDisplay, label: 'Created At', render: (val: unknown) => formatDate(String(val)) },
     ];
 
@@ -158,7 +182,7 @@ export function TransfersPage() {
             loading={loading}
             error={error}
             columns={columns}
-            formFields={formFields}
+            formFields={formFields as any}
             detailFields={detailFields}
             formColumns={2}
             onCreate={handleCreate}

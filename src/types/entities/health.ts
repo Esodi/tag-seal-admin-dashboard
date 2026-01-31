@@ -39,36 +39,43 @@ export interface AdministrationRoute extends BaseEntity {
 
 // Health event logs
 export interface Vaccination extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    vaccineId: number;
-    vaccinationDate: string;
-    batchNumber?: string;
+    uuid: string;
+    vaccinationNo?: string;
+    farmUuid: string;
+    livestockUuid: string;
+    vaccineUuid?: string;
+    vaccineId?: number;
+    diseaseId: number;
+    vetId?: string;
+    extensionOfficerId?: string;
+    status: 'pending' | 'completed' | 'failed';
+    eventDate?: string;
     dosage?: string;
     administrationRouteId?: number;
-    nextDueDate?: string;
-    veterinarianId?: number;
-    notes?: string;
     createdBy?: number;
 
     // Relationships
     livestock?: Livestock;
     vaccine?: Vaccine;
     administrationRoute?: AdministrationRoute;
+    disease?: Disease;
 }
 
 export interface Medication extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    medicineId?: number;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
     diseaseId?: number;
-    medicationDate: string;
-    dosage?: string;
-    frequency?: string;
-    duration?: string;
-    administrationRouteId?: number;
-    veterinarianId?: number;
+    medicineId?: number;
+    quantity?: string;
+    withdrawalPeriod?: string;
+    medicationDate?: string;
+    nextMedicationDate?: string;
+    remarks?: string;
+    eventDate?: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
+    administrationRouteId?: number;
+    vetId?: string;
     notes?: string;
     createdBy?: number;
 
@@ -80,14 +87,17 @@ export interface Medication extends BaseEntity {
 }
 
 export interface Deworming extends BaseEntity {
-    livestockId: number;
-    livestockUuid?: string;
-    medicineId?: number;
-    dewormingDate: string;
-    dosage?: string;
-    administrationRouteId?: number;
-    nextDueDate?: string;
-    veterinarianId?: number;
+    uuid: string;
+    farmUuid: string;
+    livestockUuid: string;
+    administrationRouteId: number;
+    medicineId: number;
+    vetId?: string;
+    extensionOfficerId?: string;
+    quantity: string;
+    dose?: string;
+    nextAdministrationDate?: string;
+    eventDate?: string;
     notes?: string;
     createdBy?: number;
 
@@ -99,38 +109,50 @@ export interface Deworming extends BaseEntity {
 
 // Form data types
 export interface VaccinationFormData {
-    livestockId: number;
-    vaccineId: number;
-    vaccinationDate: string;
-    batchNumber?: string;
+    uuid?: string;
+    vaccinationNo?: string;
+    farmUuid: string;
+    livestockUuid: string;
+    vaccineUuid?: string;
+    vaccineId?: number;
+    diseaseId: number;
+    vetId?: string;
+    extensionOfficerId?: string;
+    status?: string;
+    eventDate?: string;
     dosage?: string;
     administrationRouteId?: number;
-    nextDueDate?: string;
-    veterinarianId?: number;
-    notes?: string;
 }
 
 export interface MedicationFormData {
-    livestockId: number;
-    medicineId?: number;
+    uuid?: string;
+    farmUuid: string;
+    livestockUuid: string;
     diseaseId?: number;
-    medicationDate: string;
-    dosage?: string;
-    frequency?: string;
-    duration?: string;
-    administrationRouteId?: number;
-    veterinarianId?: number;
+    medicineId?: number;
+    quantity?: string;
+    withdrawalPeriod?: string;
+    medicationDate?: string;
+    nextMedicationDate?: string;
+    remarks?: string;
+    eventDate?: string;
     severity?: string;
+    administrationRouteId?: number;
+    vetId?: string;
     notes?: string;
 }
 
 export interface DewormingFormData {
-    livestockId: number;
-    medicineId?: number;
-    dewormingDate: string;
-    dosage?: string;
-    administrationRouteId?: number;
-    nextDueDate?: string;
-    veterinarianId?: number;
+    uuid?: string;
+    farmUuid: string;
+    livestockUuid: string;
+    administrationRouteId: number;
+    medicineId: number;
+    vetId?: string;
+    extensionOfficerId?: string;
+    quantity: string;
+    dose?: string;
+    nextAdministrationDate?: string;
+    eventDate?: string;
     notes?: string;
 }

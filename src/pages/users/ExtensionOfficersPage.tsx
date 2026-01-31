@@ -9,6 +9,7 @@ export function ExtensionOfficersPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | undefined>();
 
+    const [countries, setCountries] = useState<SelectOption[]>([]);
     const [regions, setRegions] = useState<SelectOption[]>([]);
     const [districts, setDistricts] = useState<SelectOption[]>([]);
     const [regionsMap, setRegionsMap] = useState<Map<number, string>>(new Map());
@@ -18,13 +19,15 @@ export function ExtensionOfficersPage() {
         setLoading(true);
         setError(undefined);
         try {
-            const [officersData, regionsData, districtsData] = await Promise.all([
+            const [officersData, regionsData, districtsData, countriesData] = await Promise.all([
                 extensionOfficerApi.list(),
                 locationApi.regions.list(),
                 locationApi.districts.list(),
+                locationApi.countries.list(),
             ]);
 
             setOfficers(officersData);
+            setCountries(countriesData.map((c: any) => ({ value: c.id, label: c.name })));
             setRegions(regionsData.map((r: Region) => ({ value: r.id, label: r.name })));
             setDistricts(districtsData.map((d: District) => ({ value: d.id, label: d.name })));
             setRegionsMap(new Map(regionsData.map((r: Region) => [r.id, r.name])));
@@ -102,6 +105,23 @@ export function ExtensionOfficersPage() {
             placeholder: 'Enter last name',
         },
         {
+            name: 'gender',
+            label: 'Gender',
+            type: 'select',
+            required: true,
+            options: [
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+            ],
+        },
+        {
+            name: 'password',
+            label: 'Password',
+            type: 'password',
+            required: true,
+            placeholder: 'Min 6 characters',
+        },
+        {
             name: 'phone',
             label: 'Phone',
             type: 'tel',
@@ -113,6 +133,14 @@ export function ExtensionOfficersPage() {
             label: 'Email',
             type: 'email',
             placeholder: 'officer@example.com',
+        },
+        {
+            name: 'countryId',
+            label: 'Country',
+            type: 'select',
+            required: true,
+            options: countries,
+            placeholder: 'Select country',
         },
         {
             name: 'regionId',
@@ -135,7 +163,7 @@ export function ExtensionOfficersPage() {
             type: 'select',
             options: [
                 { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
+                { value: 'notActive', label: 'Inactive' },
             ],
             defaultValue: 'active',
         },

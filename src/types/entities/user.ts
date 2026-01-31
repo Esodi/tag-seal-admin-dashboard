@@ -56,10 +56,17 @@ export interface Vet extends BaseEntity {
     firstName: string;
     middleName?: string;
     lastName: string;
-    phone?: string;
+    fullName?: string;
+    phoneNumber?: string;
     email?: string;
-    licenseNumber?: string;
+    referenceNo?: string;
+    medicalLicenseNo?: string;
     specialization?: string;
+    gender?: 'male' | 'female';
+    dateOfBirth?: string;
+    countryId?: number;
+    regionId?: number;
+    districtId?: number;
     status: string;
     createdBy?: number;
 }

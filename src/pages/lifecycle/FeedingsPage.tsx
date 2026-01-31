@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CrudPage, DataTableColumn, FormField, SelectOption } from '../../components/crud';
-import { feedingApi, livestockApi, feedingTypeApi } from '../../services/api';
-import { Feeding, Livestock, FeedingType } from '../../types/entities';
+import { feedingApi, livestockApi, farmApi, feedingTypeApi } from '../../services/api';
+import { Feeding, Livestock, Farm, FeedingType } from '../../types/entities';
 import { formatDate } from '../../lib/utils';
 
 // Extended type for display
 interface FeedingDisplay extends Feeding {
     livestockName?: string;
+    farmName?: string;
     typeName?: string;
 }
 
@@ -16,34 +17,39 @@ export function FeedingsPage() {
     const [error, setError] = useState<string | undefined>();
 
     const [livestock, setLivestock] = useState<SelectOption[]>([]);
+    const [farms, setFarms] = useState<SelectOption[]>([]);
     const [types, setTypes] = useState<SelectOption[]>([]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(undefined);
         try {
-            const [feedingsData, livestockData, typesData] = await Promise.all([
+            const [feedingsData, livestockData, farmsData, typesData] = await Promise.all([
                 feedingApi.list(),
                 livestockApi.list(),
+                farmApi.list(),
                 feedingTypeApi.list(),
             ]);
 
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const farmMap = new Map(farmsData.map((f: Farm) => [f.uuid, f.name]));
             const typeMap = new Map(typesData.map((t: FeedingType) => [t.id, t.name]));
 
             const enrichedData = feedingsData.map((f: Feeding) => ({
                 ...f,
-                livestockName: f.livestockId ? livestockMap.get(f.livestockId) : '-',
+                livestockName: f.livestockUuid ? livestockMap.get(f.livestockUuid) : '-',
+                farmName: f.farmUuid ? farmMap.get(f.farmUuid) : '-',
                 typeName: f.feedingTypeId ? typeMap.get(f.feedingTypeId) : '-',
             }));
 
             setData(enrichedData);
 
             setLivestock(livestockData.map((l: Livestock) => ({
-                value: l.id,
+                value: l.uuid,
                 label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
             })));
 
+            setFarms(farmsData.map((f: Farm) => ({ value: f.uuid, label: f.name })));
             setTypes(typesData.map((t: FeedingType) => ({ value: t.id, label: t.name })));
 
         } catch (err) {
@@ -58,25 +64,29 @@ export function FeedingsPage() {
     }, [fetchData]);
 
     const columns: DataTableColumn<FeedingDisplay>[] = [
-        { id: 'id', header: 'ID', accessorKey: 'id', size: 80 },
+        { id: 'uuid', header: 'UUID', accessorKey: 'uuid', size: 100 },
         { id: 'livestockName', header: 'Livestock', accessorKey: 'livestockName' },
+        { id: 'farmName', header: 'Farm', accessorKey: 'farmName' },
         {
-            id: 'feedingDate',
+            id: 'eventDate',
             header: 'Date',
-            accessorFn: (row) => formatDate(row.feedingDate),
+            accessorFn: (row) => row.eventDate ? formatDate(row.eventDate) : (row.created_at ? formatDate(row.created_at) : '-'),
         },
         { id: 'typeName', header: 'Type', accessorKey: 'typeName' },
-        { id: 'feedName', header: 'Feed Name', accessorKey: 'feedName' },
-        {
-            id: 'quantity',
-            header: 'Qty',
-            accessorFn: (row) => row.quantity ? `${row.quantity} ${row.quantityUnit || ''}` : '-',
-        },
+        { id: 'amount', header: 'Amount', accessorKey: 'amount' },
     ];
 
-    const formFields: FormField<Partial<Feeding>>[] = [
+    const formFields: FormField<Feeding>[] = [
         {
-            name: 'livestockId',
+            name: 'farmUuid' as keyof Feeding,
+            label: 'Farm',
+            type: 'select',
+            required: true,
+            options: farms,
+            placeholder: 'Select farm',
+        },
+        {
+            name: 'livestockUuid' as keyof Feeding,
             label: 'Livestock',
             type: 'select',
             required: true,
@@ -84,67 +94,45 @@ export function FeedingsPage() {
             placeholder: 'Select livestock',
         },
         {
-            name: 'feedingDate',
+            name: 'eventDate' as keyof Feeding,
             label: 'Date',
             type: 'date',
             required: true,
         },
         {
-            name: 'feedingTypeId',
+            name: 'feedingTypeId' as keyof Feeding,
             label: 'Feeding Type',
             type: 'select',
             options: types,
             placeholder: 'Select type',
         },
         {
-            name: 'feedName',
-            label: 'Feed Name',
+            name: 'amount' as keyof Feeding,
+            label: 'Amount',
             type: 'text',
-            placeholder: 'e.g. Napier Grass, Concentrate',
         },
         {
-            name: 'quantity',
-            label: 'Quantity',
-            type: 'number',
-            min: 0,
+            name: 'nextFeedingTime' as keyof Feeding,
+            label: 'Next Feeding Time',
+            type: 'datetime',
         },
         {
-            name: 'quantityUnit',
-            label: 'Unit',
-            type: 'select',
-            options: [
-                { value: 'kg', label: 'kg' },
-                { value: 'bale', label: 'bale' },
-                { value: 'scoop', label: 'scoop' },
-                { value: 'bag', label: 'bag' },
-            ],
-            defaultValue: 'kg',
-        },
-        {
-            name: 'cost',
-            label: 'Cost',
-            type: 'number',
-            min: 0,
-            placeholder: 'Cost if applicable',
-        },
-        {
-            name: 'notes',
-            label: 'Notes',
+            name: 'remarks' as keyof Feeding,
+            label: 'Remarks',
             type: 'textarea',
             placeholder: 'Comments',
         },
     ];
 
     const detailFields = [
-        { key: 'id' as keyof FeedingDisplay, label: 'ID' },
+        { key: 'uuid' as keyof FeedingDisplay, label: 'UUID' },
         { key: 'livestockName' as keyof FeedingDisplay, label: 'Livestock' },
-        { key: 'feedingDate' as keyof FeedingDisplay, label: 'Date', render: (val: unknown) => formatDate(String(val)) },
+        { key: 'farmName' as keyof FeedingDisplay, label: 'Farm' },
+        { key: 'eventDate' as keyof FeedingDisplay, label: 'Date', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
         { key: 'typeName' as keyof FeedingDisplay, label: 'Type' },
-        { key: 'feedName' as keyof FeedingDisplay, label: 'Feed Name' },
-        { key: 'quantity' as keyof FeedingDisplay, label: 'Quantity' },
-        { key: 'quantityUnit' as keyof FeedingDisplay, label: 'Unit' },
-        { key: 'cost' as keyof FeedingDisplay, label: 'Cost' },
-        { key: 'notes' as keyof FeedingDisplay, label: 'Notes' },
+        { key: 'amount' as keyof FeedingDisplay, label: 'Amount' },
+        { key: 'nextFeedingTime' as keyof FeedingDisplay, label: 'Next Feeding', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
+        { key: 'remarks' as keyof FeedingDisplay, label: 'Remarks' },
         { key: 'created_at' as keyof FeedingDisplay, label: 'Created At', render: (val: unknown) => formatDate(String(val)) },
     ];
 
@@ -168,7 +156,7 @@ export function FeedingsPage() {
             loading={loading}
             error={error}
             columns={columns}
-            formFields={formFields}
+            formFields={formFields as any}
             detailFields={detailFields}
             formColumns={2}
             onCreate={handleCreate}

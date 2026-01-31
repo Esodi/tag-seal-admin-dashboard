@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CrudPage, DataTableColumn, FormField } from '../../components/crud';
-import { vetApi } from '../../services/api';
-import { Vet } from '../../types/entities';
+import { CrudPage, DataTableColumn, FormField, SelectOption } from '../../components/crud';
+import { vetApi, locationApi } from '../../services/api';
+import { Vet, Region, District } from '../../types/entities';
 import { formatDate } from '../../lib/utils';
 
 export function VetsPage() {
@@ -9,12 +9,28 @@ export function VetsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | undefined>();
 
+    const [countries, setCountries] = useState<SelectOption[]>([]);
+    const [regions, setRegions] = useState<SelectOption[]>([]);
+    const [districts, setDistricts] = useState<SelectOption[]>([]);
+    const [regionsMap, setRegionsMap] = useState<Map<number, string>>(new Map());
+    const [districtsMap, setDistrictsMap] = useState<Map<number, string>>(new Map());
+
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(undefined);
         try {
-            const vetsData = await vetApi.list();
+            const [vetsData, regionsData, districtsData, countriesData] = await Promise.all([
+                vetApi.list(),
+                locationApi.regions.list(),
+                locationApi.districts.list(),
+                locationApi.countries.list(),
+            ]);
             setVets(vetsData);
+            setCountries(countriesData.map((c: any) => ({ value: c.id, label: c.name })));
+            setRegions(regionsData.map((r: Region) => ({ value: r.id, label: r.name })));
+            setDistricts(districtsData.map((d: District) => ({ value: d.id, label: d.name })));
+            setRegionsMap(new Map(regionsData.map((r: Region) => [r.id, r.name])));
+            setDistrictsMap(new Map(districtsData.map((d: District) => [d.id, d.name])));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load veterinarians');
         } finally {
@@ -28,14 +44,24 @@ export function VetsPage() {
 
     const columns: DataTableColumn<Vet>[] = [
         { id: 'id', header: 'ID', accessorKey: 'id', size: 80 },
-        { id: 'vetNo', header: 'Vet No', accessorKey: 'vetNo' as keyof Vet },
+        { id: 'referenceNo', header: 'Reference No', accessorKey: 'referenceNo' as keyof Vet },
         {
             id: 'name',
             header: 'Name',
-            accessorFn: (row) => `${row.firstName || ''} ${row.middleName || ''} ${row.lastName || ''}`.trim() || '-',
+            accessorFn: (row) => row.fullName || `${row.firstName || ''} ${row.middleName || ''} ${row.lastName || ''}`.trim() || '-',
         },
-        { id: 'phone', header: 'Phone', accessorKey: 'phone' },
-        { id: 'licenseNo', header: 'License No', accessorKey: 'licenseNo' },
+        { id: 'phoneNumber', header: 'Phone', accessorKey: 'phoneNumber' as keyof Vet },
+        { id: 'medicalLicenseNo', header: 'License No', accessorKey: 'medicalLicenseNo' as keyof Vet },
+        {
+            id: 'region',
+            header: 'Region',
+            accessorFn: (row) => regionsMap.get(row.regionId || 0) || '-',
+        },
+        {
+            id: 'district',
+            header: 'District',
+            accessorFn: (row) => districtsMap.get(row.districtId || 0) || '-',
+        },
         {
             id: 'status',
             header: 'Status',
@@ -53,13 +79,13 @@ export function VetsPage() {
 
     const formFields: FormField<Partial<Vet>>[] = [
         {
-            name: 'vetNo' as keyof Vet,
-            label: 'Vet Number',
+            name: 'referenceNo' as keyof Vet,
+            label: 'Reference Number',
             type: 'text',
             placeholder: 'Auto-generated if empty',
         },
         {
-            name: 'licenseNo',
+            name: 'medicalLicenseNo' as keyof Vet,
             label: 'License Number',
             type: 'text',
             required: true,
@@ -86,31 +112,61 @@ export function VetsPage() {
             placeholder: 'Enter last name',
         },
         {
-            name: 'phone',
+            name: 'phoneNumber' as keyof Vet,
             label: 'Phone',
             type: 'tel',
             required: true,
             placeholder: '+255 XXX XXX XXX',
         },
         {
-            name: 'email',
-            label: 'Email',
-            type: 'email',
-            placeholder: 'vet@example.com',
+            name: 'gender' as keyof Vet,
+            label: 'Gender',
+            type: 'select',
+            required: true,
+            options: [
+                { value: 'male', label: 'Male' },
+                { value: 'female', label: 'Female' },
+            ],
         },
         {
-            name: 'specialization',
+            name: 'dateOfBirth' as keyof Vet,
+            label: 'Date of Birth',
+            type: 'date',
+        },
+        {
+            name: 'specialization' as keyof Vet,
             label: 'Specialization',
             type: 'text',
             placeholder: 'e.g., Large Animals, Small Animals',
         },
         {
-            name: 'status',
+            name: 'countryId' as keyof Vet,
+            label: 'Country',
+            type: 'select',
+            options: countries,
+            placeholder: 'Select country',
+        },
+        {
+            name: 'regionId' as keyof Vet,
+            label: 'Region',
+            type: 'select',
+            options: regions,
+            placeholder: 'Select region',
+        },
+        {
+            name: 'districtId' as keyof Vet,
+            label: 'District',
+            type: 'select',
+            options: districts,
+            placeholder: 'Select district',
+        },
+        {
+            name: 'status' as keyof Vet,
             label: 'Status',
             type: 'select',
             options: [
                 { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
+                { value: 'notActive', label: 'Inactive' },
             ],
             defaultValue: 'active',
         },
@@ -118,17 +174,22 @@ export function VetsPage() {
 
     const detailFields = [
         { key: 'id' as keyof Vet, label: 'ID' },
-        { key: 'vetNo' as keyof Vet, label: 'Vet Number' },
-        { key: 'licenseNo' as keyof Vet, label: 'License Number' },
+        { key: 'referenceNo' as keyof Vet, label: 'Reference Number' },
+        { key: 'medicalLicenseNo' as keyof Vet, label: 'License Number' },
         {
             key: 'name' as const,
             label: 'Full Name',
             render: (_: unknown, data: Vet) =>
-                `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim() || '-',
+                data.fullName || `${data.firstName || ''} ${data.middleName || ''} ${data.lastName || ''}`.trim() || '-',
         },
-        { key: 'phone' as keyof Vet, label: 'Phone' },
+        { key: 'phoneNumber' as keyof Vet, label: 'Phone' },
         { key: 'email' as keyof Vet, label: 'Email' },
         { key: 'specialization' as keyof Vet, label: 'Specialization' },
+        {
+            key: 'regionId' as keyof Vet,
+            label: 'Region',
+            render: (value: unknown) => regionsMap.get(Number(value)) || '-',
+        },
         { key: 'status' as keyof Vet, label: 'Status' },
         {
             key: 'created_at' as keyof Vet,
