@@ -15,17 +15,22 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.562.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.2",
     "recharts": "^3.6.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "@types/jspdf": "^2.0.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
+    "@types/xlsx": "^0.0.36",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.13.0",

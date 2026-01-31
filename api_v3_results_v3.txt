@@ -1,0 +1,74 @@
+================================================================================
+🔬 TAG-SEAL API DIAGNOSTIC v3
+Generated: 2026-01-30 15:59:27
+================================================================================
+🔑 Token captured for Login (systemUser)
+📍 Captured userId=41
+📍 Captured countryId=12
+📍 Captured diseaseId=43
+📍 Captured disposalTypeId=15
+📍 Captured administrationRouteId=13
+📍 Captured heatTypeId=12
+📍 Captured feedingTypeId=19
+📍 Captured identityCardTypeId=13
+📍 Captured inseminationServiceId=13
+📍 Captured legalStatusId=14
+📍 Captured livestockObtainedMethodId=15
+📍 Captured livestockTypeId=16
+📍 Captured medicineTypeId=17
+📍 Captured medicineId=30
+📍 Captured milkingMethodId=12
+📍 Captured reproductiveProblemId=19
+📍 Captured schoolLevelId=14
+📍 Captured semenStrawTypeId=15
+📍 Captured testResultId=13
+📍 Captured vaccineTypeId=11
+
+================================================================================
+📊 DIAGNOSTIC RESULTS
+--------------------------------------------------------------------------------
+Total: 265 | ✅ Working: 133 | ❌ Failing: 130
+================================================================================
+
+🔥 BACKEND BUGS (500 ERRORS)
+  [DELETE] Delete User -> Cannot delete system users
+  [POST  ] Create Livestock -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Birth Event -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Aborted Pregnancy -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Feeding -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Weight Change -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Deworming -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Treatment -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Vaccination -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Disposal -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Milking -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Pregnancy -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Insemination -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Dryoff -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Transfer -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [GET   ] List Calvings -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [POST  ] Create Calving -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [GET   ] Get Calving Details -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [PUT   ] Update Calving -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [DELETE] Delete Calving -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+
+⚠️  VALIDATION ERRORS (Likely outdated samples)
+  [POST  ] Create Region -> {'countryId': ['The selected country id is invalid.']}
+  [POST  ] Create District -> {'regionId': ['The selected region id is invalid.']}
+  [POST  ] Create Ward -> {'districtId': ['The selected district id is invalid.']}
+  [POST  ] Create Village -> {'wardId': ['The selected ward id is invalid.']}
+  [POST  ] Create Street -> {'wardId': ['The selected ward id is invalid.']}
+  [POST  ] Create Division -> {'districtId': ['The selected district id is invalid.']}
+  [POST  ] Create Birth Problem -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Birth Type -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Breed -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Specie -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Stage -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Extension Officer -> {'countryId': ['The selected country id is invalid.'], 'regionId': ['The selected region id is invalid.'], 'districtId': ['The selected district id is invalid.']}
+  [POST  ] Create Extension Officer Farm Invite -> {'extensionOfficerId': ['The selected extension officer id is invalid.'], 'farmerId': ['The selected farmer id is invalid.']}
+  [POST  ] Create Farmer -> {'countryId': ['The selected country id is invalid.']}
+  [POST  ] Create Farm -> {'farmerId': ['The selected farmer id is invalid.'], 'size': ['The size field must be a string.'], 'countryId': ['The selected country id is invalid.']}
+  [POST  ] Create Vet -> {'countryId': ['The selected country id is invalid.'], 'regionId': ['The selected region id is invalid.']}
+  [POST  ] Create Vaccine -> {'farmUuid': ['The selected farm uuid is invalid.']}
+
+✅ Full results saved to api_results.json

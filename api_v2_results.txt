@@ -1,0 +1,212 @@
+================================================================================
+🚀 TAG-SEAL API DIAGNOSTIC REPORT
+Generated: 2026-01-29 17:27:59
+Base URL: https://45.77.1.62.nip.io/api
+================================================================================
+🔑 Token captured successfully for Login (systemUser)
+
+================================================================================
+📊 SUMMARY
+--------------------------------------------------------------------------------
+Total endpoints tested: 265
+✅ Working:            137
+❌ Server/Other Error: 25
+❌ Validation (422):    14
+❌ Not Found (404):     87
+⏭️  Skipped:            2
+================================================================================
+
+✅ WORKING ENDPOINTS
+  [POST  ] Login (systemUser)
+  [GET   ] Profile (current user)
+  [GET   ] List Users
+  [GET   ] List Countries
+  [GET   ] Get Country Details
+  [PUT   ] Update Country
+  [DELETE] Delete Country
+  [GET   ] List Regions
+  [GET   ] List Districts
+  [GET   ] List Wards
+  [GET   ] List Villages
+  [GET   ] List Streets
+  [GET   ] List Divisions
+  [GET   ] List Birth Problems
+  [POST  ] Create Birth Problem
+  [GET   ] Get Birth Problem Details
+  [PUT   ] Update Birth Problem
+  [DELETE] Delete Birth Problem
+  [GET   ] List Birth Types
+  [POST  ] Create Birth Type
+  [GET   ] Get Birth Type Details
+  [PUT   ] Update Birth Type
+  [DELETE] Delete Birth Type
+  [GET   ] List Diseases
+  [POST  ] Create Disease
+  [GET   ] Get Disease Details
+  [PUT   ] Update Disease
+  [DELETE] Delete Disease
+  [GET   ] List Disposal Types
+  [POST  ] Create Disposal Type
+  [GET   ] Get Disposal Type Details
+  [PUT   ] Update Disposal Type
+  [DELETE] Delete Disposal Type
+  [GET   ] List Administration Routes
+  [POST  ] Create Administration Route
+  [GET   ] Get Administration Route Details
+  [PUT   ] Update Administration Route
+  [DELETE] Delete Administration Route
+  [GET   ] List Breeds
+  [POST  ] Create Breed
+  [GET   ] Get Breed Details
+  [PUT   ] Update Breed
+  [DELETE] Delete Breed
+  [GET   ] List Heat Types
+  [POST  ] Create Heat Type
+  [GET   ] Get Heat Type Details
+  [PUT   ] Update Heat Type
+  [DELETE] Delete Heat Type
+  [GET   ] List Feeding Types
+  [POST  ] Create Feeding Type
+  [GET   ] Get Feeding Type Details
+  [PUT   ] Update Feeding Type
+  [DELETE] Delete Feeding Type
+  [GET   ] List Identity Card Types
+  [POST  ] Create Identity Card Type
+  [GET   ] Get Identity Card Type Details
+  [PUT   ] Update Identity Card Type
+  [DELETE] Delete Identity Card Type
+  [GET   ] List Insemination Services
+  [POST  ] Create Insemination Service
+  [GET   ] Get Insemination Service Details
+  [PUT   ] Update Insemination Service
+  [DELETE] Delete Insemination Service
+  [GET   ] List Legal Statuses
+  [POST  ] Create Legal Status
+  [GET   ] Get Legal Status Details
+  [PUT   ] Update Legal Status
+  [DELETE] Delete Legal Status
+  [GET   ] List Livestock Obtained Methods
+  [POST  ] Create Livestock Obtained Method
+  [GET   ] Get Livestock Obtained Method Details
+  [PUT   ] Update Livestock Obtained Method
+  [DELETE] Delete Livestock Obtained Method
+  [GET   ] List Livestock Types
+  [GET   ] Get Livestock Type Details
+  [PUT   ] Update Livestock Type
+  [DELETE] Delete Livestock Type
+  [GET   ] List Medicine Types
+  [POST  ] Create Medicine Type
+  [GET   ] Get Medicine Type Details
+  [PUT   ] Update Medicine Type
+  [DELETE] Delete Medicine Type
+  [GET   ] List Medicines
+  [POST  ] Create Medicine
+  [GET   ] Get Medicine Details
+  [PUT   ] Update Medicine
+  [DELETE] Delete Medicine
+  [GET   ] List Milking Methods
+  [POST  ] Create Milking Method
+  [GET   ] Get Milking Method Details
+  [PUT   ] Update Milking Method
+  [DELETE] Delete Milking Method
+  [GET   ] List Reproductive Problems
+  [POST  ] Create Reproductive Problem
+  [GET   ] Get Reproductive Problem Details
+  [PUT   ] Update Reproductive Problem
+  [DELETE] Delete Reproductive Problem
+  [GET   ] List School Levels
+  [POST  ] Create School Level
+  [GET   ] Get School Level Details
+  [PUT   ] Update School Level
+  [DELETE] Delete School Level
+  [GET   ] List Semen Straw Types
+  [POST  ] Create Semen Straw Type
+  [GET   ] Get Semen Straw Type Details
+  [PUT   ] Update Semen Straw Type
+  [DELETE] Delete Semen Straw Type
+  [GET   ] List Species
+  [GET   ] List Stages
+  [GET   ] List Test Results
+  [POST  ] Create Test Result
+  [GET   ] Get Test Result Details
+  [PUT   ] Update Test Result
+  [DELETE] Delete Test Result
+  [GET   ] List Vaccine Types
+  [POST  ] Create Vaccine Type
+  [GET   ] Get Vaccine Type Details
+  [PUT   ] Update Vaccine Type
+  [DELETE] Delete Vaccine Type
+  [GET   ] List Extension Officers
+  [GET   ] List Extension Officer Farm Invites
+  [GET   ] List Farmers
+  [GET   ] List Farms
+  [GET   ] List Livestock
+  [GET   ] List Vets
+  [GET   ] List Vaccines
+  [GET   ] List Birth Events
+  [GET   ] List Aborted Pregnancies
+  [GET   ] List Feedings
+  [GET   ] List Weight Changes
+  [GET   ] List Vaccinations
+  [GET   ] List Disposals
+  [GET   ] List Milkings
+  [GET   ] List Pregnancies
+  [GET   ] List Inseminations
+  [GET   ] List Dryoffs
+  [GET   ] List Transfers
+
+🔥 SERVER/AUTHENTICATION ERRORS
+  [GET   ] User Statistics (Status: 500) -> Call to undefined method App\Models\User::byProfile()
+  [POST  ] Create District (Status: 500) -> SQLSTATE[42S22]: Column not found: 1054 Unknown column 'shortName' in 'where clause' (Connection: my
+  [POST  ] Create Ward (Status: 500) -> SQLSTATE[42S22]: Column not found: 1054 Unknown column 'shortName' in 'where clause' (Connection: my
+  [POST  ] Create Village (Status: 500) -> SQLSTATE[42S22]: Column not found: 1054 Unknown column 'shortName' in 'where clause' (Connection: my
+  [POST  ] Create Livestock (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Birth Event (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Aborted Pregnancy (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Feeding (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Weight Change (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [GET   ] List Dewormings (Status: 500) -> Class "App\Models\Medicine" not found
+  [POST  ] Create Deworming (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [GET   ] List Treatments (Status: 500) -> Class "App\Models\Medicine" not found
+  [POST  ] Create Treatment (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Vaccination (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Disposal (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Milking (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Pregnancy (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Insemination (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Dryoff (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [POST  ] Create Transfer (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.livestock' doesn't exist
+  [GET   ] List Calvings (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [POST  ] Create Calving (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [GET   ] Get Calving Details (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [PUT   ] Update Calving (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+  [DELETE] Delete Calving (Status: 500) -> SQLSTATE[42S02]: Base table or view not found: 1146 Table 'tag_and_seal_new.calvings' doesn't exist 
+
+⚠️  VALIDATION ERRORS
+  [POST  ] Create User -> {'username': ['The username field must be a valid email address.'], 'profile': ['The profile field is required.'], 'profile_id': ['The profile id field is required.']}
+  [POST  ] Create Country -> {'name': ['The name has already been taken.'], 'shortName': ['The short name has already been taken.']}
+  [POST  ] Create Region -> {'countryId': ['The selected country id is invalid.']}
+  [POST  ] Create Street -> {'wardId': ['The selected ward id is invalid.']}
+  [POST  ] Create Division -> {'districtId': ['The selected district id is invalid.']}
+  [POST  ] Create Livestock Type -> {'name': ['The name has already been taken.']}
+  [POST  ] Create Specie -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Stage -> {'livestockTypeId': ['The selected livestock type id is invalid.']}
+  [POST  ] Create Extension Officer -> {'countryId': ['The selected country id is invalid.'], 'regionId': ['The selected region id is invalid.']}
+  [POST  ] Create Extension Officer Farm Invite -> {'extensionOfficerId': ['The selected extension officer id is invalid.'], 'farmerId': ['The selected farmer id is invalid.']}
+  [POST  ] Create Farmer -> {'regionId': ['The selected region id is invalid.'], 'countryId': ['The selected country id is invalid.']}
+  [POST  ] Create Farm -> {'farmerId': ['The selected farmer id is invalid.'], 'wardId': ['The selected ward id is invalid.'], 'districtId': ['The selected district id is invalid.'], 'regionId': ['The selected region id is invalid.'], 'countryId': ['The selected country id is invalid.']}
+  [POST  ] Create Vet -> {'countryId': ['The selected country id is invalid.'], 'regionId': ['The selected region id is invalid.']}
+  [POST  ] Create Vaccine -> {'farmUuid': ['The selected farm uuid is invalid.']}
+
+🔍 NOT FOUND (Cascading Failures or missing placeholders)
+  [GET   ] Get User Details -> https://45.77.1.62.nip.io/api/v1/admin/users/1
+  [PUT   ] Update User -> https://45.77.1.62.nip.io/api/v1/admin/users/1
+  [DELETE] Delete User -> https://45.77.1.62.nip.io/api/v1/admin/users/1
+  [GET   ] Get Region Details -> https://45.77.1.62.nip.io/api/v1/admin/locations/regions/1
+  [PUT   ] Update Region -> https://45.77.1.62.nip.io/api/v1/admin/locations/regions/1
+  [DELETE] Delete Region -> https://45.77.1.62.nip.io/api/v1/admin/locations/regions/1
+  [GET   ] Get District Details -> https://45.77.1.62.nip.io/api/v1/admin/locations/districts/1
+  [PUT   ] Update District -> https://45.77.1.62.nip.io/api/v1/admin/locations/districts/1
+  [DELETE] Delete District -> https://45.77.1.62.nip.io/api/v1/admin/locations/districts/1
+  [GET   ] Get Ward Details -> https://45.77.1.62.nip.io/api/v1/admin/locations/wards/1
+  ... and 77 more

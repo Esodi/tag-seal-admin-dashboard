@@ -1,0 +1,10 @@
+HTTP/2 401 
+server: nginx/1.20.1
+date: Fri, 30 Jan 2026 09:20:45 GMT
+content-type: application/json
+host: 45.77.1.62.nip.io
+x-powered-by: PHP/8.3.28
+cache-control: no-cache, private
+vary: Origin
+
+{"message":"Unauthenticated."}

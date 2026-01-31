@@ -1,0 +1,871 @@
+newman
+
+admin_postman_api
+
+❏ Auth (Admin Portal)
+↳ Login (systemUser)
+  POST https://45.77.1.62.nip.io/api/auth/login [401 Unauthorized, 339B, 1810ms]
+
+↳ Profile (current user)
+  GET https://45.77.1.62.nip.io/api/auth/profile [200 OK, 702B, 370ms]
+
+↳ Logout (current device)
+  POST https://45.77.1.62.nip.io/api/auth/logout [200 OK, 312B, 377ms]
+
+↳ Logout All Devices
+  POST https://45.77.1.62.nip.io/api/auth/logout-all [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Users
+↳ List Users
+  GET https://45.77.1.62.nip.io/api/v1/admin/users?active_only=true [401 Unauthorized, 301B, 399ms]
+
+↳ Create User
+  POST https://45.77.1.62.nip.io/api/v1/admin/users [401 Unauthorized, 301B, 396ms]
+
+↳ Get User Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/users/1 [401 Unauthorized, 301B, 395ms]
+
+↳ Update User
+  PUT https://45.77.1.62.nip.io/api/v1/admin/users/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete User
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/users/1 [401 Unauthorized, 301B, 393ms]
+
+↳ User Statistics
+  GET https://45.77.1.62.nip.io/api/v1/admin/users/statistics [401 Unauthorized, 301B, 354ms]
+
+❏ Admin - Countries
+↳ List Countries
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/countries [401 Unauthorized, 301B, 438ms]
+
+↳ Create Country
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/countries [401 Unauthorized, 301B, 365ms]
+
+↳ Get Country Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/countries/1 [401 Unauthorized, 301B, 420ms]
+
+↳ Update Country
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/countries/1 [401 Unauthorized, 301B, 392ms]
+
+↳ Delete Country
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/countries/1 [401 Unauthorized, 301B, 351ms]
+
+❏ Admin - Regions
+↳ List Regions
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/regions [401 Unauthorized, 301B, 437ms]
+
+↳ Create Region
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/regions [401 Unauthorized, 301B, 388ms]
+
+↳ Get Region Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/regions/1 [401 Unauthorized, 301B, 364ms]
+
+↳ Update Region
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/regions/1 [401 Unauthorized, 301B, 361ms]
+
+↳ Delete Region
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/regions/1 [401 Unauthorized, 301B, 353ms]
+
+❏ Admin - Districts
+↳ List Districts
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/districts [401 Unauthorized, 301B, 352ms]
+
+↳ Create District
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/districts [401 Unauthorized, 301B, 365ms]
+
+↳ Get District Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/districts/1 [401 Unauthorized, 301B, 367ms]
+
+↳ Update District
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/districts/1 [401 Unauthorized, 301B, 371ms]
+
+↳ Delete District
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/districts/1 [401 Unauthorized, 301B, 408ms]
+
+❏ Admin - Wards
+↳ List Wards
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/wards [401 Unauthorized, 301B, 358ms]
+
+↳ Create Ward
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/wards [401 Unauthorized, 301B, 342ms]
+
+↳ Get Ward Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/wards/1 [401 Unauthorized, 301B, 377ms]
+
+↳ Update Ward
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/wards/1 [401 Unauthorized, 301B, 374ms]
+
+↳ Delete Ward
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/wards/1 [401 Unauthorized, 301B, 365ms]
+
+❏ Admin - Villages
+↳ List Villages
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/villages [401 Unauthorized, 301B, 346ms]
+
+↳ Create Village
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/villages [401 Unauthorized, 301B, 366ms]
+
+↳ Get Village Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/villages/1 [401 Unauthorized, 301B, 354ms]
+
+↳ Update Village
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/villages/1 [401 Unauthorized, 301B, 358ms]
+
+↳ Delete Village
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/villages/1 [401 Unauthorized, 301B, 350ms]
+
+❏ Admin - Streets
+↳ List Streets
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/streets [401 Unauthorized, 301B, 457ms]
+
+↳ Create Street
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/streets [401 Unauthorized, 301B, 376ms]
+
+↳ Get Street Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/streets/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Update Street
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/streets/1 [401 Unauthorized, 301B, 400ms]
+
+↳ Delete Street
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/streets/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Divisions
+↳ List Divisions
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/divisions [401 Unauthorized, 301B, 396ms]
+
+↳ Create Division
+  POST https://45.77.1.62.nip.io/api/v1/admin/locations/divisions [401 Unauthorized, 301B, 389ms]
+
+↳ Get Division Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/locations/divisions/1 [401 Unauthorized, 301B, 400ms]
+
+↳ Update Division
+  PUT https://45.77.1.62.nip.io/api/v1/admin/locations/divisions/1 [401 Unauthorized, 301B, 392ms]
+
+↳ Delete Division
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/locations/divisions/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Reference Data / Birth Problems
+↳ List Birth Problems
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/birth-problems [401 Unauthorized, 301B, 395ms]
+
+↳ Create Birth Problem
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/birth-problems [401 Unauthorized, 301B, 368ms]
+
+↳ Get Birth Problem Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/birth-problems/1 [401 Unauthorized, 301B, 427ms]
+
+↳ Update Birth Problem
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/birth-problems/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Delete Birth Problem
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/birth-problems/1 [401 Unauthorized, 301B, 402ms]
+
+❏ Admin - Reference Data / Birth Types
+↳ List Birth Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/birth-types [401 Unauthorized, 301B, 394ms]
+
+↳ Create Birth Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/birth-types [401 Unauthorized, 301B, 394ms]
+
+↳ Get Birth Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/birth-types/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Update Birth Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/birth-types/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Delete Birth Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/birth-types/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Reference Data / Diseases
+↳ List Diseases
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/diseases [401 Unauthorized, 301B, 396ms]
+
+↳ Create Disease
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/diseases [401 Unauthorized, 301B, 395ms]
+
+↳ Get Disease Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/diseases/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Update Disease
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/diseases/1 [401 Unauthorized, 301B, 369ms]
+
+↳ Delete Disease
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/diseases/1 [401 Unauthorized, 301B, 418ms]
+
+❏ Admin - Reference Data / Disposal Types
+↳ List Disposal Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/disposal-types [401 Unauthorized, 301B, 403ms]
+
+↳ Create Disposal Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/disposal-types [401 Unauthorized, 301B, 394ms]
+
+↳ Get Disposal Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/disposal-types/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Update Disposal Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/disposal-types/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Delete Disposal Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/disposal-types/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Reference Data / Administration Routes
+↳ List Administration Routes
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/administration-routes [401 Unauthorized, 301B, 394ms]
+
+↳ Create Administration Route
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/administration-routes [401 Unauthorized, 301B, 360ms]
+
+↳ Get Administration Route Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/administration-routes/1 [401 Unauthorized, 301B, 431ms]
+
+↳ Update Administration Route
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/administration-routes/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Delete Administration Route
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/administration-routes/1 [401 Unauthorized, 301B, 394ms]
+
+❏ Admin - Reference Data / Breeds
+↳ List Breeds
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/breeds [401 Unauthorized, 301B, 397ms]
+
+↳ Create Breed
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/breeds [401 Unauthorized, 301B, 395ms]
+
+↳ Get Breed Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/breeds/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Update Breed
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/breeds/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete Breed
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/breeds/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Reference Data / Heat Types
+↳ List Heat Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/heat-types [401 Unauthorized, 301B, 396ms]
+
+↳ Create Heat Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/heat-types [401 Unauthorized, 301B, 395ms]
+
+↳ Get Heat Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/heat-types/1 [401 Unauthorized, 301B, 395ms]
+
+↳ Update Heat Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/heat-types/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Delete Heat Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/heat-types/1 [401 Unauthorized, 301B, 396ms]
+
+❏ Admin - Reference Data / Feeding Types
+↳ List Feeding Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/feeding-types [401 Unauthorized, 301B, 395ms]
+
+↳ Create Feeding Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/feeding-types [401 Unauthorized, 301B, 397ms]
+
+↳ Get Feeding Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/feeding-types/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Update Feeding Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/feeding-types/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Delete Feeding Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/feeding-types/1 [401 Unauthorized, 301B, 398ms]
+
+❏ Admin - Reference Data / Identity Card Types
+↳ List Identity Card Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/identity-card-types [401 Unauthorized, 301B, 393ms]
+
+↳ Create Identity Card Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/identity-card-types [401 Unauthorized, 301B, 399ms]
+
+↳ Get Identity Card Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/identity-card-types/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Update Identity Card Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/identity-card-types/1 [401 Unauthorized, 301B, 403ms]
+
+↳ Delete Identity Card Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/identity-card-types/1 [401 Unauthorized, 301B, 394ms]
+
+❏ Admin - Reference Data / Insemination Services
+↳ List Insemination Services
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/insemination-services [401 Unauthorized, 301B, 399ms]
+
+↳ Create Insemination Service
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/insemination-services [401 Unauthorized, 301B, 397ms]
+
+↳ Get Insemination Service Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/insemination-services/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Update Insemination Service
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/insemination-services/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Delete Insemination Service
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/insemination-services/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Reference Data / Legal Statuses
+↳ List Legal Statuses
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/legal-statuses [401 Unauthorized, 301B, 355ms]
+
+↳ Create Legal Status
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/legal-statuses [401 Unauthorized, 301B, 368ms]
+
+↳ Get Legal Status Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/legal-statuses/1 [401 Unauthorized, 301B, 366ms]
+
+↳ Update Legal Status
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/legal-statuses/1 [401 Unauthorized, 301B, 356ms]
+
+↳ Delete Legal Status
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/legal-statuses/1 [401 Unauthorized, 301B, 344ms]
+
+❏ Admin - Reference Data / Livestock Obtained Methods
+↳ List Livestock Obtained Methods
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-obtained-methods [401 Unauthorized, 301B, 376ms]
+
+↳ Create Livestock Obtained Method
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-obtained-methods [401 Unauthorized, 301B, 362ms]
+
+↳ Get Livestock Obtained Method Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-obtained-methods/1 [401 Unauthorized, 301B, 354ms]
+
+↳ Update Livestock Obtained Method
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-obtained-methods/1 [401 Unauthorized, 301B, 374ms]
+
+↳ Delete Livestock Obtained Method
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-obtained-methods/1 [401 Unauthorized, 301B, 401ms]
+
+❏ Admin - Reference Data / Livestock Types
+↳ List Livestock Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-types [401 Unauthorized, 301B, 396ms]
+
+↳ Create Livestock Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-types [401 Unauthorized, 301B, 395ms]
+
+↳ Get Livestock Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-types/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Update Livestock Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-types/1 [401 Unauthorized, 301B, 393ms]
+
+↳ Delete Livestock Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/livestock-types/1 [401 Unauthorized, 301B, 403ms]
+
+❏ Admin - Reference Data / Medicine Types
+↳ List Medicine Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/medicine-types [401 Unauthorized, 301B, 394ms]
+
+↳ Create Medicine Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/medicine-types [401 Unauthorized, 301B, 400ms]
+
+↳ Get Medicine Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/medicine-types/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Update Medicine Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/medicine-types/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete Medicine Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/medicine-types/1 [401 Unauthorized, 301B, 396ms]
+
+❏ Admin - Reference Data / Medicines
+↳ List Medicines
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/medicines [401 Unauthorized, 301B, 398ms]
+
+↳ Create Medicine
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/medicines [401 Unauthorized, 301B, 399ms]
+
+↳ Get Medicine Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/medicines/1 [401 Unauthorized, 301B, 400ms]
+
+↳ Update Medicine
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/medicines/1 [401 Unauthorized, 301B, 399ms]
+
+↳ Delete Medicine
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/medicines/1 [401 Unauthorized, 301B, 402ms]
+
+❏ Admin - Reference Data / Milking Methods
+↳ List Milking Methods
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/milking-methods [401 Unauthorized, 301B, 399ms]
+
+↳ Create Milking Method
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/milking-methods [401 Unauthorized, 301B, 395ms]
+
+↳ Get Milking Method Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/milking-methods/1 [401 Unauthorized, 301B, 395ms]
+
+↳ Update Milking Method
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/milking-methods/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete Milking Method
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/milking-methods/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Reference Data / Reproductive Problems
+↳ List Reproductive Problems
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/reproductive-problems [401 Unauthorized, 301B, 401ms]
+
+↳ Create Reproductive Problem
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/reproductive-problems [401 Unauthorized, 301B, 398ms]
+
+↳ Get Reproductive Problem Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/reproductive-problems/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Update Reproductive Problem
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/reproductive-problems/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Delete Reproductive Problem
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/reproductive-problems/1 [401 Unauthorized, 301B, 403ms]
+
+❏ Admin - Reference Data / School Levels
+↳ List School Levels
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/school-levels [401 Unauthorized, 301B, 396ms]
+
+↳ Create School Level
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/school-levels [401 Unauthorized, 301B, 396ms]
+
+↳ Get School Level Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/school-levels/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Update School Level
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/school-levels/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Delete School Level
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/school-levels/1 [401 Unauthorized, 301B, 397ms]
+
+❏ Admin - Reference Data / Semen Straw Types
+↳ List Semen Straw Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/semen-straw-types [401 Unauthorized, 301B, 401ms]
+
+↳ Create Semen Straw Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/semen-straw-types [401 Unauthorized, 301B, 399ms]
+
+↳ Get Semen Straw Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/semen-straw-types/1 [401 Unauthorized, 301B, 346ms]
+
+↳ Update Semen Straw Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/semen-straw-types/1 [401 Unauthorized, 301B, 453ms]
+
+↳ Delete Semen Straw Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/semen-straw-types/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Reference Data / Species
+↳ List Species
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/species [401 Unauthorized, 301B, 400ms]
+
+↳ Create Specie
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/species [401 Unauthorized, 301B, 398ms]
+
+↳ Get Specie Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/species/1 [401 Unauthorized, 301B, 354ms]
+
+↳ Update Specie
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/species/1 [401 Unauthorized, 301B, 438ms]
+
+↳ Delete Specie
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/species/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Reference Data / Stages
+↳ List Stages
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/stages [401 Unauthorized, 301B, 399ms]
+
+↳ Create Stage
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/stages [401 Unauthorized, 301B, 401ms]
+
+↳ Get Stage Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/stages/1 [401 Unauthorized, 301B, 395ms]
+
+↳ Update Stage
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/stages/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Delete Stage
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/stages/1 [401 Unauthorized, 301B, 393ms]
+
+❏ Admin - Reference Data / Test Results
+↳ List Test Results
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/test-results [401 Unauthorized, 301B, 359ms]
+
+↳ Create Test Result
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/test-results [401 Unauthorized, 301B, 442ms]
+
+↳ Get Test Result Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/test-results/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Update Test Result
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/test-results/1 [401 Unauthorized, 301B, 402ms]
+
+↳ Delete Test Result
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/test-results/1 [401 Unauthorized, 301B, 396ms]
+
+❏ Admin - Reference Data / Vaccine Types
+↳ List Vaccine Types
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/vaccine-types [401 Unauthorized, 301B, 401ms]
+
+↳ Create Vaccine Type
+  POST https://45.77.1.62.nip.io/api/v1/admin/reference/vaccine-types [401 Unauthorized, 301B, 395ms]
+
+↳ Get Vaccine Type Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/reference/vaccine-types/1 [401 Unauthorized, 301B, 402ms]
+
+↳ Update Vaccine Type
+  PUT https://45.77.1.62.nip.io/api/v1/admin/reference/vaccine-types/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Delete Vaccine Type
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/reference/vaccine-types/1 [401 Unauthorized, 301B, 399ms]
+
+❏ Admin - Entities / Extension Officers
+↳ List Extension Officers
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officers [401 Unauthorized, 301B, 396ms]
+
+↳ Create Extension Officer
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officers [401 Unauthorized, 301B, 398ms]
+
+↳ Get Extension Officer Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officers/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Update Extension Officer
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officers/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Delete Extension Officer
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officers/1 [401 Unauthorized, 301B, 399ms]
+
+❏ Admin - Entities / Extension Officer Farm Invites
+↳ List Extension Officer Farm Invites
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officer-farm-invites [401 Unauthorized, 301B, 396ms]
+
+↳ Create Extension Officer Farm Invite
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officer-farm-invites [401 Unauthorized, 301B, 351ms]
+
+↳ Get Extension Officer Farm Invite Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officer-farm-invites/1 [401 Unauthorized, 301B, 449ms]
+
+↳ Update Extension Officer Farm Invite
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officer-farm-invites/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete Extension Officer Farm Invite
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/extension-officer-farm-invites/1 [401 Unauthorized, 301B, 398ms]
+
+❏ Admin - Entities / Farmers
+↳ List Farmers
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/farmers [401 Unauthorized, 301B, 372ms]
+
+↳ Create Farmer
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/farmers [401 Unauthorized, 301B, 350ms]
+
+↳ Get Farmer Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/farmers/1 [401 Unauthorized, 301B, 367ms]
+
+↳ Update Farmer
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/farmers/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete Farmer
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/farmers/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Entities / Farms
+↳ List Farms
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/farms [401 Unauthorized, 301B, 399ms]
+
+↳ Create Farm
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/farms [401 Unauthorized, 301B, 400ms]
+
+↳ Get Farm Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/farms/1 [401 Unauthorized, 301B, 365ms]
+
+↳ Update Farm
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/farms/1 [401 Unauthorized, 301B, 430ms]
+
+↳ Delete Farm
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/farms/1 [401 Unauthorized, 301B, 398ms]
+
+❏ Admin - Entities / Livestock
+↳ List Livestock
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/livestock [401 Unauthorized, 301B, 401ms]
+
+↳ Create Livestock
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/livestock [401 Unauthorized, 301B, 395ms]
+
+↳ Get Livestock Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/livestock/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Update Livestock
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/livestock/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Delete Livestock
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/livestock/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Entities / Vets
+↳ List Vets
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/vets [401 Unauthorized, 301B, 394ms]
+
+↳ Create Vet
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/vets [401 Unauthorized, 301B, 397ms]
+
+↳ Get Vet Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/vets/1 [401 Unauthorized, 301B, 402ms]
+
+↳ Update Vet
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/vets/1 [401 Unauthorized, 301B, 399ms]
+
+↳ Delete Vet
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/vets/1 [401 Unauthorized, 301B, 398ms]
+
+❏ Admin - Entities / Vaccines
+↳ List Vaccines
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/vaccines [401 Unauthorized, 301B, 398ms]
+
+↳ Create Vaccine
+  POST https://45.77.1.62.nip.io/api/v1/admin/entities/vaccines [401 Unauthorized, 301B, 402ms]
+
+↳ Get Vaccine Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/entities/vaccines/1 [401 Unauthorized, 301B, 400ms]
+
+↳ Update Vaccine
+  PUT https://45.77.1.62.nip.io/api/v1/admin/entities/vaccines/1 [401 Unauthorized, 301B, 399ms]
+
+↳ Delete Vaccine
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/entities/vaccines/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Logs / Birth Events
+↳ List Birth Events
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/birth-events [401 Unauthorized, 301B, 399ms]
+
+↳ Create Birth Event
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/birth-events [401 Unauthorized, 301B, 400ms]
+
+↳ Get Birth Event Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/birth-events/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Update Birth Event
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/birth-events/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Delete Birth Event
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/birth-events/1 [401 Unauthorized, 301B, 398ms]
+
+❏ Admin - Logs / Aborted Pregnancies
+↳ List Aborted Pregnancies
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/aborted-pregnancies [401 Unauthorized, 301B, 399ms]
+
+↳ Create Aborted Pregnancy
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/aborted-pregnancies [401 Unauthorized, 301B, 396ms]
+
+↳ Get Aborted Pregnancy Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/aborted-pregnancies/1 [401 Unauthorized, 301B, 400ms]
+
+↳ Update Aborted Pregnancy
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/aborted-pregnancies/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Delete Aborted Pregnancy
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/aborted-pregnancies/1 [401 Unauthorized, 301B, 402ms]
+
+❏ Admin - Logs / Feedings
+↳ List Feedings
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/feedings [401 Unauthorized, 301B, 396ms]
+
+↳ Create Feeding
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/feedings [401 Unauthorized, 301B, 403ms]
+
+↳ Get Feeding Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/feedings/1 [401 Unauthorized, 301B, 399ms]
+
+↳ Update Feeding
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/feedings/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Delete Feeding
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/feedings/1 [401 Unauthorized, 301B, 401ms]
+
+❏ Admin - Logs / Weight Changes
+↳ List Weight Changes
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/weight-changes [401 Unauthorized, 301B, 397ms]
+
+↳ Create Weight Change
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/weight-changes [401 Unauthorized, 301B, 400ms]
+
+↳ Get Weight Change Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/weight-changes/1 [401 Unauthorized, 301B, 399ms]
+
+↳ Update Weight Change
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/weight-changes/1 [401 Unauthorized, 301B, 400ms]
+
+↳ Delete Weight Change
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/weight-changes/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Logs / Dewormings
+↳ List Dewormings
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/dewormings [401 Unauthorized, 301B, 401ms]
+
+↳ Create Deworming
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/dewormings [401 Unauthorized, 301B, 400ms]
+
+↳ Get Deworming Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/dewormings/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Update Deworming
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/dewormings/1 [401 Unauthorized, 301B, 402ms]
+
+↳ Delete Deworming
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/dewormings/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Logs / Treatments (Medications)
+↳ List Treatments
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/treatments [401 Unauthorized, 301B, 401ms]
+
+↳ Create Treatment
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/treatments [401 Unauthorized, 301B, 400ms]
+
+↳ Get Treatment Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/treatments/{{treatmentId}} [401 Unauthorized, 301B, 395ms]
+
+↳ Update Treatment
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/treatments/{{treatmentId}} [401 Unauthorized, 301B, 398ms]
+
+↳ Delete Treatment
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/treatments/{{treatmentId}} [401 Unauthorized, 301B, 401ms]
+
+❏ Admin - Logs / Vaccinations
+↳ List Vaccinations
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/vaccinations [401 Unauthorized, 301B, 399ms]
+
+↳ Create Vaccination
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/vaccinations [401 Unauthorized, 301B, 403ms]
+
+↳ Get Vaccination Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/vaccinations/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Update Vaccination
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/vaccinations/1 [401 Unauthorized, 301B, 395ms]
+
+↳ Delete Vaccination
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/vaccinations/1 [401 Unauthorized, 301B, 400ms]
+
+❏ Admin - Logs / Disposals
+↳ List Disposals
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/disposals [401 Unauthorized, 301B, 397ms]
+
+↳ Create Disposal
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/disposals [401 Unauthorized, 301B, 401ms]
+
+↳ Get Disposal Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/disposals/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Update Disposal
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/disposals/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Delete Disposal
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/disposals/1 [401 Unauthorized, 301B, 395ms]
+
+❏ Admin - Logs / Milkings
+↳ List Milkings
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/milkings [401 Unauthorized, 301B, 398ms]
+
+↳ Create Milking
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/milkings [401 Unauthorized, 301B, 398ms]
+
+↳ Get Milking Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/milkings/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Update Milking
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/milkings/1 [401 Unauthorized, 301B, 396ms]
+
+↳ Delete Milking
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/milkings/1 [401 Unauthorized, 301B, 393ms]
+
+❏ Admin - Logs / Pregnancies
+↳ List Pregnancies
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/pregnancies [401 Unauthorized, 301B, 401ms]
+
+↳ Create Pregnancy
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/pregnancies [401 Unauthorized, 301B, 403ms]
+
+↳ Get Pregnancy Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/pregnancies/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Update Pregnancy
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/pregnancies/1 [401 Unauthorized, 301B, 360ms]
+
+↳ Delete Pregnancy
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/pregnancies/1 [401 Unauthorized, 301B, 438ms]
+
+❏ Admin - Logs / Inseminations
+↳ List Inseminations
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/inseminations [401 Unauthorized, 301B, 394ms]
+
+↳ Create Insemination
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/inseminations [401 Unauthorized, 301B, 361ms]
+
+↳ Get Insemination Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/inseminations/1 [401 Unauthorized, 301B, 436ms]
+
+↳ Update Insemination
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/inseminations/1 [401 Unauthorized, 301B, 402ms]
+
+↳ Delete Insemination
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/inseminations/1 [401 Unauthorized, 301B, 397ms]
+
+❏ Admin - Logs / Dryoffs
+↳ List Dryoffs
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/dryoffs [401 Unauthorized, 301B, 357ms]
+
+↳ Create Dryoff
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/dryoffs [401 Unauthorized, 301B, 441ms]
+
+↳ Get Dryoff Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/dryoffs/1 [401 Unauthorized, 301B, 402ms]
+
+↳ Update Dryoff
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/dryoffs/1 [401 Unauthorized, 301B, 398ms]
+
+↳ Delete Dryoff
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/dryoffs/1 [401 Unauthorized, 301B, 393ms]
+
+❏ Admin - Logs / Transfers
+↳ List Transfers
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/transfers [401 Unauthorized, 301B, 399ms]
+
+↳ Create Transfer
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/transfers [401 Unauthorized, 301B, 364ms]
+
+↳ Get Transfer Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/transfers/1 [401 Unauthorized, 301B, 434ms]
+
+↳ Update Transfer
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/transfers/1 [401 Unauthorized, 301B, 394ms]
+
+↳ Delete Transfer
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/transfers/1 [401 Unauthorized, 301B, 352ms]
+
+❏ Admin - Logs / Calvings
+↳ List Calvings
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/calvings [401 Unauthorized, 301B, 446ms]
+
+↳ Create Calving
+  POST https://45.77.1.62.nip.io/api/v1/admin/logs/calvings [401 Unauthorized, 301B, 394ms]
+
+↳ Get Calving Details
+  GET https://45.77.1.62.nip.io/api/v1/admin/logs/calvings/1 [401 Unauthorized, 301B, 401ms]
+
+↳ Update Calving
+  PUT https://45.77.1.62.nip.io/api/v1/admin/logs/calvings/1 [401 Unauthorized, 301B, 397ms]
+
+↳ Delete Calving
+  DELETE https://45.77.1.62.nip.io/api/v1/admin/logs/calvings/1 [401 Unauthorized, 301B, 399ms]
+
+┌─────────────────────────┬─────────────────────┬────────────────────┐
+│                         │            executed │             failed │
+├─────────────────────────┼─────────────────────┼────────────────────┤
+│              iterations │                   1 │                  0 │
+├─────────────────────────┼─────────────────────┼────────────────────┤
+│                requests │                 265 │                  0 │
+├─────────────────────────┼─────────────────────┼────────────────────┤
+│            test-scripts │                   0 │                  0 │
+├─────────────────────────┼─────────────────────┼────────────────────┤
+│      prerequest-scripts │                   0 │                  0 │
+├─────────────────────────┼─────────────────────┼────────────────────┤
+│              assertions │                   0 │                  0 │
+├─────────────────────────┴─────────────────────┴────────────────────┤
+│ total run duration: 1m 48.9s                                       │
+├────────────────────────────────────────────────────────────────────┤
+│ total data received: 8.42kB (approx)                               │
+├────────────────────────────────────────────────────────────────────┤
+│ average response time: 398ms [min: 342ms, max: 1810ms, s.d.: 88ms] │
+└────────────────────────────────────────────────────────────────────┘
