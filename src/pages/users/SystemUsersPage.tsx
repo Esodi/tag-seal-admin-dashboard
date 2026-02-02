@@ -16,7 +16,7 @@ export function SystemUsersPage() {
         setError(undefined);
         try {
             const [usersData, regionsData] = await Promise.all([
-                systemUserApi.list(),
+                systemUserApi.list({ role: 'systemUser' }),
                 locationApi.regions.list(),
             ]);
 
