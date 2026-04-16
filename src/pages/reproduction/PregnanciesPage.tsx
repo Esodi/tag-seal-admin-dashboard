@@ -27,12 +27,12 @@ export function PregnanciesPage() {
                 livestockApi.list(),
             ]);
 
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
             const uuidToNameMap = new Map(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
 
             const enrichedData = pregnanciesData.map((p: Pregnancy) => ({
                 ...p,
-                livestockName: p.livestockId ? livestockMap.get(p.livestockId) : '-',
+                livestockName: (p.livestock?.name || (p.livestockUuid ? livestockMap.get(p.livestockUuid) : undefined)) || '-',
                 fatherName: p.fatherUuid ? uuidToNameMap.get(p.fatherUuid) : '-',
             }));
 
@@ -41,7 +41,7 @@ export function PregnanciesPage() {
             setFemales(livestockData
                 .filter((l: Livestock) => l.gender === 'female')
                 .map((l: Livestock) => ({
-                    value: l.id,
+                    value: l.uuid,
                     label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
                 })));
 
@@ -96,7 +96,7 @@ export function PregnanciesPage() {
 
     const formFields: FormField<Partial<Pregnancy>>[] = [
         {
-            name: 'livestockId',
+            name: 'livestockUuid' as any,
             label: 'Mother',
             type: 'select',
             required: true,

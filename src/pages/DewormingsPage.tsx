@@ -35,22 +35,22 @@ export function DewormingsPage() {
             ]);
 
             const medicineMap = new Map(medicinesData.map((m: Medicine) => [m.id, m.name]));
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
-            const vetMap = new Map(vetsData.map((v: Vet) => [v.id, `${v.firstName} ${v.lastName}`]));
+            const livestockMap = new Map<string | number, string>(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const vetMap = new Map<string | number, string>(vetsData.map((v: Vet) => [v.id, `${v.firstName} ${v.lastName}`]));
             const routeMap = new Map(routesData.map((r: AdministrationRoute) => [r.id, r.name]));
 
             const enrichedData = dewormingsData.map((d: Deworming) => ({
                 ...d,
                 medicineName: d.medicineId ? medicineMap.get(d.medicineId) : '-',
-                livestockName: livestockMap.get(d.livestockId) || 'Unknown Livestock',
-                vetName: d.veterinarianId ? vetMap.get(d.veterinarianId) : '-',
+                livestockName: (d.livestock?.name || (d.livestockUuid ? livestockMap.get(d.livestockUuid) : undefined)) || 'Unknown Livestock',
+                vetName: d.vetId ? (vetMap.get(d.vetId) ?? vetMap.get(Number(d.vetId))) : '-',
                 routeName: d.administrationRouteId ? routeMap.get(d.administrationRouteId) : '-',
             }));
 
             setData(enrichedData);
             setMedicines(medicinesData.map((m: Medicine) => ({ value: m.id, label: m.name })));
             setLivestock(livestockData.map((l: Livestock) => ({
-                value: l.id,
+                value: l.uuid,
                 label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
             })));
             setVets(vetsData.map((v: Vet) => ({ value: v.id, label: `${v.firstName} ${v.lastName}` })));
@@ -73,18 +73,18 @@ export function DewormingsPage() {
         {
             id: 'dewormingDate',
             header: 'Date',
-            accessorFn: (row) => formatDate(row.dewormingDate),
+            accessorFn: (row) => formatDate(row.eventDate || row.created_at || ''),
         },
         {
             id: 'nextDueDate',
             header: 'Next Due',
-            accessorFn: (row) => row.nextDueDate ? formatDate(row.nextDueDate) : '-',
+            accessorFn: (row) => row.nextAdministrationDate ? formatDate(row.nextAdministrationDate) : '-',
         },
     ];
 
     const formFields: FormField<Partial<Deworming>>[] = [
         {
-            name: 'livestockId',
+            name: 'livestockUuid' as any,
             label: 'Livestock',
             type: 'select',
             required: true,
@@ -99,13 +99,13 @@ export function DewormingsPage() {
             placeholder: 'Select dewormer',
         },
         {
-            name: 'dewormingDate',
+            name: 'eventDate' as any,
             label: 'Date',
             type: 'date',
             required: true,
         },
         {
-            name: 'dosage',
+            name: 'dose' as any,
             label: 'Dosage',
             type: 'text',
             placeholder: 'e.g. 50ml',
@@ -118,14 +118,14 @@ export function DewormingsPage() {
             placeholder: 'Select route',
         },
         {
-            name: 'veterinarianId',
+            name: 'vetId' as any,
             label: 'Veterinarian',
             type: 'select',
             options: vets,
             placeholder: 'Select vet',
         },
         {
-            name: 'nextDueDate',
+            name: 'nextAdministrationDate' as any,
             label: 'Next Due Date',
             type: 'date',
         },
@@ -141,11 +141,11 @@ export function DewormingsPage() {
         { key: 'id' as keyof DewormingDisplay, label: 'ID' },
         { key: 'livestockName' as keyof DewormingDisplay, label: 'Livestock' },
         { key: 'medicineName' as keyof DewormingDisplay, label: 'Dewormer' },
-        { key: 'dewormingDate' as keyof DewormingDisplay, label: 'Date', render: (val: unknown) => formatDate(String(val)) },
-        { key: 'dosage' as keyof DewormingDisplay, label: 'Dosage' },
+        { key: 'eventDate' as keyof DewormingDisplay, label: 'Date', render: (val: unknown) => formatDate(String(val)) },
+        { key: 'dose' as keyof DewormingDisplay, label: 'Dosage' },
         { key: 'routeName' as keyof DewormingDisplay, label: 'Route' },
         { key: 'vetName' as keyof DewormingDisplay, label: 'Vet' },
-        { key: 'nextDueDate' as keyof DewormingDisplay, label: 'Next Due', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
+        { key: 'nextAdministrationDate' as keyof DewormingDisplay, label: 'Next Due', render: (val: unknown) => val ? formatDate(String(val)) : '-' },
         { key: 'notes' as keyof DewormingDisplay, label: 'Notes' },
         { key: 'created_at' as keyof DewormingDisplay, label: 'Created At', render: (val: unknown) => formatDate(String(val)) },
     ];

@@ -5,8 +5,6 @@ import {
     Users,
     Syringe,
     Heart,
-    Activity,
-    TrendingUp,
     Scale,
     ArrowRightLeft,
     Droplets,
@@ -835,9 +833,9 @@ function ReportCard({
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </span>
                 <div className="flex items-center gap-1.5 text-slate-300 dark:text-slate-600">
-                    <FileDown className="w-3.5 h-3.5" title="CSV" />
-                    <FileSpreadsheet className="w-3.5 h-3.5" title="Excel" />
-                    <FileText className="w-3.5 h-3.5" title="PDF" />
+                    <FileDown className="w-3.5 h-3.5" aria-label="CSV" />
+                    <FileSpreadsheet className="w-3.5 h-3.5" aria-label="Excel" />
+                    <FileText className="w-3.5 h-3.5" aria-label="PDF" />
                 </div>
             </div>
         </div>

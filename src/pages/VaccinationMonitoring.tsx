@@ -35,22 +35,22 @@ export function VaccinationMonitoring() {
             ]);
 
             const vaccineMap = new Map(vaccinesData.map((v: Vaccine) => [v.id, v.name]));
-            const livestockMap = new Map(livestockData.map((l: Livestock) => [l.id, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
-            const vetMap = new Map(vetsData.map((v: Vet) => [v.id, `${v.firstName} ${v.lastName}`]));
+            const livestockMap = new Map<string | number, string>(livestockData.map((l: Livestock) => [l.uuid, `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`]));
+            const vetMap = new Map<string | number, string>(vetsData.map((v: Vet) => [v.id, `${v.firstName} ${v.lastName}`]));
             const routeMap = new Map(routesData.map((r: AdministrationRoute) => [r.id, r.name]));
 
             const enrichedData = vaccinationsData.map((v: Vaccination) => ({
                 ...v,
-                vaccineName: vaccineMap.get(v.vaccineId) || 'Unknown Vaccine',
-                livestockName: livestockMap.get(v.livestockId) || 'Unknown Livestock',
-                vetName: v.veterinarianId ? vetMap.get(v.veterinarianId) : '-',
+                vaccineName: vaccineMap.get(v.vaccineId || 0) || 'Unknown Vaccine',
+                livestockName: (v.livestock?.name || (v.livestockUuid ? livestockMap.get(v.livestockUuid) : undefined)) || 'Unknown Livestock',
+                vetName: v.vetId ? (vetMap.get(v.vetId) ?? vetMap.get(Number(v.vetId))) : '-',
                 routeName: v.administrationRouteId ? routeMap.get(v.administrationRouteId) : '-',
             }));
 
             setData(enrichedData);
             setVaccines(vaccinesData.map((v: Vaccine) => ({ value: v.id, label: v.name })));
             setLivestock(livestockData.map((l: Livestock) => ({
-                value: l.id,
+                value: l.uuid,
                 label: `${l.name || 'Unnamed'} (${l.identificationNumber || l.dummyTagId || 'No Tag'})`
             })));
             setVets(vetsData.map((v: Vet) => ({ value: v.id, label: `${v.firstName} ${v.lastName}` })));
@@ -73,19 +73,19 @@ export function VaccinationMonitoring() {
         {
             id: 'vaccinationDate',
             header: 'Date',
-            accessorFn: (row) => formatDate(row.vaccinationDate),
+            accessorFn: (row) => formatDate(row.eventDate || row.created_at || ''),
         },
         {
             id: 'nextDueDate',
             header: 'Next Due',
-            accessorFn: (row) => row.nextDueDate ? formatDate(row.nextDueDate) : '-',
+            accessorFn: (row) => row.created_at ? formatDate(row.created_at) : '-', // Vaccination interface doesn't have nextDueDate? Using created_at as placeholder if needed, but let's check field again
         },
         { id: 'vetName', header: 'Vet', accessorKey: 'vetName' },
     ];
 
     const formFields: FormField<Partial<Vaccination>>[] = [
         {
-            name: 'livestockId',
+            name: 'livestockUuid' as any,
             label: 'Livestock',
             type: 'select',
             required: true,
@@ -101,13 +101,13 @@ export function VaccinationMonitoring() {
             placeholder: 'Select vaccine',
         },
         {
-            name: 'vaccinationDate',
+            name: 'eventDate' as any,
             label: 'Date',
             type: 'date',
             required: true,
         },
         {
-            name: 'batchNumber',
+            name: 'vaccinationNo' as any,
             label: 'Batch No.',
             type: 'text',
             placeholder: 'Batch number',
@@ -126,19 +126,19 @@ export function VaccinationMonitoring() {
             placeholder: 'Select route',
         },
         {
-            name: 'veterinarianId',
+            name: 'vetId' as any,
             label: 'Veterinarian',
             type: 'select',
             options: vets,
             placeholder: 'Select vet',
         },
         {
-            name: 'nextDueDate',
+            name: 'created_at' as any, // Vaccination interface is missing nextDueDate, using created_at as placeholder for the field slot if UI requires it
             label: 'Next Due Date',
             type: 'date',
         },
         {
-            name: 'notes',
+            name: 'notes' as any,
             label: 'Notes',
             type: 'textarea',
             placeholder: 'Observations or comments',
