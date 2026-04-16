@@ -61,6 +61,8 @@ const STATUS_COLORS: Record<string, string> = {
     Unknown: '#94a3b8',
 };
 
+const DASHBOARD_REQUEST_TIMEOUT_MS = 8000;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Try multiple field names, return first valid Date or null */
@@ -83,6 +85,19 @@ function truncate(s: string, len = 14): string {
 /** Month key "YYYY-MM" */
 function monthKey(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Prevent a single slow endpoint from blocking the entire dashboard load. */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs = DASHBOARD_REQUEST_TIMEOUT_MS): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+            const timeoutId = setTimeout(() => {
+                clearTimeout(timeoutId);
+                reject(new Error('Request timed out'));
+            }, timeoutMs);
+        }),
+    ]);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -206,7 +221,7 @@ function DarkTooltip({ active, payload, label, formatter }: any) {
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color || p.fill }} />
                     <span className="text-slate-400">{p.name}:</span>
                     <span className="font-semibold ml-auto pl-3">
-                        {formatter ? formatter(p.value, p.name) : p.value}
+                        {formatter ? formatter(p.value, p.name) : (typeof p.value === 'object' ? JSON.stringify(p.value) : p.value)}
                     </span>
                 </div>
             ))}
@@ -221,24 +236,24 @@ export function Dashboard() {
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const refetchRef = useRef<() => void>(() => {});
+    const refetchRef = useRef<(options?: { force?: boolean }) => void>(() => {});
 
     const { data, loading, error, refetch } = useApi(async () => {
         setIsRefreshing(true);
         try {
             // All calls use allSettled so a single failing endpoint never breaks the dashboard
             const results = await Promise.allSettled([
-                api.livestock.list(),                       // 0
-                api.farms.list(),                           // 1
-                api.farmers.list(),                         // 2
-                api.vaccinations.list(),                    // 3
-                api.transfers.list(),                       // 4
-                api.birthEvents.list(),                     // 5
-                api.vets.list(),                            // 6
-                api.extensionOfficers.list(),               // 7
-                api.treatments.list(),                      // 8
-                reproductionLogApi.inseminations.list(),    // 9
-                reproductionLogApi.pregnancies.list(),      // 10
+                withTimeout(api.livestock.list()),                       // 0
+                withTimeout(api.farms.list()),                           // 1
+                withTimeout(api.farmers.list()),                         // 2
+                withTimeout(api.vaccinations.list()),                    // 3
+                withTimeout(api.transfers.list()),                       // 4
+                withTimeout(api.birthEvents.list()),                     // 5
+                withTimeout(api.vets.list()),                            // 6
+                withTimeout(api.extensionOfficers.list()),               // 7
+                withTimeout(api.treatments.list()),                      // 8
+                withTimeout(reproductionLogApi.inseminations.list()),    // 9
+                withTimeout(reproductionLogApi.pregnancies.list()),      // 10
             ]);
 
             const unwrap = (r: PromiseSettledResult<any>): any[] =>
@@ -260,10 +275,10 @@ export function Dashboard() {
         } finally {
             setIsRefreshing(false);
         }
-    }, []);
+    }, [], { cacheKey: 'dashboard-overview', ttl: 2 * 60 * 1000 });
 
     const handleRefresh = useCallback(() => {
-        refetch();
+        refetch({ force: true });
     }, [refetch]);
 
     // Keep ref current so the interval closure always calls the latest refetch

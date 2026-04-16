@@ -429,6 +429,11 @@ export const lifecycleLogApi = {
     milkings: createCrudEndpoints<Milking>('/v1/admin/logs/milkings'),
 };
 
+export const financeApi = {
+    incomeExpenditure: createCrudEndpoints<any>('/v1/admin/reports/income-expenditure'),
+    bills: createCrudEndpoints<any>('/v1/admin/reports/bills'),
+};
+
 // ============================================
 // Legacy API object for backwards compatibility
 // ============================================

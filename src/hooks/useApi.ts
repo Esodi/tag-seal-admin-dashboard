@@ -4,7 +4,7 @@ interface UseApiState<T> {
     data: T | null;
     loading: boolean;
     error: Error | null;
-    refetch: () => void;
+    refetch: (options?: { force?: boolean }) => void;
 }
 
 interface UseApiOptions {
@@ -13,6 +13,7 @@ interface UseApiOptions {
 }
 
 const apiCache = new Map<string, { data: any; timestamp: number }>();
+const inFlightRequests = new Map<string, Promise<any>>();
 
 /**
  * Custom hook for fetching data from API
@@ -29,9 +30,11 @@ export function useApi<T>(
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (refetchOptions?: { force?: boolean }) => {
+        const forceRefresh = refetchOptions?.force ?? false;
+
         // Check cache first
-        if (options.cacheKey) {
+        if (options.cacheKey && !forceRefresh) {
             const cached = apiCache.get(options.cacheKey);
             const ttl = options.ttl || 5 * 60 * 1000; // Default 5 minutes
 
@@ -41,12 +44,33 @@ export function useApi<T>(
                 setError(null);
                 return;
             }
+
+            // Reuse in-flight request to avoid duplicate calls (e.g. React StrictMode in dev).
+            const inFlight = inFlightRequests.get(options.cacheKey);
+            if (inFlight) {
+                try {
+                    const result = await inFlight;
+                    setData(result);
+                    setError(null);
+                } catch (err) {
+                    setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+                } finally {
+                    setLoading(false);
+                }
+                return;
+            }
         }
 
         setLoading(true);
         setError(null);
         try {
-            const result = await fetcher();
+            const requestPromise = fetcher();
+
+            if (options.cacheKey) {
+                inFlightRequests.set(options.cacheKey, requestPromise);
+            }
+
+            const result = await requestPromise;
 
             // Update cache
             if (options.cacheKey) {
@@ -60,6 +84,9 @@ export function useApi<T>(
         } catch (err) {
             setError(err instanceof Error ? err : new Error('An unknown error occurred'));
         } finally {
+            if (options.cacheKey) {
+                inFlightRequests.delete(options.cacheKey);
+            }
             setLoading(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

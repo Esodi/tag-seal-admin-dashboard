@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
     Beef,
     Building2,
@@ -33,6 +34,7 @@ import {
     lifecycleLogApi,
     referenceApi,
     vaccineEntityApi,
+    financeApi,
 } from '../services/api';
 import { formatDate, formatNumber, cn } from '../lib/utils';
 
@@ -49,7 +51,7 @@ interface RefMaps {
     administrationRouteMap: Map<number | string, string>;
 }
 
-type ReportCategory = 'Livestock' | 'Health' | 'Reproduction' | 'Production' | 'Users';
+type ReportCategory = 'Livestock' | 'Health' | 'Reproduction' | 'Production' | 'Users' | 'Finance';
 
 interface SummaryStat {
     label: string;
@@ -96,10 +98,11 @@ const CATEGORY_STYLE: Record<ReportCategory, {
     Reproduction: { border: 'border-l-rose-500',    iconBg: 'bg-rose-50 dark:bg-rose-900/20',    iconText: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',    tabActive: 'bg-rose-600 text-white' },
     Production:   { border: 'border-l-amber-500',   iconBg: 'bg-amber-50 dark:bg-amber-900/20',   iconText: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',   tabActive: 'bg-amber-600 text-white' },
     Users:        { border: 'border-l-violet-500',  iconBg: 'bg-violet-50 dark:bg-violet-900/20',  iconText: 'text-violet-600 dark:text-violet-400',  badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',  tabActive: 'bg-violet-600 text-white' },
+    Finance:      { border: 'border-l-cyan-500',    iconBg: 'bg-cyan-50 dark:bg-cyan-900/20',      iconText: 'text-cyan-600 dark:text-cyan-400',      badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',      tabActive: 'bg-cyan-600 text-white' },
 };
 
 const ALL_CATEGORIES: Array<'all' | ReportCategory> = [
-    'all', 'Livestock', 'Health', 'Reproduction', 'Production', 'Users',
+    'all', 'Livestock', 'Health', 'Reproduction', 'Production', 'Users', 'Finance',
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -708,6 +711,116 @@ const REPORTS: ReportDefinition[] = [
             ];
         },
     },
+
+    // ── 13. Income & Expenditure ───────────────────────────────────────────
+    {
+        id: 'income-expenditure',
+        name: 'Income & Expenditure',
+        category: 'Finance',
+        description: 'Financial activity report showing income, expenses, net balance, and periods.',
+        icon: FileSpreadsheet,
+        fetchData: async () => {
+            try {
+                return await financeApi.incomeExpenditure.list();
+            } catch {
+                return [];
+            }
+        },
+        dateField: 'date',
+        buildColumns: () => [
+            {
+                id: 'date', header: 'Date',
+                accessorFn: (r: any) => safeDate(r, 'date', 'transactionDate', 'transaction_date', 'created_at'),
+            },
+            { id: 'period', header: 'Period', accessorFn: (r: any) => r.period ?? r.month ?? '—' },
+            {
+                id: 'income', header: 'Income',
+                accessorFn: (r: any) => r.incomeAmount ?? r.income_amount ?? r.income ?? '—',
+            },
+            {
+                id: 'expenditure', header: 'Expenditure',
+                accessorFn: (r: any) => r.expenditureAmount ?? r.expenditure_amount ?? r.expense ?? r.expenses ?? '—',
+            },
+            {
+                id: 'balance', header: 'Net Balance',
+                accessorFn: (r: any) => r.netBalance ?? r.net_balance ?? r.balance ?? '—',
+            },
+            { id: 'notes', header: 'Notes', accessorFn: (r: any) => r.notes ?? r.description ?? '—' },
+        ],
+        summaryFn: (data) => {
+            const toNumber = (value: unknown) => {
+                const n = Number(value);
+                return Number.isFinite(n) ? n : 0;
+            };
+            const totalIncome = data.reduce((sum: number, r: any) =>
+                sum + toNumber(r.incomeAmount ?? r.income_amount ?? r.income), 0
+            );
+            const totalExpense = data.reduce((sum: number, r: any) =>
+                sum + toNumber(r.expenditureAmount ?? r.expenditure_amount ?? r.expense ?? r.expenses), 0
+            );
+            const net = totalIncome - totalExpense;
+            return [
+                { label: 'Entries', value: formatNumber(data.length) },
+                { label: 'Total Income', value: formatNumber(Math.round(totalIncome)), accent: 'text-emerald-600 dark:text-emerald-400' },
+                { label: 'Total Expenditure', value: formatNumber(Math.round(totalExpense)), accent: 'text-red-600 dark:text-red-400' },
+                {
+                    label: 'Net Balance',
+                    value: formatNumber(Math.round(net)),
+                    accent: net >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400',
+                },
+            ];
+        },
+    },
+
+    // ── 14. Bills ───────────────────────────────────────────────────────────
+    {
+        id: 'bills',
+        name: 'Bills',
+        category: 'Finance',
+        description: 'Billing report for issued bills, amounts, due dates, and payment status.',
+        icon: FileText,
+        fetchData: async () => {
+            try {
+                return await financeApi.bills.list();
+            } catch {
+                return [];
+            }
+        },
+        dateField: 'issueDate',
+        buildColumns: () => [
+            { id: 'bill_no', header: 'Bill No', accessorFn: (r: any) => r.billNo ?? r.bill_no ?? r.referenceNo ?? r.reference_no ?? '—' },
+            {
+                id: 'issued', header: 'Issue Date',
+                accessorFn: (r: any) => safeDate(r, 'issueDate', 'issue_date', 'billingDate', 'created_at'),
+            },
+            {
+                id: 'due', header: 'Due Date',
+                accessorFn: (r: any) => safeDate(r, 'dueDate', 'due_date'),
+            },
+            { id: 'party', header: 'Customer / Farm', accessorFn: (r: any) => r.customerName ?? r.customer_name ?? r.farmName ?? r.farm_name ?? '—' },
+            { id: 'amount', header: 'Amount', accessorFn: (r: any) => r.totalAmount ?? r.total_amount ?? r.amount ?? '—' },
+            { id: 'status', header: 'Status', accessorFn: (r: any) => r.status ?? '—' },
+        ],
+        summaryFn: (data) => {
+            const toNumber = (value: unknown) => {
+                const n = Number(value);
+                return Number.isFinite(n) ? n : 0;
+            };
+            const paidStatuses = new Set(['paid', 'settled', 'completed']);
+            const unpaidStatuses = new Set(['unpaid', 'pending', 'overdue']);
+            const paid = data.filter((r: any) => paidStatuses.has(String(r.status ?? '').toLowerCase())).length;
+            const unpaid = data.filter((r: any) => unpaidStatuses.has(String(r.status ?? '').toLowerCase())).length;
+            const totalAmount = data.reduce((sum: number, r: any) =>
+                sum + toNumber(r.totalAmount ?? r.total_amount ?? r.amount), 0
+            );
+            return [
+                { label: 'Total Bills', value: formatNumber(data.length) },
+                { label: 'Paid', value: formatNumber(paid), accent: 'text-emerald-600 dark:text-emerald-400' },
+                { label: 'Unpaid / Overdue', value: formatNumber(unpaid), accent: 'text-red-600 dark:text-red-400' },
+                { label: 'Total Amount', value: formatNumber(Math.round(totalAmount)), accent: 'text-blue-600 dark:text-blue-400' },
+            ];
+        },
+    },
 ];
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -845,6 +958,9 @@ function ReportCard({
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export function ReportsPage() {
+    const navigate = useNavigate();
+    const { reportId } = useParams<{ reportId?: string }>();
+
     // ── Reference data maps ────────────────────────────────────────────────
     const [refMaps, setRefMaps] = useState<RefMaps>(EMPTY_REFS);
     const [refLoading, setRefLoading] = useState(true);
@@ -939,9 +1055,13 @@ export function ReportsPage() {
     }, [filteredData, selectedReport, refMaps]);
 
     // ── Handlers ───────────────────────────────────────────────────────────
-    const handleSelectReport = useCallback(async (reportId: string) => {
+    const handleSelectReport = useCallback(async (reportId: string, updateRoute = true) => {
         const report = REPORTS.find((r) => r.id === reportId);
         if (!report) return;
+
+        if (updateRoute) {
+            navigate(`/reports/${reportId}`);
+        }
 
         setSelectedReportId(reportId);
         setRawData([]);
@@ -956,21 +1076,44 @@ export function ReportsPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [navigate]);
 
     const handleBack = useCallback(() => {
+        navigate('/reports');
         setSelectedReportId(null);
         setRawData([]);
         setError(null);
         setDateFrom('');
         setDateTo('');
-    }, []);
+    }, [navigate]);
 
     const handleRetry = useCallback(() => {
         if (selectedReportId) handleSelectReport(selectedReportId);
     }, [selectedReportId, handleSelectReport]);
 
     const hasDateFilter = Boolean(dateFrom || dateTo);
+
+    const categoryCounts = useMemo(() => {
+        const counts: Record<string, number> = { all: REPORTS.length };
+        REPORTS.forEach((r) => { counts[r.category] = (counts[r.category] ?? 0) + 1; });
+        return counts;
+    }, []);
+
+    useEffect(() => {
+        if (!reportId) {
+            return;
+        }
+
+        const exists = REPORTS.some((r) => r.id === reportId);
+        if (!exists) {
+            navigate('/reports', { replace: true });
+            return;
+        }
+
+        if (selectedReportId !== reportId) {
+            void handleSelectReport(reportId, false);
+        }
+    }, [reportId, selectedReportId, handleSelectReport, navigate]);
 
     // ── Render: Detail View ────────────────────────────────────────────────
     if (selectedReport) {
@@ -1092,13 +1235,6 @@ export function ReportsPage() {
             </div>
         );
     }
-
-    // ── Render: Report Selection Grid ──────────────────────────────────────
-    const categoryCounts = useMemo(() => {
-        const counts: Record<string, number> = { all: REPORTS.length };
-        REPORTS.forEach((r) => { counts[r.category] = (counts[r.category] ?? 0) + 1; });
-        return counts;
-    }, []);
 
     return (
         <div className="space-y-6">

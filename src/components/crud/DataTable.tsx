@@ -153,9 +153,9 @@ export function DataTable<T extends { id: number | string }>({
                 header: col.header,
                 accessorKey: col.accessorKey as string,
                 accessorFn: col.accessorFn,
-                cell: col.cell
-                    ? (info) => col.cell!({ row: info.row, getValue: info.getValue })
-                    : (info) => info.getValue() as React.ReactNode,
+                cell: (info) => col.cell 
+                    ? col.cell({ row: info.row, getValue: info.getValue }) 
+                    : String(info.getValue() ?? ""),
                 enableSorting: col.enableSorting !== false,
                 size: col.size,
                 meta: col.meta,

@@ -115,6 +115,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/reports/:reportId" element={<ReportsPage />} />
 
                 {/* User Management */}
                 <Route path="/users" element={<UsersPage />} />

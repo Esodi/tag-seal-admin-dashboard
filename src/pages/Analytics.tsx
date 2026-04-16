@@ -12,7 +12,7 @@ import {
     Tooltip,
     ResponsiveContainer,
     Cell,
-    BarChart,
+    BarChart as RechartsBarChart,
     Bar,
     Legend,
     PieChart,
@@ -286,7 +286,7 @@ export function Analytics() {
                             </div>
                             <div className="card-body h-80 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={stats.ageDistribution}>
+                                    <RechartsBarChart data={stats.ageDistribution}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                         <XAxis dataKey="age" stroke="#94a3b8" />
                                         <YAxis stroke="#94a3b8" />
@@ -295,7 +295,7 @@ export function Analytics() {
                                             contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
                                         />
                                         <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
-                                    </BarChart>
+                                    </RechartsBarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
@@ -343,7 +343,7 @@ export function Analytics() {
                             </div>
                             <div className="card-body h-96 min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={stats.farmSizeData} layout="vertical">
+                                    <RechartsBarChart data={stats.farmSizeData} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" stroke="#94a3b8" />
                                         <YAxis dataKey="name" type="category" stroke="#94a3b8" width={120} />
@@ -352,7 +352,7 @@ export function Analytics() {
                                             contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
                                         />
                                         <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={30} />
-                                    </BarChart>
+                                    </RechartsBarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>

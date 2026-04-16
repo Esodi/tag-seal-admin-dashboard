@@ -33,7 +33,16 @@ const navigation: NavItem[] = [
     // Main
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Reports', href: '/reports', icon: ScrollText },
+    {
+        name: 'Reports',
+        href: '/reports',
+        icon: ScrollText,
+        children: [
+            { name: 'All Reports', href: '/reports' },
+            { name: 'Income & Expenditure', href: '/reports/income-expenditure' },
+            { name: 'Bills', href: '/reports/bills' },
+        ],
+    },
 
     // User Management
     {
