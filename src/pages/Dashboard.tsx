@@ -14,11 +14,7 @@ import {
     Heart,
     Stethoscope,
     TrendingUp,
-    Clock,
     ShieldCheck,
-    Search,
-    Calendar,
-    Filter,
 } from 'lucide-react';
 import {
     AreaChart,
@@ -289,22 +285,22 @@ export function Dashboard() {
     const stats = useMemo(() => {
         if (!data) return null;
         const { livestock, farms, farmers, vaccinations, medications,
-            transfers, births, vets, officers, inseminations, pregnancies } = data;
+            transfers, births, vets, officers, pregnancies } = data;
 
         const now = new Date();
         const thirtyDaysAgo  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         
         // Filter data based on selected range for time-based metrics
-        const rangeMs = {
+        const rangeMsValue = {
             '7d': 7 * 24 * 60 * 60 * 1000,
             '30d': 30 * 24 * 60 * 60 * 1000,
             '90d': 90 * 24 * 60 * 60 * 1000,
             'all': Infinity,
         }[dateRange];
         
-        const filterByRange = (items: any[], dateFields: string[]) => {
+        const filterByRange = (items: any[], ...dateFields: string[]) => {
             if (dateRange === 'all') return items;
-            const threshold = new Date(now.getTime() - rangeMs);
+            const threshold = new Date(now.getTime() - rangeMsValue);
             return items.filter(item => {
                 const d = parseRecordDate(item, ...dateFields);
                 return d && d >= threshold;
@@ -353,12 +349,18 @@ export function Dashboard() {
             return d >= from && (!to || d <= to);
         };
 
-        const thisMonthBirths       = births.filter((b: any) => inRange(b, thisMonthStart, undefined, 'birthDate', 'eventDate', 'created_at')).length;
-        const lastMonthBirths       = births.filter((b: any) => inRange(b, lastMonthStart, lastMonthEnd, 'birthDate', 'eventDate', 'created_at')).length;
-        const thisMonthVaccinations = vaccinations.filter((v: any) => inRange(v, thisMonthStart, undefined, 'eventDate', 'vaccinationDate', 'created_at')).length;
-        const thisMonthTreatments   = medications.filter((m: any) => inRange(m, thisMonthStart, undefined, 'medicationDate', 'eventDate', 'created_at')).length;
+        // KPI with filters
+        const filteredBirths = filterByRange(births, 'birthDate', 'eventDate', 'created_at');
+        const filteredVacs   = filterByRange(vaccinations, 'eventDate', 'vaccinationDate', 'created_at');
+        const filteredMeds   = filterByRange(medications, 'medicationDate', 'eventDate', 'created_at');
+        const filteredReg    = filterByRange(livestock, 'created_at', 'dateFirstEnteredToFarm');
 
-        const thisMonthReg  = livestock.filter((l: any) => inRange(l, thisMonthStart, undefined, 'created_at', 'dateFirstEnteredToFarm')).length;
+        const thisMonthBirths       = filteredBirths.filter((b: any) => inRange(b, thisMonthStart, undefined, 'birthDate', 'eventDate', 'created_at')).length;
+        const lastMonthBirths       = births.filter((b: any) => inRange(b, lastMonthStart, lastMonthEnd, 'birthDate', 'eventDate', 'created_at')).length;
+        const thisMonthVaccinations = filteredVacs.filter((v: any) => inRange(v, thisMonthStart, undefined, 'eventDate', 'vaccinationDate', 'created_at')).length;
+        const thisMonthTreatments   = filteredMeds.filter((m: any) => inRange(m, thisMonthStart, undefined, 'medicationDate', 'eventDate', 'created_at')).length;
+
+        const thisMonthReg  = filteredReg.filter((l: any) => inRange(l, thisMonthStart, undefined, 'created_at', 'dateFirstEnteredToFarm')).length;
         const lastMonthReg  = livestock.filter((l: any) => inRange(l, lastMonthStart, lastMonthEnd, 'created_at', 'dateFirstEnteredToFarm')).length;
         const registrationDelta = lastMonthReg > 0
             ? Math.round(((thisMonthReg - lastMonthReg) / lastMonthReg) * 100)
@@ -412,7 +414,7 @@ export function Dashboard() {
         if (topSpecies.length === 0) topSpecies.push('Unknown');
 
         // Registration trend per month per species
-        const trendData = lastMonths.map(({ key, label }) => {
+        const trendData = lastMonths.map(({ label }) => {
             const row: Record<string, any> = { month: label };
             topSpecies.forEach(s => { row[s] = 0; });
             return row;
@@ -521,30 +523,25 @@ export function Dashboard() {
                 });
             });
 
-        // Add more log types... (transfers, births, etc.)
+        transfers.slice(0, 15).forEach((t: any) => {
+            const from = (t.farmUuid && farmNameMap[t.farmUuid]) ?? 'a farm';
+            const to   = (t.toFarmUuid && farmNameMap[t.toFarmUuid]) ?? 'another farm';
+            activities.push({
+                id: `transfer-${t.id}`,
+                type: 'transfer',
+                title: 'Livestock Transfer',
+                description: `From ${from} → ${to}`,
+                date: t.transferDate ?? t.created_at ?? new Date().toISOString(),
+                link: '/production/transfers',
+            });
+        });
 
-        return {
-            totalLivestock, aliveLivestock, deadLivestock,
-            totalFarms, activeFarms,
-            totalFarmers: farmers.length,
-            totalVets: vets.length,
-            vaccinationCoverage,
-            registrationDelta,
-            activePregnancies,
-            healthScore,
-            thisMonthBirths,
-            lastMonthBirths,
-            speciesDistribution,
-            trendData,
-            topSpecies,
-            livestockStatusData,
-            genderData,
-            topFarmsData,
-            healthActivity,
-            activities: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 15),
-            recentCritical
-        };
-    }, [data, dateRange]);
+        births.slice(0, 15).forEach((b: any) => {
+            activities.push({
+                id: `birth-${b.id}`,
+                type: 'birth',
+                title: 'Birth Recorded',
+                description: `${b.offspringCount ?? 1} offspring born`,
                 date: b.birthDate ?? b.eventDate ?? b.created_at ?? new Date().toISOString(),
                 link: '/reproduction/births',
             });
@@ -574,7 +571,7 @@ export function Dashboard() {
 
         recentCritical.slice(0, 3).forEach((m: any) => alerts.push({
             id: `alert-med-${m.id}`,
-            type: m.severity === 'critical' ? 'danger' : 'warning',
+            type: (m.severity || '').toLowerCase() === 'critical' ? 'danger' : 'warning',
             title: 'Disease Alert',
             message: `${m.disease?.name ?? 'Unknown disease'} — ${m.severity} severity treatment in last 30 days`,
             createdAt: m.medicationDate ?? m.eventDate ?? m.created_at ?? new Date().toISOString(),
@@ -621,7 +618,7 @@ export function Dashboard() {
             genderData,
             topFarmsData,
             healthActivity,
-            activities,
+            activities: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 15),
             alerts,
         };
     }, [data, dateRange]);
@@ -694,18 +691,6 @@ export function Dashboard() {
                             <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
                         </button>
                     </div>
-                </div>
-            </div>
-                        </span>
-                    )}
-                    <button
-                        onClick={refetch}
-                        disabled={loading}
-                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-                    >
-                        <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
-                        Refresh
-                    </button>
                 </div>
             </div>
 
