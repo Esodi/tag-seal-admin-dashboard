@@ -207,6 +207,16 @@ export interface CurrentUser {
     [key: string]: any;
 }
 
+export interface SplashSyncData {
+    user: CurrentUser;
+    userSpecificData: {
+        bills?: any[];
+        financeExpenses?: any[];
+        [key: string]: any;
+    };
+    [key: string]: any;
+}
+
 // ============================================
 // API Endpoints organized by domain
 // ============================================
@@ -435,6 +445,14 @@ export const financeApi = {
 };
 
 // ============================================
+// Sync Endpoints
+// ============================================
+export const syncApi = {
+    splashSync: (userId: number | string) =>
+        fetchAPI<SplashSyncData>(`/v1/sync/splash-sync-all/${userId}`),
+};
+
+// ============================================
 // Legacy API object for backwards compatibility
 // ============================================
 // ============================================
@@ -497,6 +515,7 @@ export const api = {
     vaccinations: healthLogApi.vaccinations,
     treatments: healthLogApi.treatments,
     transfers: lifecycleLogApi.transfers,
+    sync: syncApi,
     // Add missing endpoints for Dashboard/Analytics
     birthEvents: reproductionLogApi.birthEvents,
     inseminations: reproductionLogApi.inseminations,

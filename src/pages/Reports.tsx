@@ -24,6 +24,7 @@ import {
     RefreshCw,
     Archive,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { DataTable, DataTableColumn } from '../components/crud/DataTable';
 import {
     livestockApi,
@@ -34,7 +35,7 @@ import {
     lifecycleLogApi,
     referenceApi,
     vaccineEntityApi,
-    financeApi,
+    syncApi,
 } from '../services/api';
 import { formatDate, formatNumber, cn } from '../lib/utils';
 
@@ -51,7 +52,7 @@ interface RefMaps {
     administrationRouteMap: Map<number | string, string>;
 }
 
-type ReportCategory = 'Livestock' | 'Health' | 'Reproduction' | 'Production' | 'Users' | 'Finance';
+type ReportCategory = 'Livestock' | 'Health' | 'Reproduction' | 'Production' | 'Finance' | 'Users';
 
 interface SummaryStat {
     label: string;
@@ -97,12 +98,12 @@ const CATEGORY_STYLE: Record<ReportCategory, {
     Health:       { border: 'border-l-emerald-500', iconBg: 'bg-emerald-50 dark:bg-emerald-900/20', iconText: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300', tabActive: 'bg-emerald-600 text-white' },
     Reproduction: { border: 'border-l-rose-500',    iconBg: 'bg-rose-50 dark:bg-rose-900/20',    iconText: 'text-rose-600 dark:text-rose-400',    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',    tabActive: 'bg-rose-600 text-white' },
     Production:   { border: 'border-l-amber-500',   iconBg: 'bg-amber-50 dark:bg-amber-900/20',   iconText: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',   tabActive: 'bg-amber-600 text-white' },
+    Finance:      { border: 'border-l-teal-500',    iconBg: 'bg-teal-50 dark:bg-teal-900/20',    iconText: 'text-teal-600 dark:text-teal-400',    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',    tabActive: 'bg-teal-600 text-white' },
     Users:        { border: 'border-l-violet-500',  iconBg: 'bg-violet-50 dark:bg-violet-900/20',  iconText: 'text-violet-600 dark:text-violet-400',  badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',  tabActive: 'bg-violet-600 text-white' },
-    Finance:      { border: 'border-l-cyan-500',    iconBg: 'bg-cyan-50 dark:bg-cyan-900/20',      iconText: 'text-cyan-600 dark:text-cyan-400',      badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',      tabActive: 'bg-cyan-600 text-white' },
 };
 
 const ALL_CATEGORIES: Array<'all' | ReportCategory> = [
-    'all', 'Livestock', 'Health', 'Reproduction', 'Production', 'Users', 'Finance',
+    'all', 'Livestock', 'Health', 'Reproduction', 'Production', 'Finance', 'Users',
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -711,117 +712,95 @@ const REPORTS: ReportDefinition[] = [
             ];
         },
     },
-
-    // ── 13. Income & Expenditure ───────────────────────────────────────────
-    {
-        id: 'income-expenditure',
-        name: 'Income & Expenditure',
-        category: 'Finance',
-        description: 'Financial activity report showing income, expenses, net balance, and periods.',
-        icon: FileSpreadsheet,
-        fetchData: async () => {
-            try {
-                return await financeApi.incomeExpenditure.list();
-            } catch {
-                return [];
-            }
-        },
-        dateField: 'date',
-        buildColumns: () => [
-            {
-                id: 'date', header: 'Date',
-                accessorFn: (r: any) => safeDate(r, 'date', 'transactionDate', 'transaction_date', 'created_at'),
-            },
-            { id: 'period', header: 'Period', accessorFn: (r: any) => r.period ?? r.month ?? '—' },
-            {
-                id: 'income', header: 'Income',
-                accessorFn: (r: any) => r.incomeAmount ?? r.income_amount ?? r.income ?? '—',
-            },
-            {
-                id: 'expenditure', header: 'Expenditure',
-                accessorFn: (r: any) => r.expenditureAmount ?? r.expenditure_amount ?? r.expense ?? r.expenses ?? '—',
-            },
-            {
-                id: 'balance', header: 'Net Balance',
-                accessorFn: (r: any) => r.netBalance ?? r.net_balance ?? r.balance ?? '—',
-            },
-            { id: 'notes', header: 'Notes', accessorFn: (r: any) => r.notes ?? r.description ?? '—' },
-        ],
-        summaryFn: (data) => {
-            const toNumber = (value: unknown) => {
-                const n = Number(value);
-                return Number.isFinite(n) ? n : 0;
-            };
-            const totalIncome = data.reduce((sum: number, r: any) =>
-                sum + toNumber(r.incomeAmount ?? r.income_amount ?? r.income), 0
-            );
-            const totalExpense = data.reduce((sum: number, r: any) =>
-                sum + toNumber(r.expenditureAmount ?? r.expenditure_amount ?? r.expense ?? r.expenses), 0
-            );
-            const net = totalIncome - totalExpense;
-            return [
-                { label: 'Entries', value: formatNumber(data.length) },
-                { label: 'Total Income', value: formatNumber(Math.round(totalIncome)), accent: 'text-emerald-600 dark:text-emerald-400' },
-                { label: 'Total Expenditure', value: formatNumber(Math.round(totalExpense)), accent: 'text-red-600 dark:text-red-400' },
-                {
-                    label: 'Net Balance',
-                    value: formatNumber(Math.round(net)),
-                    accent: net >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400',
-                },
-            ];
-        },
-    },
-
-    // ── 14. Bills ───────────────────────────────────────────────────────────
-    {
-        id: 'bills',
-        name: 'Bills',
-        category: 'Finance',
-        description: 'Billing report for issued bills, amounts, due dates, and payment status.',
-        icon: FileText,
-        fetchData: async () => {
-            try {
-                return await financeApi.bills.list();
-            } catch {
-                return [];
-            }
-        },
-        dateField: 'issueDate',
-        buildColumns: () => [
-            { id: 'bill_no', header: 'Bill No', accessorFn: (r: any) => r.billNo ?? r.bill_no ?? r.referenceNo ?? r.reference_no ?? '—' },
-            {
-                id: 'issued', header: 'Issue Date',
-                accessorFn: (r: any) => safeDate(r, 'issueDate', 'issue_date', 'billingDate', 'created_at'),
-            },
-            {
-                id: 'due', header: 'Due Date',
-                accessorFn: (r: any) => safeDate(r, 'dueDate', 'due_date'),
-            },
-            { id: 'party', header: 'Customer / Farm', accessorFn: (r: any) => r.customerName ?? r.customer_name ?? r.farmName ?? r.farm_name ?? '—' },
-            { id: 'amount', header: 'Amount', accessorFn: (r: any) => r.totalAmount ?? r.total_amount ?? r.amount ?? '—' },
-            { id: 'status', header: 'Status', accessorFn: (r: any) => r.status ?? '—' },
-        ],
-        summaryFn: (data) => {
-            const toNumber = (value: unknown) => {
-                const n = Number(value);
-                return Number.isFinite(n) ? n : 0;
-            };
-            const paidStatuses = new Set(['paid', 'settled', 'completed']);
-            const unpaidStatuses = new Set(['unpaid', 'pending', 'overdue']);
-            const paid = data.filter((r: any) => paidStatuses.has(String(r.status ?? '').toLowerCase())).length;
-            const unpaid = data.filter((r: any) => unpaidStatuses.has(String(r.status ?? '').toLowerCase())).length;
-            const totalAmount = data.reduce((sum: number, r: any) =>
-                sum + toNumber(r.totalAmount ?? r.total_amount ?? r.amount), 0
-            );
-            return [
-                { label: 'Total Bills', value: formatNumber(data.length) },
-                { label: 'Paid', value: formatNumber(paid), accent: 'text-emerald-600 dark:text-emerald-400' },
-                { label: 'Unpaid / Overdue', value: formatNumber(unpaid), accent: 'text-red-600 dark:text-red-400' },
-                { label: 'Total Amount', value: formatNumber(Math.round(totalAmount)), accent: 'text-blue-600 dark:text-blue-400' },
-            ];
-        },
-    },
 ];
+
+function buildFinanceReports(userId: number | null): ReportDefinition[] {
+    const fetchUserSpecificData = async (key: 'bills' | 'financeExpenses') => {
+        if (!userId) return [];
+
+        const response = await syncApi.splashSync(userId);
+        const userSpecificData = response?.userSpecificData ?? {};
+        const directValue = response?.[key];
+
+        if (Array.isArray(directValue)) {
+            return directValue;
+        }
+
+        const nestedValue = userSpecificData[key];
+        return Array.isArray(nestedValue) ? nestedValue : [];
+    };
+
+    return [
+        {
+            id: 'income-expenditure',
+            name: 'Income & Expenditure',
+            category: 'Finance',
+            description: 'Finance records sourced from the backend sync payload, including manual expenses and bill-linked entries.',
+            icon: FileSpreadsheet,
+            fetchData: () => fetchUserSpecificData('financeExpenses'),
+            dateField: 'expenseDate',
+            buildColumns: () => [
+                { id: 'date', header: 'Date', accessorFn: (r: any) => safeDate(r, 'expenseDate', 'expense_date', 'createdAt', 'created_at') },
+                { id: 'source', header: 'Source', accessorFn: (r: any) => r.sourceType ?? r.source_type ?? '—' },
+                { id: 'bill', header: 'Bill No', accessorFn: (r: any) => r.billNo ?? r.bill_no ?? '—' },
+                { id: 'farm', header: 'Farm UUID', accessorFn: (r: any) => truncUuid(r.farmUuid ?? r.farm_uuid) },
+                { id: 'subject', header: 'Subject', accessorFn: (r: any) => r.subjectType ?? r.subject_type ?? '—' },
+                { id: 'quantity', header: 'Quantity', accessorFn: (r: any) => r.quantity ?? '—' },
+                { id: 'unit_cost', header: 'Unit Cost', accessorFn: (r: any) => r.unitCost ?? r.unit_cost ?? '—' },
+                { id: 'total_cost', header: 'Total Cost', accessorFn: (r: any) => r.totalCost ?? r.total_cost ?? '—' },
+                { id: 'status', header: 'Status', accessorFn: (r: any) => r.status || '—' },
+                { id: 'notes', header: 'Notes', accessorFn: (r: any) => r.notes || '—' },
+            ],
+            summaryFn: (data) => {
+                const total = data.reduce(
+                    (sum: number, row: any) => sum + Number(row.totalCost ?? row.total_cost ?? 0),
+                    0
+                );
+                const manualCount = data.filter((row: any) => (row.sourceType ?? row.source_type ?? '') === 'manual').length;
+                const billCount = data.filter((row: any) => (row.sourceType ?? row.source_type ?? '') === 'bill').length;
+                return [
+                    { label: 'Total Records', value: formatNumber(data.length) },
+                    { label: 'Total Cost', value: `${formatNumber(Math.round(total))} TZS`, accent: 'text-teal-600 dark:text-teal-400' },
+                    { label: 'Manual Entries', value: formatNumber(manualCount) },
+                    { label: 'Bill Linked', value: formatNumber(billCount) },
+                ];
+            },
+        },
+        {
+            id: 'bills',
+            name: 'Bills',
+            category: 'Finance',
+            description: 'Bills returned by the backend sync payload for the authenticated user’s accessible farms.',
+            icon: ScrollText,
+            fetchData: () => fetchUserSpecificData('bills'),
+            dateField: 'createdAt',
+            buildColumns: () => [
+                { id: 'date', header: 'Date', accessorFn: (r: any) => safeDate(r, 'createdAt', 'created_at', 'updatedAt', 'updated_at') },
+                { id: 'bill', header: 'Bill No', accessorFn: (r: any) => r.billNo ?? r.bill_no ?? '—' },
+                { id: 'farm', header: 'Farm UUID', accessorFn: (r: any) => truncUuid(r.farmUuid ?? r.farm_uuid) },
+                { id: 'subject', header: 'Subject', accessorFn: (r: any) => r.subjectType ?? r.subject_type ?? '—' },
+                { id: 'quantity', header: 'Quantity', accessorFn: (r: any) => r.quantity ?? '—' },
+                { id: 'amount', header: 'Amount', accessorFn: (r: any) => r.amount ?? '—' },
+                { id: 'status', header: 'Status', accessorFn: (r: any) => r.status || '—' },
+                { id: 'notes', header: 'Notes', accessorFn: (r: any) => r.notes || '—' },
+            ],
+            summaryFn: (data) => {
+                const total = data.reduce(
+                    (sum: number, row: any) => sum + Number(row.amount ?? 0),
+                    0
+                );
+                const pending = data.filter((row: any) => (row.status ?? '').toLowerCase() === 'pending').length;
+                const paid = data.filter((row: any) => (row.status ?? '').toLowerCase() === 'paid').length;
+                return [
+                    { label: 'Total Bills', value: formatNumber(data.length) },
+                    { label: 'Total Amount', value: `${formatNumber(Math.round(total))} TZS`, accent: 'text-teal-600 dark:text-teal-400' },
+                    { label: 'Pending', value: formatNumber(pending) },
+                    { label: 'Paid', value: formatNumber(paid) },
+                ];
+            },
+        },
+    ];
+}
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
@@ -960,6 +939,7 @@ function ReportCard({
 export function ReportsPage() {
     const navigate = useNavigate();
     const { reportId } = useParams<{ reportId?: string }>();
+    const { user, isLoading: authLoading } = useAuth();
 
     // ── Reference data maps ────────────────────────────────────────────────
     const [refMaps, setRefMaps] = useState<RefMaps>(EMPTY_REFS);
@@ -1014,15 +994,20 @@ export function ReportsPage() {
     const [dateTo, setDateTo] = useState('');
     const [categoryFilter, setCategoryFilter] = useState<'all' | ReportCategory>('all');
 
+    const reports = useMemo(
+        () => [...REPORTS, ...buildFinanceReports(user?.id ?? null)],
+        [user?.id]
+    );
+
     // ── Derived ────────────────────────────────────────────────────────────
     const selectedReport = useMemo(
-        () => REPORTS.find((r) => r.id === selectedReportId) ?? null,
-        [selectedReportId]
+        () => reports.find((r) => r.id === selectedReportId) ?? null,
+        [reports, selectedReportId]
     );
 
     const visibleReports = useMemo(() =>
-        categoryFilter === 'all' ? REPORTS : REPORTS.filter((r) => r.category === categoryFilter),
-        [categoryFilter]
+        categoryFilter === 'all' ? reports : reports.filter((r) => r.category === categoryFilter),
+        [categoryFilter, reports]
     );
 
     /** Client-side date range filter applied to rawData */
@@ -1056,7 +1041,7 @@ export function ReportsPage() {
 
     // ── Handlers ───────────────────────────────────────────────────────────
     const handleSelectReport = useCallback(async (reportId: string, updateRoute = true) => {
-        const report = REPORTS.find((r) => r.id === reportId);
+        const report = reports.find((r) => r.id === reportId);
         if (!report) return;
 
         if (updateRoute) {
@@ -1076,7 +1061,7 @@ export function ReportsPage() {
         } finally {
             setLoading(false);
         }
-    }, [navigate]);
+    }, [navigate, reports]);
 
     const handleBack = useCallback(() => {
         navigate('/reports');
@@ -1094,17 +1079,21 @@ export function ReportsPage() {
     const hasDateFilter = Boolean(dateFrom || dateTo);
 
     const categoryCounts = useMemo(() => {
-        const counts: Record<string, number> = { all: REPORTS.length };
-        REPORTS.forEach((r) => { counts[r.category] = (counts[r.category] ?? 0) + 1; });
+        const counts: Record<string, number> = { all: reports.length };
+        reports.forEach((r) => { counts[r.category] = (counts[r.category] ?? 0) + 1; });
         return counts;
-    }, []);
+    }, [reports]);
 
     useEffect(() => {
         if (!reportId) {
             return;
         }
 
-        const exists = REPORTS.some((r) => r.id === reportId);
+        if (authLoading) {
+            return;
+        }
+
+        const exists = reports.some((r) => r.id === reportId);
         if (!exists) {
             navigate('/reports', { replace: true });
             return;
@@ -1113,7 +1102,7 @@ export function ReportsPage() {
         if (selectedReportId !== reportId) {
             void handleSelectReport(reportId, false);
         }
-    }, [reportId, selectedReportId, handleSelectReport, navigate]);
+    }, [reportId, selectedReportId, handleSelectReport, navigate, reports, authLoading]);
 
     // ── Render: Detail View ────────────────────────────────────────────────
     if (selectedReport) {
@@ -1236,6 +1225,7 @@ export function ReportsPage() {
         );
     }
 
+    // ── Render: Report Selection Grid ──────────────────────────────────────
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -1251,7 +1241,7 @@ export function ReportsPage() {
                 <div className="flex items-center gap-2 self-start">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-full text-sm font-medium border border-emerald-200 dark:border-emerald-800">
                         <ScrollText className="w-3.5 h-3.5" />
-                        {REPORTS.length} Reports Available
+                        {reports.length} Reports Available
                     </div>
                     {refLoading && (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium border border-amber-200 dark:border-amber-800">
