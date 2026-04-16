@@ -8,18 +8,19 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Dependencies
-node_modules
+node_modules/
 
 # Build output
-dist
-dist-ssr
+dist/
+dist-ssr/
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
@@ -27,12 +28,23 @@ dist-ssr
 *.sw?
 
 # Testing
-coverage
+coverage/
 
 # Environment files
 .env
 .env.local
+.env.development
+.env.staging
+.env.production
 .env.*.local
+.env.*
 
 # TypeScript
 *.tsbuildinfo
+
+# Vite
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
