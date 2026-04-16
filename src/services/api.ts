@@ -247,7 +247,17 @@ export const authApi = {
         return response as CurrentUser;
     },
 
-    refreshToken: () => fetchAPI<{ token: string }>('/auth/refresh', { method: 'POST' }),
+    updateProfile: (data: Partial<CurrentUser>) =>
+        fetchAPI<CurrentUser>('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+
+    changePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
+        fetchAPI<void>('/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
 };
 
 // Import types for type safety
