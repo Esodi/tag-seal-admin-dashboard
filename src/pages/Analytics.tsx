@@ -19,7 +19,7 @@ import {
     Pie
 } from 'recharts';
 import { useApi } from '../hooks/useApi';
-import { api } from '../services/api';
+import { api, referenceApi } from '../services/api';
 import { PageLoader } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { cn } from '../lib/utils';
@@ -60,22 +60,42 @@ export function Analytics() {
             farms,
             vaccinations,
             births,
-            inseminations
-        ] = await Promise.all([
+            inseminations,
+            diseasesResult,
+            inseminationServicesResult,
+        ] = await Promise.allSettled([
             api.livestock.list(),
             api.farms.list(),
             api.vaccinations.list(),
             api.birthEvents.list(),
-            api.inseminations.list()
+            api.inseminations.list(),
+            referenceApi.diseases.list(),
+            referenceApi.inseminationServices.list(),
         ]);
-        return { livestock, farms, vaccinations, births, inseminations };
+
+        return {
+            livestock: livestock.status === 'fulfilled' ? livestock.value : [],
+            farms: farms.status === 'fulfilled' ? farms.value : [],
+            vaccinations: vaccinations.status === 'fulfilled' ? vaccinations.value : [],
+            births: births.status === 'fulfilled' ? births.value : [],
+            inseminations: inseminations.status === 'fulfilled' ? inseminations.value : [],
+            diseases: diseasesResult.status === 'fulfilled' ? diseasesResult.value : [],
+            inseminationServices: inseminationServicesResult.status === 'fulfilled' ? inseminationServicesResult.value : [],
+        };
     }, []);
 
     const [activeTab, setActiveTab] = useState<'livestock' | 'farm' | 'health' | 'reproduction'>('livestock');
 
     const stats = useMemo(() => {
         if (!data) return null;
-        const { livestock, farms, vaccinations, births, inseminations } = data;
+        const { livestock, farms, vaccinations, births, inseminations, diseases, inseminationServices } = data;
+
+        // Build reference lookups
+        const diseaseMap = new Map<number | string, string>();
+        diseases.forEach((d: any) => diseaseMap.set(d.id, d.name || `Disease ${d.id}`));
+
+        const inseminationServiceMap = new Map<number | string, string>();
+        inseminationServices.forEach((s: any) => inseminationServiceMap.set(s.id, s.name || `Service ${s.id}`));
 
         // --- Livestock Analytics ---
 
@@ -109,7 +129,7 @@ export function Analytics() {
         // 2. Breed Distribution (Top 10)
         const breedCounts: Record<string, number> = {};
         livestock.forEach((l: any) => {
-            const breed = l.breed || 'Unknown';
+            const breed = l.breed?.name || (typeof l.breed === 'string' ? l.breed : null) || 'Unknown';
             breedCounts[breed] = (breedCounts[breed] || 0) + 1;
         });
 
@@ -155,9 +175,9 @@ export function Analytics() {
         // Vaccination coverage by disease (Top diseases vaccinated against)
         const diseaseVaccinationCounts: Record<string, number> = {};
         vaccinations.forEach((v: any) => {
-            // Needed: fetch disease name from v.diseaseId ideally, simulating here or using if available
-            // assuming 'diseaseName' or similar might be enriched or just using ID
-            const disease = v.diseaseId ? `Disease ${v.diseaseId}` : 'Unknown';
+            const disease = v.disease?.name
+                || (v.diseaseId != null ? diseaseMap.get(v.diseaseId) : null)
+                || 'Unknown';
             diseaseVaccinationCounts[disease] = (diseaseVaccinationCounts[disease] || 0) + 1;
         });
 
@@ -178,18 +198,12 @@ export function Analytics() {
         // Insemination Success Rate (Births linked to insemination / Total Inseminations) - approximated
         // In reality we'd check outcomes of insemination records.
         // Let's visualize Insemination Types (AI vs Natural if applicable)
-        const inseminationTypes = {
-            'Artificial Insemination': 0,
-            'Natural Service': 0
-        };
+        const inseminationTypeCounts: Record<string, number> = {};
         inseminations.forEach((i: any) => {
-            // Determine type from insemination record (default to AI if not specified)
-            const type = i.type || i.serviceType || 'Artificial Insemination';
-            if (type.toLowerCase().includes('natural')) {
-                inseminationTypes['Natural Service']++;
-            } else {
-                inseminationTypes['Artificial Insemination']++;
-            }
+            const serviceName = i.inseminationService?.name
+                || (i.inseminationServiceId != null ? inseminationServiceMap.get(i.inseminationServiceId) : null)
+                || 'Unknown';
+            inseminationTypeCounts[serviceName] = (inseminationTypeCounts[serviceName] || 0) + 1;
         });
 
         const reproductionStats = [

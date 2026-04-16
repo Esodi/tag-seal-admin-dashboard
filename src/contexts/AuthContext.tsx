@@ -9,6 +9,7 @@ interface AuthContextType {
     login: (credentials: LoginCredentials) => Promise<boolean>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
+    changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     clearError: () => void;
 }
 
@@ -87,6 +88,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }, []);
 
+    const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+        await authApi.changePassword({
+            current_password: currentPassword,
+            password: newPassword,
+            password_confirmation: newPassword,
+        });
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -99,6 +108,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         login,
         logout,
         refreshUser,
+        changePassword,
         clearError,
     };
 

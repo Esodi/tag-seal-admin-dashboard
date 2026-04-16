@@ -8,8 +8,10 @@ import {
     Key,
     Save,
     Check,
+    AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { authApi } from '../services/api';
 import { cn } from '../lib/utils';
 
 interface SettingsTab {
@@ -27,13 +29,71 @@ const tabs: SettingsTab[] = [
 ];
 
 export function SettingsPage() {
-    const { user } = useAuth();
+    const { user, changePassword, logout, refreshUser } = useAuth();
     const [activeTab, setActiveTab] = useState('profile');
-    const [saved, setSaved] = useState(false);
 
-    const handleSave = () => {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+    // Profile form state
+    const [profileForm, setProfileForm] = useState({
+        username: user?.username || '',
+        email: user?.email || '',
+        first_name: user?.first_name || '',
+        surname: user?.surname || '',
+        phone: user?.phone || '',
+    });
+    const [profileSaving, setProfileSaving] = useState(false);
+    const [profileSaved, setProfileSaved] = useState(false);
+    const [profileError, setProfileError] = useState<string | null>(null);
+
+    // Password form state
+    const [passwordForm, setPasswordForm] = useState({
+        current: '',
+        next: '',
+        confirm: '',
+    });
+    const [passwordSaving, setPasswordSaving] = useState(false);
+    const [passwordSaved, setPasswordSaved] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+
+    const handleProfileSave = async () => {
+        setProfileSaving(true);
+        setProfileError(null);
+        try {
+            await authApi.updateProfile(profileForm);
+            await refreshUser();
+            setProfileSaved(true);
+            setTimeout(() => setProfileSaved(false), 2000);
+        } catch (err) {
+            setProfileError(err instanceof Error ? err.message : 'Failed to save profile');
+        } finally {
+            setProfileSaving(false);
+        }
+    };
+
+    const handlePasswordSave = async () => {
+        if (passwordForm.next !== passwordForm.confirm) {
+            setPasswordError('New passwords do not match');
+            return;
+        }
+        if (passwordForm.next.length < 8) {
+            setPasswordError('Password must be at least 8 characters');
+            return;
+        }
+        setPasswordSaving(true);
+        setPasswordError(null);
+        try {
+            await changePassword(passwordForm.current, passwordForm.next);
+            setPasswordSaved(true);
+            setPasswordForm({ current: '', next: '', confirm: '' });
+            setTimeout(() => setPasswordSaved(false), 2000);
+        } catch (err) {
+            setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
+        } finally {
+            setPasswordSaving(false);
+        }
+    };
+
+    const handleLogoutAllSessions = async () => {
+        await logout();
     };
 
     return (
@@ -92,6 +152,13 @@ export function SettingsPage() {
                                         </div>
                                     </div>
 
+                                    {profileError && (
+                                        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                            {profileError}
+                                        </div>
+                                    )}
+
                                     {/* Form Fields */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
@@ -100,7 +167,8 @@ export function SettingsPage() {
                                             </label>
                                             <input
                                                 type="text"
-                                                defaultValue={user?.username || ''}
+                                                value={profileForm.username}
+                                                onChange={(e) => setProfileForm(f => ({ ...f, username: e.target.value }))}
                                                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             />
                                         </div>
@@ -110,7 +178,8 @@ export function SettingsPage() {
                                             </label>
                                             <input
                                                 type="email"
-                                                defaultValue={user?.email || ''}
+                                                value={profileForm.email}
+                                                onChange={(e) => setProfileForm(f => ({ ...f, email: e.target.value }))}
                                                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             />
                                         </div>
@@ -120,7 +189,8 @@ export function SettingsPage() {
                                             </label>
                                             <input
                                                 type="text"
-                                                defaultValue={user?.first_name || ''}
+                                                value={profileForm.first_name}
+                                                onChange={(e) => setProfileForm(f => ({ ...f, first_name: e.target.value }))}
                                                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             />
                                         </div>
@@ -130,7 +200,8 @@ export function SettingsPage() {
                                             </label>
                                             <input
                                                 type="text"
-                                                defaultValue={user?.surname || ''}
+                                                value={profileForm.surname}
+                                                onChange={(e) => setProfileForm(f => ({ ...f, surname: e.target.value }))}
                                                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             />
                                         </div>
@@ -140,7 +211,8 @@ export function SettingsPage() {
                                             </label>
                                             <input
                                                 type="tel"
-                                                defaultValue={user?.phone || ''}
+                                                value={profileForm.phone}
+                                                onChange={(e) => setProfileForm(f => ({ ...f, phone: e.target.value }))}
                                                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                             />
                                         </div>
@@ -187,6 +259,12 @@ export function SettingsPage() {
                                         <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-4">
                                             Change Password
                                         </h3>
+                                        {passwordError && (
+                                            <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                                {passwordError}
+                                            </div>
+                                        )}
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
@@ -194,6 +272,8 @@ export function SettingsPage() {
                                                 </label>
                                                 <input
                                                     type="password"
+                                                    value={passwordForm.current}
+                                                    onChange={(e) => setPasswordForm(f => ({ ...f, current: e.target.value }))}
                                                     className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                                 />
                                             </div>
@@ -203,6 +283,8 @@ export function SettingsPage() {
                                                 </label>
                                                 <input
                                                     type="password"
+                                                    value={passwordForm.next}
+                                                    onChange={(e) => setPasswordForm(f => ({ ...f, next: e.target.value }))}
                                                     className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                                 />
                                             </div>
@@ -212,9 +294,27 @@ export function SettingsPage() {
                                                 </label>
                                                 <input
                                                     type="password"
+                                                    value={passwordForm.confirm}
+                                                    onChange={(e) => setPasswordForm(f => ({ ...f, confirm: e.target.value }))}
                                                     className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                                 />
                                             </div>
+                                            <button
+                                                onClick={handlePasswordSave}
+                                                disabled={passwordSaving}
+                                                className={cn(
+                                                    'flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg transition-colors',
+                                                    passwordSaved
+                                                        ? 'bg-green-600 text-white'
+                                                        : 'bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-50'
+                                                )}
+                                            >
+                                                {passwordSaved ? (
+                                                    <><Check className="w-4 h-4" /> Password Updated</>
+                                                ) : passwordSaving ? 'Updating...' : (
+                                                    <><Save className="w-4 h-4" /> Update Password</>
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
 
@@ -250,8 +350,11 @@ export function SettingsPage() {
                                                 </span>
                                             </div>
                                         </div>
-                                        <button className="mt-4 text-sm text-red-600 dark:text-red-400 hover:text-red-700 font-medium">
-                                            Log out all other sessions
+                                        <button
+                                            onClick={handleLogoutAllSessions}
+                                            className="mt-4 text-sm text-red-600 dark:text-red-400 hover:text-red-700 font-medium"
+                                        >
+                                            Log out all sessions
                                         </button>
                                     </div>
                                 </div>
@@ -335,30 +438,27 @@ export function SettingsPage() {
                             </div>
                         )}
 
-                        {/* Save Button */}
-                        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-                            <button
-                                onClick={handleSave}
-                                className={cn(
-                                    'flex items-center gap-2 px-6 py-2 text-sm font-medium rounded-lg transition-colors',
-                                    saved
-                                        ? 'bg-green-600 text-white'
-                                        : 'bg-primary-600 hover:bg-primary-700 text-white'
-                                )}
-                            >
-                                {saved ? (
-                                    <>
-                                        <Check className="w-4 h-4" />
-                                        Saved
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="w-4 h-4" />
-                                        Save Changes
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                        {/* Save Button — shown only on profile tab */}
+                        {activeTab === 'profile' && (
+                            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                                <button
+                                    onClick={handleProfileSave}
+                                    disabled={profileSaving}
+                                    className={cn(
+                                        'flex items-center gap-2 px-6 py-2 text-sm font-medium rounded-lg transition-colors',
+                                        profileSaved
+                                            ? 'bg-green-600 text-white'
+                                            : 'bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-50'
+                                    )}
+                                >
+                                    {profileSaved ? (
+                                        <><Check className="w-4 h-4" /> Saved</>
+                                    ) : profileSaving ? 'Saving...' : (
+                                        <><Save className="w-4 h-4" /> Save Changes</>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

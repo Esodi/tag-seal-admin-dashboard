@@ -94,7 +94,6 @@ const navigation: NavItem[] = [
         children: [
             { name: 'Pregnancies', href: '/reproduction/pregnancies' },
             { name: 'Births', href: '/reproduction/births' },
-            { name: 'Calvings', href: '/reproduction/calvings' },
             { name: 'Inseminations', href: '/reproduction/inseminations' },
             { name: 'Abortions', href: '/reproduction/abortions' },
             { name: 'Dry-offs', href: '/reproduction/dryoffs' },

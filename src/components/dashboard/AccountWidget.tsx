@@ -9,7 +9,9 @@ export function AccountWidget() {
     // Create display name from user properties
     const displayName = user.email?.split('@')[0] || 'User';
     const roleLabel = user.role?.replace(/([A-Z])/g, ' $1').trim() || 'User'; // CamelCase to spaced
-    const dateJoined = new Date(Date.now()).toLocaleDateString();
+    const dateJoined = user.created_at
+        ? new Date(user.created_at).toLocaleDateString()
+        : null;
 
     // Determine location if applicable (for officers/farmers)
     let location = 'System Wide';
@@ -39,10 +41,12 @@ export function AccountWidget() {
                             <Shield className="w-3.5 h-3.5" />
                             <span className="capitalize">{roleLabel}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Joined {dateJoined}</span>
-                        </div>
+                        {dateJoined && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">
+                                <Calendar className="w-3.5 h-3.5" />
+                                <span>Joined {dateJoined}</span>
+                            </div>
+                        )}
                         {location && (
                             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300">
                                 <MapPin className="w-3.5 h-3.5" />
