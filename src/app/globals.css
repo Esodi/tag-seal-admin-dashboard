@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Poppins", sans-serif;
+  --text-xs: var(--type-xs);
+  --text-sm: var(--type-sm);
+  --text-base: var(--type-base);
+  --text-supporting: var(--type-supporting);
+  --text-lg: var(--type-lg);
+  --text-xl: var(--type-xl);
+  --text-2xl: var(--type-2xl);
+  --text-3xl: var(--type-3xl);
+  --text-4xl: var(--type-4xl);
+  --text-5xl: var(--type-5xl);
+  --text-6xl: var(--type-6xl);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+}
+
+:root {
+  --type-xs: 0.625rem;
+  --type-sm: 0.75rem;
+  --type-base: 0.875rem;
+  --type-supporting: 0.875rem;
+  --type-lg: 1rem;
+  --type-xl: 1.125rem;
+  --type-2xl: 1.375rem;
+  --type-3xl: 1.75rem;
+  --type-4xl: 2.125rem;
+  --type-5xl: 2.875rem;
+  --type-6xl: 3.625rem;
+  --background: #f6f8f5;
+  --foreground: #183629;
+  --card: #ffffff;
+  --card-foreground: #183629;
+  --popover: #ffffff;
+  --popover-foreground: #183629;
+  --secondary: #edf1e9;
+  --secondary-foreground: #183629;
+  --muted: #edf1e9;
+  --muted-foreground: #66736a;
+  --primary: #234e38;
+  --primary-foreground: #ffffff;
+  --accent: #dceacb;
+  --accent-foreground: #183629;
+  --destructive: #b42318;
+  --border: #d8e1d6;
+  --input: #d8e1d6;
+  --ring: #234e38;
+  --success: #247144;
+  --warning: #c99224;
+  --danger: #b42318;
+}
+
+.dark {
+  --background: #080b09;
+  --foreground: #f2f6f2;
+  --card: #101411;
+  --card-foreground: #f2f6f2;
+  --popover: #101411;
+  --popover-foreground: #f2f6f2;
+  --secondary: #171c18;
+  --secondary-foreground: #f2f6f2;
+  --muted: #171c18;
+  --muted-foreground: #a0aaa2;
+  --primary: #a4cf8d;
+  --primary-foreground: #0a120c;
+  --accent: #253324;
+  --accent-foreground: #f2f6f2;
+  --destructive: #ef6a60;
+  --border: #29312b;
+  --input: #29312b;
+  --ring: #a4cf8d;
+  --success: #89ce9c;
+  --warning: #f5c451;
+  --danger: #ef6a60;
+}
+
+* { border-color: var(--border); }
+html { background: var(--background); }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Poppins", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--type-base);
+}
+button, a, input, select { font: inherit; }
+input, textarea, select { color-scheme: light; }
+.dark input, .dark textarea, .dark select { color-scheme: dark; }
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+  caret-color: var(--foreground);
+}
+button, a { -webkit-tap-highlight-color: transparent; }
+::selection { background: var(--accent); color: var(--foreground); }
+.text-muted-foreground:is(.text-xs, .text-sm) { font-size: var(--type-supporting); }
+[data-sonner-toast] [data-description] { font-size: var(--type-supporting) !important; }
+.card { border: 1px solid var(--border); background: var(--card); border-radius: 1rem; box-shadow: 0 1px 2px rgb(20 48 33 / 0.03); }
+.form-row-grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .form-row-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.soft-grid {
+  background-image: linear-gradient(to right, rgb(35 78 56 / 0.035) 1px, transparent 1px), linear-gradient(to bottom, rgb(35 78 56 / 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}

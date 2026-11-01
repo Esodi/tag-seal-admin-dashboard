@@ -1,0 +1,8 @@
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+
+export function DashboardPage({ className, ...props }: React.ComponentProps<"div">) { return <div className={cn("mx-auto max-w-7xl space-y-6", className)} {...props} />; }
+export function DashboardStatsGrid({ className, ...props }: React.ComponentProps<"div">) { return <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-4", className)} {...props} />; }
+export function DashboardSection({ title, description, action, children, className }: { title: string; description?: string; action?: ReactNode; children: ReactNode; className?: string }) { return <section className={cn("card min-w-0 p-5 sm:p-6", className)}><div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="font-semibold">{title}</h2>{description && <p className="mt-1 text-supporting text-muted-foreground">{description}</p>}</div>{action}</div>{children}</section>; }
+export function DashboardStatCard({ label, value, note, icon: Icon, trend, className }: { label: string; value: ReactNode; note?: string; icon: LucideIcon; trend?: ReactNode; className?: string }) { return <article className={cn("card p-5", className)}><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-xl bg-muted"><Icon className="size-5 text-primary" /></span>{trend}</div><p className="mt-5 text-2xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-supporting text-muted-foreground">{label}</p>{note && <p className="mt-2 text-supporting text-muted-foreground">{note}</p>}</article>; }
