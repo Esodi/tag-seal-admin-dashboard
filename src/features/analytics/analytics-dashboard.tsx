@@ -1,5 +1,6 @@
 "use client";
 
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, BarChart3, Beef, Building2, FileBarChart, HeartPulse, LineChart as LineChartIcon, Milk, RefreshCw } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -21,7 +22,7 @@ const reportLabels: Record<string, string> = {
   speciesName: "Species", unitType: "Record type", lifecycleStatus: "Lifecycle status", subjects: "Records", headCount: "Head count",
   eventCode: "Event", eventName: "Event", family: "Event family", events: "Events", lastOccurredAt: "Last recorded", subject: "Animal / group", species: "Species", occurredAt: "Recorded date",
   farmName: "Farm", country: "Country", region: "Region", animals: "Animals", lastActivity: "Last activity", farms: "Farms", regions: "Regions",
-  productionDate: "Production date", productCode: "Product", unit: "Unit", quantity: "Quantity", damagedQuantity: "Damaged", 
+  productionDate: "Production date", productCode: "Product", unit: "Unit", quantity: "Quantity", damagedQuantity: "Damaged",
   farmerNo: "Farmer no.", farmerName: "Farmer", phone: "Phone", transactionType: "Type", reference: "Reference", source: "Source", amount: "Amount", transactionDate: "Date",
   billNo: "Bill no.", subjectType: "Subject", billDate: "Bill date",
   referenceNo: "Reference no.", ownerName: "Owner", size: "Size", sizeUnit: "Unit", legalStatus: "Legal status",
@@ -205,12 +206,12 @@ function SimpleHorizontalChart({ title, description, data, color }: { title: str
   return <AnalyticsCard title={title} description={description} action={<ChartDownloadButton targetId={chartId} fileName={`tag-seal-${chartId.replace("analytics-", "")}`} />}>{data.length ? <div id={chartId} className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.slice(0, 10)} layout="vertical" margin={{ top: 4, right: 16, left: 24, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" /><XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} /><YAxis type="category" dataKey="name" width={94} axisLine={false} tickLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} /><Tooltip content={<ChartTooltip />} cursor={{ fill: "currentColor", opacity: 0.08, rx: 6 }} /><Bar dataKey="value" radius={[0, 6, 6, 0]} fill={color} /></BarChart></ResponsiveContainer></div> : <AnalyticsEmpty />}</AnalyticsCard>;
 }
 
-function TopFarms({ data }: { data: AnalyticsResponse }) {
-  return <AnalyticsCard title="Most active farms" description="Combined livestock coverage and selected-period event activity."><div className="space-y-3">{data.topFarms.length ? data.topFarms.slice(0, 6).map((farm, index) => <div key={farm.farmName} className="flex items-center gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold">{index + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-supporting font-semibold">{farm.farmName}</p><p className="truncate text-supporting text-muted-foreground">{farm.region} · {farm.country}</p></div><div className="text-right"><p className="text-supporting font-semibold tabular-nums">{formatNumber(farm.events)} events</p><p className="text-supporting text-muted-foreground">{formatNumber(farm.animals)} animals</p></div></div>) : <AnalyticsEmpty />}</div></AnalyticsCard>;
+export function TopFarms({ data }: { data: AnalyticsResponse }) {
+  return <AnalyticsCard title="Most active farms" description="Combined livestock coverage and selected-period event activity."><div className="space-y-3">{data.topFarms.length ? data.topFarms.slice(0, 6).map((farm, index) => <div key={farm.farmUuid ?? `${farm.farmName}-${index}`} className="flex items-center gap-3"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-xs font-semibold">{index + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-supporting font-semibold">{farm.farmName}</p><p className="truncate text-supporting text-muted-foreground">{farm.region} · {farm.country}</p></div><div className="text-right"><p className="text-supporting font-semibold tabular-nums">{formatNumber(farm.events)} events</p><p className="text-supporting text-muted-foreground">{formatNumber(farm.animals)} animals</p></div></div>) : <AnalyticsEmpty />}</div></AnalyticsCard>;
 }
 
 function MiniRows({ report, columns, limit = 8 }: { report: { rows: Array<Record<string, string | number | null>> }; columns: string[]; limit?: number }) {
-  return report.rows.length ? <div className="overflow-x-auto"><table className="w-full min-w-max text-left text-xs"><thead><tr className="border-b text-[10px] uppercase tracking-wider text-muted-foreground">{columns.map((column) => <th key={column} className="px-3 py-2 font-semibold">{reportLabels[column] ?? humanize(column)}</th>)}</tr></thead><tbody className="divide-y">{report.rows.slice(0, limit).map((row, index) => <tr key={index} className="hover:bg-muted/30">{columns.map((column) => <td key={column} className="px-3 py-2.5 text-muted-foreground">{typeof row[column] === "number" ? formatNumber(row[column] as number) : humanize(String(row[column] ?? "—"))}</td>)}</tr>)}</tbody></table></div> : <AnalyticsEmpty />;
+  return report.rows.length ? <div className="min-w-0"><Table><TableHeader><TableRow>{columns.map((column) => <TableHead key={column} >{reportLabels[column] ?? humanize(column)}</TableHead>)}</TableRow></TableHeader><TableBody>{report.rows.slice(0, limit).map((row, index) => <TableRow key={index} className="hover:bg-muted/30">{columns.map((column) => <TableCell key={column} className="text-muted-foreground">{typeof row[column] === "number" ? formatNumber(row[column] as number) : humanize(String(row[column] ?? "—"))}</TableCell>)}</TableRow>)}</TableBody></Table></div> : <AnalyticsEmpty />;
 }
 
 function aggregate(rows: Array<Record<string, string | number | null>>, key: string, valueKey: string) {

@@ -76,9 +76,10 @@ function Tabs({
 function TabsList({
   className,
   variant = "default",
+  onKeyDown,
   ...props
 }: React.ComponentProps<"div"> & {
-  variant?: "default" | "line";
+  variant?: "default" | "line" | "resource";
 }) {
   const { orientation } = useTabsContext();
 
@@ -89,8 +90,23 @@ function TabsList({
       data-slot="tabs-list"
       data-variant={variant}
       data-orientation={orientation}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented) return;
+        const previous = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
+        const next = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
+        if (![previous, next, "Home", "End"].includes(event.key)) return;
+        const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)'));
+        const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+        if (index < 0 || !tabs.length) return;
+        event.preventDefault();
+        const target = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === next ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[target].focus();
+        tabs[target].click();
+      }}
       className={cn(
         "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-[orientation=horizontal]/tabs:h-9 group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col data-[variant=default]:bg-muted data-[variant=line]:gap-1 data-[variant=line]:rounded-none data-[variant=line]:bg-transparent",
+        "data-[variant=resource]:h-auto data-[variant=resource]:max-w-full data-[variant=resource]:flex-wrap data-[variant=resource]:justify-start data-[variant=resource]:gap-1 data-[variant=resource]:rounded-xl data-[variant=resource]:border data-[variant=resource]:bg-muted/40 data-[variant=resource]:p-1",
         className,
       )}
       {...props}
@@ -116,6 +132,7 @@ function TabsTrigger({
       type="button"
       role="tab"
       aria-selected={isActive}
+      tabIndex={isActive || !selectedValue ? 0 : -1}
       data-slot="tabs-trigger"
       data-state={isActive ? "active" : "inactive"}
       disabled={disabled}
@@ -130,6 +147,7 @@ function TabsTrigger({
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent",
         "data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 dark:data-[state=active]:text-foreground",
         "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
+        "group-data-[variant=resource]/tabs-list:min-h-9 group-data-[variant=resource]/tabs-list:flex-none group-data-[variant=resource]/tabs-list:rounded-lg group-data-[variant=resource]/tabs-list:px-4 group-data-[variant=resource]/tabs-list:text-[13px] group-data-[variant=resource]/tabs-list:text-muted-foreground group-data-[variant=resource]/tabs-list:hover:bg-accent/50 group-data-[variant=resource]/tabs-list:data-[state=active]:border-primary group-data-[variant=resource]/tabs-list:data-[state=active]:bg-primary group-data-[variant=resource]/tabs-list:data-[state=active]:text-primary-foreground group-data-[variant=resource]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=resource]/tabs-list:data-[state=active]:[&_[data-slot=badge]]:border-transparent group-data-[variant=resource]/tabs-list:data-[state=active]:[&_[data-slot=badge]]:bg-primary-foreground/15 group-data-[variant=resource]/tabs-list:data-[state=active]:[&_[data-slot=badge]]:text-primary-foreground",
         className,
       )}
       {...props}

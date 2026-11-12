@@ -1,5 +1,7 @@
 "use client";
 
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TablePanel, TableToolbar, TablePagination } from "@/components/ui/table-layout";
 import { useMemo, useState } from "react";
 import {
   ArrowDownAZ,
@@ -20,7 +22,7 @@ import {
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import {
   CustomViewDetailsDialog,
   DetailItem,
@@ -190,13 +192,7 @@ export function FeatureWorkspace({
         parentHref={`/dashboard/${group.slug}`}
         title={feature.label}
         description={feature.description}
-        badge={
-          feature.status === "new" ? (
-            <Badge variant="default">New platform</Badge>
-          ) : feature.status === "migration" ? (
-            <Badge variant="outline">Migration</Badge>
-          ) : undefined
-        }
+
         actions={
           <>
             <Button variant="outline">
@@ -217,21 +213,11 @@ export function FeatureWorkspace({
           { label: "Active", value: 1106, note: "88.6% of records" },
           { label: "Needs attention", value: 17, note: "4 updated today" },
         ].map(({ label, value, note }) => (
-          <Card key={label} className="gap-1 py-4 shadow-none">
-            <CardContent className="px-4">
-              <p className="text-xs font-medium text-muted-foreground">
-                {label}
-              </p>
-              <p className="mt-2 text-2xl font-bold">
-                <StatNumber value={value} />
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{note}</p>
-            </CardContent>
-          </Card>
+          <DashboardStatCard key={label} label={<>{label}</>} value={<StatNumber value={value} />} note={<>{note}</>} />
         ))}
       </div>
 
-      <Card className="mt-4 gap-0 overflow-hidden py-0 shadow-none">
+      <TablePanel className="mt-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div className="flex gap-1">
             {(["records", "configuration", "activity"] as const).map((item) => (
@@ -251,7 +237,7 @@ export function FeatureWorkspace({
 
         {tab === "records" ? (
           <>
-            <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center">
+            <TableToolbar>
               <div className="relative min-w-0 flex-1 lg:max-w-sm">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -323,7 +309,7 @@ export function FeatureWorkspace({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            </TableToolbar>
 
             {rows.length === 0 ? (
               <div className="p-4">
@@ -336,13 +322,13 @@ export function FeatureWorkspace({
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableRow>
                     <TableHead className="w-14">#</TableHead>
                     {feature.columns.map((column) => (
                       <TableHead key={column}>{column}</TableHead>
                     ))}
                     <TableHead className="w-12">
-                      <span className="sr-only">Actions</span>
+                      Actions
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -404,7 +390,7 @@ export function FeatureWorkspace({
               </Table>
             )}
 
-            <div className="flex flex-col gap-3 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <TablePagination>
               <p>
                 Showing {rows.length > 0 ? 1 : 0}–{rows.length} of{" "}
                 {rows.length}
@@ -428,7 +414,7 @@ export function FeatureWorkspace({
                   <ChevronRight />
                 </Button>
               </div>
-            </div>
+            </TablePagination>
           </>
         ) : (
           <div className="p-4">
@@ -439,7 +425,7 @@ export function FeatureWorkspace({
             />
           </div>
         )}
-      </Card>
+      </TablePanel>
 
       <CustomViewDetailsDialog
         open={Boolean(viewing)}

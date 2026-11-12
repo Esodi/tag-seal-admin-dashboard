@@ -1,5 +1,9 @@
 "use client";
 
+import { formatNida, isNidaType, isValidNida, NIDA_ERROR, NIDA_PATTERN, NIDA_PLACEHOLDER } from "@/lib/identity-format";
+import { RecordPagination } from "@/components/ui/record-pagination";
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TableTabSection, TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import {
   useCallback,
   useEffect,
@@ -7,32 +11,16 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  ArrowDownAZ,
-  ArrowDownWideNarrow,
-  ArrowUpAZ,
-  ArrowUpNarrowWide,
-  ChevronLeft,
-  ChevronRight,
-  Database,
-  Eye,
-  MoreVertical,
-  Pencil,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { ArrowDownAZ, ArrowDownWideNarrow, ArrowUpAZ, ArrowUpNarrowWide, Database, Eye, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import {
   CustomViewDetailsDialog,
-  DetailItem,
+  DetailItem, DetailSection,
 } from "@/components/ui/custom-view-details-dialog";
 import {
   DropdownMenu,
@@ -393,37 +381,17 @@ export function PeopleResourceDashboard({
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {(result?.meta.stats ?? []).map((stat) => (
-          <Card key={stat.label} className="gap-1 py-4 shadow-none">
-            <CardContent className="px-4">
-              <p className="text-xs font-medium text-muted-foreground">
-                {stat.label}
-              </p>
-              {loading && !result ? (
-                <Skeleton className="my-1 h-8 w-16" />
-              ) : (
-                <p className="mt-2 text-2xl font-bold">
-                  <StatNumber value={stat.value} />
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">{stat.note}</p>
-            </CardContent>
-          </Card>
+          <DashboardStatCard key={stat.label} label={<>{stat.label}</>} value={<StatNumber value={stat.value} />} note={<>{stat.note}</>} loading={loading && !result} />
         ))}
         {!result &&
           Array.from({ length: 3 }, (_, index) => (
-            <Card key={index} className="gap-1 py-4 shadow-none">
-              <CardContent className="px-4">
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="my-2 h-8 w-16" />
-                <Skeleton className="h-3 w-32" />
-              </CardContent>
-            </Card>
+            <DashboardStatCard key={index} loading />
           ))}
       </div>
 
-      <Card className="mt-4 gap-0 overflow-hidden py-0 shadow-none">
+      <TablePanel className="mt-4">
         {isSoftDeletable ? (
-          <div className="border-b px-4 pt-2">
+          <TableTabSection>
             <Tabs
               value={tab}
               onValueChange={(value) => {
@@ -432,9 +400,9 @@ export function PeopleResourceDashboard({
                 setSelected(new Set());
               }}
             >
-              <TabsList variant="line">
+              <TabsList variant="resource">
                 <TabsTrigger value="all">
-                  All {config.title.toLowerCase()}
+                  All
                 </TabsTrigger>
                 <TabsTrigger value="deleted">
                   Deleted
@@ -449,10 +417,10 @@ export function PeopleResourceDashboard({
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-          </div>
+          </TableTabSection>
         ) : null}
 
-        <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center">
+        <TableToolbar>
           <div className="relative min-w-0 flex-1 lg:max-w-sm">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -573,7 +541,7 @@ export function PeopleResourceDashboard({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </TableToolbar>
 
         {loadError ? (
           <div className="p-4">
@@ -610,37 +578,9 @@ export function PeopleResourceDashboard({
         )}
 
         {result && !loadError ? (
-          <div className="flex flex-col gap-3 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Showing {result.meta.from ?? 0}–{result.meta.to ?? 0} of{" "}
-              {result.meta.total.toLocaleString("en-TZ")}
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-                aria-label="Previous page"
-              >
-                <ChevronLeft />
-              </Button>
-              <span className="px-2 tabular-nums">
-                Page {result.meta.currentPage} of {result.meta.lastPage}
-              </span>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                disabled={page >= result.meta.lastPage || loading}
-                onClick={() => setPage((value) => value + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRight />
-              </Button>
-            </div>
-          </div>
+          <RecordPagination from={result.meta.from} to={result.meta.to} total={result.meta.total} page={result.meta.currentPage} pageCount={result.meta.lastPage} onPageChange={setPage} disabled={loading} />
         ) : null}
-      </Card>
+      </TablePanel>
 
       <ResourceFormDialog
         key={`create-${resource}-${creating}`}
@@ -823,7 +763,7 @@ function PeopleTable({
     return (
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
+          <TableRow>
             {config.deletable ? <TableHead className="w-12" /> : null}
             <TableHead className="w-14">#</TableHead>
             {config.columns.map((column) => (
@@ -902,7 +842,7 @@ function PeopleTable({
     <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
+          <TableRow>
             {config.deletable ? (
               <TableHead className="w-12">
                 <Checkbox
@@ -919,7 +859,7 @@ function PeopleTable({
               <TableHead key={column.key}>{column.label}</TableHead>
             ))}
             <TableHead className="w-12">
-              <span className="sr-only">Actions</span>
+              Actions
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -1064,6 +1004,7 @@ function ResourceFormDialog({
             }
           }
         };
+        if (fieldName === "identityCardTypeId") next.identityNumber = "";
         clearChildren(fieldName);
         return next;
       });
@@ -1078,6 +1019,8 @@ function ResourceFormDialog({
         if (field.type === "checkbox") continue;
         const value = String(values[field.name] ?? "").trim();
         if (field.type === "password" && !value) continue;
+        const identityLabel = options.identityCardTypes?.find((option) => String(option.value) === String(values.identityCardTypeId))?.label ?? "";
+        if (field.name === "identityNumber" && value && isNidaType(String(identityLabel)) && !isValidNida(value)) nextErrors[field.name] = NIDA_ERROR;
         if (
           (field.required || (field.requiredOnCreate && !editing)) &&
           value === ""
@@ -1092,7 +1035,7 @@ function ResourceFormDialog({
       }
       return true;
     },
-    [editing, values],
+    [editing, values, options.identityCardTypes],
   );
 
   const validateStep = useCallback(
@@ -1244,6 +1187,9 @@ function ResourceField({
     field.required || (field.requiredOnCreate && !editing),
   );
   const current = values[field.name] ?? "";
+  const identityLabel = options.identityCardTypes?.find((option) => String(option.value) === String(values.identityCardTypeId))?.label ?? "";
+  const nida = field.name === "identityNumber" && isNidaType(String(identityLabel));
+  const inputLabel = field.name === "identityNumber" && identityLabel ? `${identityLabel} number` : field.label;
   const parentValue = field.parentField ? (values[field.parentField] ?? "") : "";
   const rawChoices = field.options ?? options[field.optionsKey ?? ""] ?? [];
   const choices = rawChoices.filter(
@@ -1308,7 +1254,7 @@ function ResourceField({
   return (
     <Field className={className}>
       <FieldLabel htmlFor={id} required={required}>
-        {field.label}
+        {inputLabel}
       </FieldLabel>
       {field.type === "select" ? (
         <FormSelect
@@ -1329,9 +1275,9 @@ function ResourceField({
           id={id}
           name={field.name}
           value={current}
-          onChange={(event) => onChange(field.name, event.target.value)}
+          onChange={(event) => onChange(field.name, nida ? formatNida(event.target.value) : event.target.value)}
           required={required}
-          placeholder={field.placeholder}
+          placeholder={nida ? NIDA_PLACEHOLDER : field.placeholder}
           rows={3}
           aria-invalid={Boolean(error)}
         />
@@ -1340,10 +1286,13 @@ function ResourceField({
           id={id}
           name={field.name}
           value={current}
-          onChange={(event) => onChange(field.name, event.target.value)}
+          onChange={(event) => onChange(field.name, nida ? formatNida(event.target.value) : event.target.value)}
           type={field.type ?? "text"}
           required={required}
-          placeholder={field.placeholder}
+          placeholder={nida ? NIDA_PLACEHOLDER : field.placeholder}
+          inputMode={nida ? "numeric" : undefined}
+          pattern={nida ? NIDA_PATTERN : undefined}
+          maxLength={nida ? 23 : undefined}
           step={field.step}
           aria-invalid={Boolean(error)}
           autoComplete={field.type === "password" ? "new-password" : undefined}
@@ -1369,9 +1318,10 @@ function ResourceDetailsDialog({
   onEdit: (record: PeopleRecord) => void;
 }) {
   const config = getPeopleResourceConfig(resource);
-  const fields = config.sections
-    .flatMap((section) => section.fields)
-    .filter((field) => field.type !== "password" && field.name !== "uuid");
+  const sections = config.sections.map((section) => ({
+    ...section,
+    fields: section.fields.filter((field) => field.type !== "password" && field.name !== "uuid"),
+  })).filter((section) => section.fields.length > 0);
 
   return (
     <CustomViewDetailsDialog
@@ -1389,32 +1339,21 @@ function ResourceDetailsDialog({
       }
     >
       {record ? (
-        <div className="form-row-grid">
-          {record.farmerNo ? (
-            <div>
-              <DetailItem label="Farmer number">
-                <Badge variant="outline" className="font-mono">
-                  {String(record.farmerNo)}
-                </Badge>
-              </DetailItem>
-            </div>
-          ) : null}
-          {fields.map((field) => (
-            <div
-              key={field.name}
-              className={field.full ? "sm:col-span-2" : undefined}
-            >
-              <DetailItem label={field.label}>
-                {displayFieldValue(record, field, options)}
-              </DetailItem>
-            </div>
+        <div className="space-y-6">
+          {sections.map((section) => (
+            <DetailSection key={section.title} title={section.title}>
+              {section.fields.map((field) => (
+                <DetailItem key={field.name} label={field.label} className={field.full ? "sm:col-span-2" : undefined}>
+                  {displayFieldValue(record, field, options)}
+                </DetailItem>
+              ))}
+            </DetailSection>
           ))}
-          {record.createdByName ? (
-            <div>
-              <DetailItem label="Created by">
-                {String(record.createdByName)}
-              </DetailItem>
-            </div>
+          {record.farmerNo || record.createdByName ? (
+            <DetailSection title="Record information">
+              {record.farmerNo ? <DetailItem label="Farmer number"><Badge variant="outline" className="font-mono">{String(record.farmerNo)}</Badge></DetailItem> : null}
+              {record.createdByName ? <DetailItem label="Created by">{String(record.createdByName)}</DetailItem> : null}
+            </DetailSection>
           ) : null}
         </div>
       ) : null}

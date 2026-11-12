@@ -27,33 +27,33 @@ export async function GET() {
   if (!token || !expiresAt || expiresAt <= Date.now()) return unauthorized();
 
   try {
-    const upstream = await fetch(`${apiUrl}/api/auth/profile`, {
+    const upstream = await fetch(`${apiUrl}/api/v1/admin/account/profile`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store",
     });
 
     if (upstream.status === 401 || upstream.status === 403) return unauthorized();
     if (!upstream.ok) {
-      return cachedUser?.role === "systemUser"
+      return ["admin", "superAdmin"].includes(cachedUser?.platformRole)
         ? NextResponse.json({ user: cachedUser, profile: null, expiresAt, verified: false })
         : unauthorized();
     }
 
     const payload = await upstream.json();
-    const source = payload?.data?.user;
-    if (source?.role !== "systemUser") return unauthorized();
+    const source = payload?.data;
+    if (!["admin", "superAdmin"].includes(source?.platformRole)) return unauthorized();
 
-    const profile = payload?.data?.profile ?? null;
+    const profile = payload?.data ?? null;
     const user = {
       ...source,
-      firstname: profile?.firstName ?? profile?.firstname ?? source.firstname ?? "",
-      surname: profile?.lastName ?? profile?.surname ?? source.surname ?? "",
-      phone1: profile?.phone ?? profile?.phone1 ?? "",
+      firstname: profile?.firstName ?? profile?.firstname ?? source.firstname ?? cachedUser?.firstname ?? "",
+      surname: profile?.lastName ?? profile?.surname ?? source.surname ?? cachedUser?.surname ?? "",
+      phone1: profile?.phone ?? profile?.phone1 ?? cachedUser?.phone1 ?? "",
     };
 
     return NextResponse.json({ user, profile, expiresAt, verified: true });
   } catch {
-    return cachedUser?.role === "systemUser"
+    return ["admin", "superAdmin"].includes(cachedUser?.platformRole)
       ? NextResponse.json({ user: cachedUser, profile: null, expiresAt, verified: false })
       : NextResponse.json({ message: "Session service unavailable" }, { status: 503 });
   }

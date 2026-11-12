@@ -6,6 +6,7 @@ import type {
   AnimalResource,
   AnimalResponse,
 } from "@/features/animals/types";
+import { formatFriendlyError } from "@/lib/friendly-error";
 
 const apiUrl = process.env.LARAVEL_API_URL ?? "http://127.0.0.1:8000";
 
@@ -22,7 +23,10 @@ async function adminGet<T>(path: string): Promise<T> {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(
-      payload?.message ?? "Animals & Livestock data could not be loaded.",
+      formatFriendlyError(
+        payload?.message,
+        "Animals & Livestock data could not be loaded.",
+      ),
     );
   }
   return payload as T;
@@ -39,10 +43,10 @@ export async function getInitialAnimalResource(resource: AnimalResource) {
     return {
       records: null,
       options: null,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Animals & Livestock data could not be loaded.",
+      error: formatFriendlyError(
+        error,
+        "Animals & Livestock data could not be loaded.",
+      ),
     };
   }
 }

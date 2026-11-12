@@ -47,7 +47,7 @@ async function fetchFinanceApi<T>(
 }
 
 export async function getInitialFinanceResource(resource: FinanceCrudResource) {
-  return fetchFinanceApi<FinanceResponse>(`${resource}?per_page=15`);
+  return fetchFinanceApi<FinanceResponse>(`${resource}?per_page=10`);
 }
 
 export async function getInitialIncomeExpenditureReport() {

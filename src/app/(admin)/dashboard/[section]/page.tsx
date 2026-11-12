@@ -1,23 +1,27 @@
+import { HelpCenterDashboard } from "@/features/help/help-center-dashboard";
+import { SettingsDashboard } from "@/features/settings/settings-dashboard";
+import { CareerOverviewPage } from "@/features/career/career-overview-page";
+import { UsersDashboardSkeleton } from "@/features/users/users-dashboard-skeleton";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import {
   Activity,
   ArrowRight,
-  BookOpen,
-  CircleHelp,
+  Briefcase,
+  Building2,
+  Clock,
   Database,
   FileCode,
   FileStack,
+  FileText,
   Globe,
-  KeyRound,
-  Languages,
-  Mail,
-  Palette,
-  Settings,
+  Layers,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  UserCheck,
+  Users,
 } from "lucide-react";
 import { featureGroups } from "@/lib/features";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -32,6 +36,17 @@ const featureIconMap: Record<string, React.ElementType> = {
   "form-definitions": FileCode,
   "lookup-sets": Database,
   "dynamic-species": Globe,
+  jobs: Briefcase,
+  applications: FileText,
+  "job-seekers": UserCheck,
+  employers: Building2,
+  memberships: ShieldCheck,
+  onboardings: Clock,
+  workers: Users,
+  "farm-workers": Users,
+  "farm-users": Users,
+  "job-types": Layers,
+  "job-options": SlidersHorizontal,
 };
 
 export default async function SectionPage({
@@ -40,75 +55,27 @@ export default async function SectionPage({
   params: Promise<{ section: string }>;
 }) {
   const { section } = await params;
+  if (section === "career")
+    return (
+      <Suspense fallback={<UsersDashboardSkeleton />}>
+        <CareerOverviewPage />
+      </Suspense>
+    );
 
   if (section === "analytics") {
-    return <Suspense fallback={<AnalyticsSkeleton />}><AnalyticsPage /></Suspense>;
-  }
-
-  if (section === "help") {
-    const helpItems = [
-      [BookOpen, "Admin guide", "Learn the configured workflows and dashboard structure."],
-      [CircleHelp, "Help centre", "Browse answers for accounts, animals, farms and reporting."],
-      [Mail, "Contact support", "Prepare a support request for the implementation team."],
-    ] as const;
     return (
-      <div className="mx-auto max-w-7xl space-y-6">
-        <DashboardHeader
-          eyebrow="Support"
-          title="Help Center"
-          description="Guidance and support resources kept outside operational administration."
-        />
-        <div className="grid gap-4 md:grid-cols-3">
-          {helpItems.map(([Icon, title, text]) => (
-            <div className="card p-5" key={title}>
-              <span className="grid size-10 place-items-center rounded-xl bg-muted">
-                <Icon className="size-5 text-primary" />
-              </span>
-              <h2 className="mt-5 font-semibold">{title}</h2>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">{text}</p>
-              <button className="mt-5 text-xs font-semibold text-primary">Open resource →</button>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Suspense fallback={<AnalyticsSkeleton />}>
+        <AnalyticsPage />
+      </Suspense>
     );
   }
 
-  if (section === "settings") {
-    const settings = [
-      [Settings, "General", "Organization identity and platform defaults."],
-      [ShieldCheck, "Security", "Access policies and administrative protection."],
-      [Palette, "Appearance", "Theme, density and visual preferences."],
-      [Languages, "Language & region", "Locale, timezone and number formats."],
-      [SlidersHorizontal, "Feature controls", "Prepare feature flags and module defaults."],
-      [KeyRound, "API & integrations", "Connection settings reserved for implementation."],
-    ] as const;
-    return (
-      <div className="mx-auto max-w-7xl space-y-6">
-        <DashboardHeader
-          eyebrow="Platform"
-          title="Settings"
-          description="Central platform preferences, placed separately from daily management features."
-        />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {settings.map(([Icon, title, text]) => (
-            <div className="card group p-5" key={title}>
-              <span className="grid size-10 place-items-center rounded-xl bg-muted">
-                <Icon className="size-5 text-primary" />
-              </span>
-              <h2 className="mt-5 font-semibold">{title}</h2>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">{text}</p>
-              <span className="mt-5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Configured for later
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (section === "help") return <HelpCenterDashboard />;
+  if (section === "settings") return <SettingsDashboard />;
 
-  const group = featureGroups.find((item) => item.slug === section);
+  const group = featureGroups.find(
+    (item) => item.slug === (section === "system" ? "security" : section),
+  );
   if (!group) notFound();
 
   return (
@@ -131,29 +98,25 @@ export default async function SectionPage({
                 <span className="grid size-10 place-items-center rounded-xl bg-muted">
                   <FeatureIcon className="size-5 text-primary" />
                 </span>
-              {feature.status && (
-                <span
-                  className={`rounded-full px-2 py-1 text-[9px] font-semibold uppercase ${
-                    feature.status === "new"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                  }`}
-                >
-                  {feature.status}
-                </span>
-              )}
-            </div>
-            <h2 className="mt-5 font-semibold">{feature.label}</h2>
-            <p className="mt-2 min-h-10 text-xs leading-5 text-muted-foreground">
-              {feature.description}
-            </p>
-            <span className="mt-5 flex items-center gap-2 text-xs font-semibold text-primary">
-              Open workspace{" "}
-              <ArrowRight className="size-3.5 transition group-hover:translate-x-1" />
-            </span>
-          </Link>
-        );
-      })}
+                {feature.status && feature.status !== "new" && (
+                  <span
+                    className="rounded-full bg-amber-500/10 px-2 py-1 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-300"
+                  >
+                    {feature.status}
+                  </span>
+                )}
+              </div>
+              <h2 className="mt-5 font-semibold">{feature.label}</h2>
+              <p className="mt-2 min-h-10 text-xs leading-5 text-muted-foreground">
+                {feature.description}
+              </p>
+              <span className="mt-5 flex items-center gap-2 text-xs font-semibold text-primary">
+                Open workspace{" "}
+                <ArrowRight className="size-3.5 transition group-hover:translate-x-1" />
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

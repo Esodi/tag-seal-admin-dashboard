@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Baby, Beef, Building2, CalendarDays, Milk, RefreshCw, ServerCog, Syringe, UserCheck, Users } from "lucide-react";
+import { Activity, ArrowRight, Baby, Beef, Briefcase, Building2, CalendarDays, Milk, RefreshCw, Syringe, UserCheck, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useRouter } from "next/navigation";
 import { DashboardPage, DashboardStatCard, DashboardStatsGrid } from "@/components/ui/dashboard";
@@ -10,20 +10,13 @@ import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { toast } from "@/components/ui/toast";
 import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { AnalyticsCard, AnalyticsEmpty, AttentionList } from "@/features/analytics/components/analytics-ui";
-import type { DashboardOverview, DashboardStat } from "@/lib/dashboard";
+import type { DashboardOverview } from "@/lib/dashboard";
 
-const statIcons = { animals: Beef, farms: Building2, farmers: Users, users: UserCheck, milking: Milk, vaccinations: Syringe, births: Baby, "system-health": ServerCog } as const;
+const statIcons = { animals: Beef, farms: Building2, farmers: Users, users: UserCheck, milking: Milk, vaccinations: Syringe, births: Baby, jobs: Briefcase, career: Briefcase } as const;
 const speciesColors = ["#234e38", "#688c53", "#b38936", "#5b7c91", "#936d83", "#9aa89d"];
 const familyColors = { health: "#b4534b", production: "#3f7c54", reproduction: "#a8782a", movement: "#4f718a", growth: "#76628a", other: "#8a928c" };
 
 function number(value: number) { return value.toLocaleString("en-TZ"); }
-function trend(stat: DashboardStat) {
-  if (stat.change === null) return <span className="text-xs font-medium text-muted-foreground">{stat.category === "system" ? "Live services" : "No prior month"}</span>;
-  const up = stat.direction === "up";
-  const change = stat.change.toLocaleString("en-TZ", { maximumFractionDigits: 1 });
-  return <span title="Compared with the previous month" className={`flex items-center gap-1 text-xs font-semibold ${stat.direction === "neutral" ? "text-muted-foreground" : up ? "text-success" : "text-warning"}`}>{up ? <ArrowUpRight className="size-3.5" /> : stat.direction === "down" ? <ArrowDownRight className="size-3.5" /> : null}{up ? "+" : ""}{change}%</span>;
-}
-
 export function Overview({ data, error }: { data: DashboardOverview | null; error?: string }) {
   const router = useRouter();
   const { session } = useAuthSession();
@@ -47,9 +40,9 @@ export function Overview({ data, error }: { data: DashboardOverview | null; erro
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><CalendarDays className="size-4" />Updated {new Intl.DateTimeFormat("en-TZ", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.generatedAt))}</p>
     </div>
 
-    <DashboardStatsGrid>{registryStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const note = stat.periodValue === undefined ? stat.note : `- ${number(stat.periodValue)} ${stat.periodLabel ?? "this month"}`; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={note} icon={Icon} trend={trend(stat)} />; })}</DashboardStatsGrid>
+    <DashboardStatsGrid>{registryStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const note = stat.periodValue === undefined ? stat.note : `- ${number(stat.periodValue)} ${stat.periodLabel ?? "this month"}`; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={note} icon={Icon} />; })}</DashboardStatsGrid>
 
-    <DashboardStatsGrid>{eventStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const system = stat.category === "system"; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={stat.note} icon={Icon} trend={trend(stat)} className={system ? "border-success/30 bg-success/[.035]" : "border-warning/25 bg-warning/[.025]"} />; })}</DashboardStatsGrid>
+    <DashboardStatsGrid>{eventStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const system = stat.category === "system"; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={stat.note} icon={system ? undefined : Icon} />; })}</DashboardStatsGrid>
 
     <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
       <AnalyticsCard title="Operational activity" description="Last 30 days of ledger activity grouped by event family." action={<Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/analytics")}>Explore analytics <ArrowRight /></Button>}>

@@ -1,21 +1,14 @@
 "use client";
 
+import { FinancePreview } from "./finance-preview";
+import { printReport, reportDate } from "@/lib/report-print";
+
+import { DashboardStatCard } from "@/components/ui/dashboard";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Calendar,
-  FileText,
-  Landmark,
-  Printer,
-  RefreshCw,
-  RotateCcw,
-  Search,
-} from "lucide-react";
+import { Calendar, FileText, Printer, RefreshCw, RotateCcw, Search } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmptyCard } from "@/components/ui/empty-card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { FormSelect } from "@/components/ui/form-select";
@@ -31,7 +24,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
+import { RecordPagination } from "@/components/ui/record-pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomViewDetailsDialog, DetailItem, DetailSection } from "@/components/ui/custom-view-details-dialog";
 import type {
   FinanceReportRow,
   IncomeExpenditureReportResponse,
@@ -53,7 +49,7 @@ export function IncomeExpenditureDashboard({
   initialData: IncomeExpenditureReportResponse | null;
   initialError?: string;
 }) {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Dar_es_Salaam" });
   const startOfMonthStr = `${todayStr.slice(0, 8)}01`;
 
   const [data, setData] = useState<IncomeExpenditureReportResponse | null>(
@@ -79,7 +75,14 @@ export function IncomeExpenditureDashboard({
   const [activeTab, setActiveTab] = useState<"income" | "expense" | "bills">(
     "income",
   );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sort, setSort] = useState("desc");
+  const [viewing, setViewing] = useState<FinanceReportRow | null>(null);
   const didMount = useRef(false);
+  const requestRef = useRef<AbortController | null>(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
+  useEffect(() => setPage(1), [activeTab, pageSize, sort, data]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -96,6 +99,10 @@ export function IncomeExpenditureDashboard({
       nextFarmer = farmerId,
       nextSearch = debouncedSearch,
     ) => {
+      requestRef.current?.abort();
+      const controller = new AbortController();
+      requestRef.current = controller;
+      if (!nextFrom || !nextTo || nextFrom > nextTo) { setError("Choose a valid date range: the end must be on or after the start."); setLoading(false); return; }
       setLoading(true);
       setError(undefined);
       const params = new URLSearchParams({
@@ -109,7 +116,7 @@ export function IncomeExpenditureDashboard({
       try {
         const response = await authenticatedFetch(
           `/api/admin/finance/income-expenditure?${params.toString()}`,
-          { cache: "no-store" },
+          { cache: "no-store", signal: controller.signal },
         );
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload?.status === false) {
@@ -117,15 +124,16 @@ export function IncomeExpenditureDashboard({
             payload?.message ?? "Unable to load Income & Expenditure report.",
           );
         }
-        setData(payload.data);
+        if (!controller.signal.aborted) setData(payload.data);
       } catch (err) {
+        if (controller.signal.aborted) return;
         setError(
           err instanceof Error
             ? err.message
             : "Unable to load Income & Expenditure report.",
         );
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [debouncedSearch, farmUuid, farmerId, fromDate, toDate],
@@ -140,15 +148,15 @@ export function IncomeExpenditureDashboard({
   }, [debouncedSearch, farmUuid, farmerId, fromDate, loadReport, toDate]);
 
   const applyPreset = (preset: "month" | "week" | "today" | "reset") => {
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const now = new Date(`${todayStr}T12:00:00Z`);
+    const today = now.toLocaleDateString("en-CA", { timeZone: "Africa/Dar_es_Salaam" });
     if (preset === "today") {
       setFromDate(today);
       setToDate(today);
     } else if (preset === "week") {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now.setDate(diff)).toISOString().slice(0, 10);
+      const day = now.getUTCDay();
+      const diff = now.getUTCDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(now.setUTCDate(diff)).toISOString().slice(0, 10);
       setFromDate(monday);
       setToDate(today);
     } else if (preset === "month") {
@@ -184,8 +192,15 @@ export function IncomeExpenditureDashboard({
   const expenseRows = data?.expenseRows ?? [];
   const billRows = data?.billRows ?? [];
 
+  const reportRows = activeTab === "income" ? incomeRows : activeTab === "expense" ? expenseRows : billRows;
+  const orderedRows = [...reportRows].sort((a, b) => sort === "desc" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+  const pageCount = Math.max(1, Math.ceil(orderedRows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const offset = (currentPage - 1) * pageSize;
+  const visibleRows = orderedRows.slice(offset, offset + pageSize);
+
   const renderReportTable = (rows: FinanceReportRow[], isBills = false) => {
-    if (loading && rows.length === 0) {
+    if (loading) {
       return (
         <div className="space-y-2.5">
           {Array.from({ length: 5 }).map((_, idx) => (
@@ -206,10 +221,11 @@ export function IncomeExpenditureDashboard({
     }
 
     return (
-      <div className="overflow-x-auto rounded-xl border">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
+            <TableRow>
+              <TableHead className="w-14">#</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>{isBills ? "Bill No" : "Source Type"}</TableHead>
               <TableHead>
@@ -219,16 +235,17 @@ export function IncomeExpenditureDashboard({
               <TableHead>Farmer</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Qty</TableHead>
-              <TableHead>Amount</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Notes</TableHead>
+              <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row, idx) => (
-              <TableRow key={`${row.date}-${idx}`}>
+              <TableRow key={`${reportDate(row.date, true)}-${idx}`}>
+                <TableCell className="tabular-nums text-muted-foreground">{offset + idx + 1}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {row.date}
+                  {reportDate(row.date, true)}
                 </TableCell>
                 <TableCell>
                   {isBills ? (
@@ -252,15 +269,13 @@ export function IncomeExpenditureDashboard({
                   </Badge>
                 </TableCell>
                 <TableCell className="tabular-nums">{row.quantity}</TableCell>
-                <TableCell className="font-semibold tabular-nums">
+                <TableCell className="text-right font-semibold tabular-nums">
                   {formatTzs(row.amount)}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={row.status} />
                 </TableCell>
-                <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                  {row.notes || "—"}
-                </TableCell>
+                <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => setViewing(row)}>View details</Button></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -269,10 +284,65 @@ export function IncomeExpenditureDashboard({
     );
   };
 
+  const reportFilters = (<div className="border-b p-5">      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <Field>
+              <FieldLabel htmlFor="report-from">From date</FieldLabel>
+              <Input
+                type="date"
+                id="report-from"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="report-to">To date</FieldLabel>
+              <Input
+                type="date"
+                id="report-to"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Farm</FieldLabel>
+              <FormSelect
+                value={farmUuid}
+                onValueChange={setFarmUuid}
+                options={farmOptions}
+                placeholder="All farms"
+                searchable
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Farmer</FieldLabel>
+              <FormSelect
+                value={farmerId}
+                onValueChange={setFarmerId}
+                options={farmerOptions}
+                placeholder="All farmers"
+                searchable
+              />
+            </Field>
+            <Field className="order-first">
+              <FieldLabel htmlFor="report-search">Search</FieldLabel>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="report-search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Bill no, reference, notes…"
+                  className="pl-9"
+                />
+              </div>
+            </Field>
+          </div>
+</div>);
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <DashboardHeader
-        eyebrow="Finance & Billing"
+        parent="Finance & Billing" parentHref="/dashboard/finance"
         title="Income & Expenditure Report"
         description="Consolidated farm revenue, disposal sales, transfers, service bills and operational expenditure."
         actions={
@@ -308,9 +378,11 @@ export function IncomeExpenditureDashboard({
               Reset
             </Button>
             <Button
-              size="sm"
+              size="sm" disabled={loading || Boolean(error) || !data}
               onClick={() => {
-                if (typeof window !== "undefined") window.print();
+                printReport("Income & Expenditure Report", `Period: ${reportDate(data?.filters.fromDate)} – ${reportDate(data?.filters.toDate)}\nIncome: ${formatTzs(summary?.totalIncome)} • Expenditure: ${formatTzs(summary?.totalExpenditure)} • Balance: ${formatTzs(summary?.net)}\nLimited preview: up to 250 records per source contribute to totals; up to 100 rows per section are included.\nFarm: ${farmOptions.find(option => option.value === data?.filters.farmUuid)?.label || "All farms"} • Farmer: ${farmerOptions.find(option => option.value === String(data?.filters.farmerId ?? ""))?.label || "All farmers"}`, [
+                  { title: "Income", rows: incomeRows }, { title: "Expenditure", rows: expenseRows }, { title: "Bills", rows: billRows },
+                ].map(section => ({ title: section.title, columns: ["Date (EAT)", "Reference", "Farm", "Farmer", "Subject", "Quantity", "Amount", "Status", "Notes"], rows: section.rows.map(row => [reportDate(row.date, true), row.billNo || row.reference, row.farm, row.farmer, row.subject, row.quantity, formatTzs(row.amount), row.status, row.notes]) })));
               }}
             >
               <Printer className="size-4" />
@@ -320,156 +392,17 @@ export function IncomeExpenditureDashboard({
         }
       />
 
-      <Card className="border-border/70 shadow-none">
-        <CardContent className="p-5">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <Field>
-              <FieldLabel>From date</FieldLabel>
-              <Input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>To date</FieldLabel>
-              <Input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Farm</FieldLabel>
-              <FormSelect
-                value={farmUuid}
-                onValueChange={setFarmUuid}
-                options={farmOptions}
-                placeholder="All farms"
-                searchable
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Farmer</FieldLabel>
-              <FormSelect
-                value={farmerId}
-                onValueChange={setFarmerId}
-                options={farmerOptions}
-                placeholder="All farmers"
-                searchable
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Search</FieldLabel>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Bill no, reference, notes…"
-                  className="pl-9"
-                />
-              </div>
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-success/25 bg-success/[0.025] shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Total Income
-              </p>
-              <span className="grid size-9 place-items-center rounded-xl bg-success/15 text-success">
-                <ArrowUpRight className="size-4" />
-              </span>
-            </div>
-            <div className="mt-3 text-2xl font-bold tracking-tight">
-              <StatNumber
-                value={Math.round(summary?.totalIncome ?? 0)}
-                prefix="TZS "
-              />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {summary?.totalIncomeRows ?? 0} revenue transactions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-warning/25 bg-warning/[0.025] shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Total Expenditure
-              </p>
-              <span className="grid size-9 place-items-center rounded-xl bg-warning/15 text-warning">
-                <ArrowDownRight className="size-4" />
-              </span>
-            </div>
-            <div className="mt-3 text-2xl font-bold tracking-tight">
-              <StatNumber
-                value={Math.round(summary?.totalExpenditure ?? 0)}
-                prefix="TZS "
-              />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {summary?.totalExpenseRows ?? 0} expense transactions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Net Balance
-              </p>
-              <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                <Landmark className="size-4" />
-              </span>
-            </div>
-            <div
-              className={`mt-3 text-2xl font-bold tracking-tight ${(summary?.net ?? 0) < 0 ? "text-danger" : "text-foreground"}`}
-            >
-              {formatTzs(summary?.net ?? 0)}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {(summary?.net ?? 0) >= 0
-                ? "Net surplus for period"
-                : "Net deficit for period"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Transactions
-              </p>
-              <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                <FileText className="size-4" />
-              </span>
-            </div>
-            <div className="mt-3 text-2xl font-bold tracking-tight">
-              <StatNumber
-                value={
-                  (summary?.totalIncomeRows ?? 0) +
-                  (summary?.totalExpenseRows ?? 0)
-                }
-              />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Income: {summary?.totalIncomeRows ?? 0} · Expenses:{" "}
-              {summary?.totalExpenseRows ?? 0}
-            </p>
-          </CardContent>
-        </Card>
+        <DashboardStatCard label="Total Income" value={<StatNumber value={summary?.totalIncome ?? 0} prefix="TZS " />} note={`${summary?.totalIncomeRows ?? 0} revenue transactions`} />
+        <DashboardStatCard label="Total Expenditure" value={<StatNumber value={summary?.totalExpenditure ?? 0} prefix="TZS " />} note={`${summary?.totalExpenseRows ?? 0} expense transactions`} />
+        <DashboardStatCard label="Net Balance" value={<span className={(summary?.net ?? 0) < 0 ? "text-danger" : undefined}>{formatTzs(summary?.net ?? 0)}</span>} note={(summary?.net ?? 0) >= 0 ? "Net surplus for period" : "Net deficit for period"} />
+        <DashboardStatCard label="Transactions" value={<StatNumber value={(summary?.totalIncomeRows ?? 0) + (summary?.totalExpenseRows ?? 0)} />} note={`Income: ${summary?.totalIncomeRows ?? 0} · Expenses: ${summary?.totalExpenseRows ?? 0}`} />
       </div>
 
+      {summary && <FinancePreview title="Income & expenditure preview" description="Comparison for the selected report period. Totals reflect the limited report dataset." money values={[{ label: "Income", value: summary.totalIncome }, { label: "Expenditure", value: summary.totalExpenditure }]} />}
       {error ? (
+        <div className="space-y-4">{reportFilters}
+
         <EmptyCard
           icon={FileText}
           title="Unable to load Income & Expenditure Report"
@@ -481,58 +414,25 @@ export function IncomeExpenditureDashboard({
             </Button>
           }
         />
+        </div>
       ) : (
-        <Card className="border-border/70 shadow-none">
-          <CardContent className="space-y-4 p-5">
-            <Tabs
-              value={activeTab}
-              onValueChange={(next) =>
-                setActiveTab(next as "income" | "expense" | "bills")
-              }
-            >
-              <TabsList>
-                <TabsTrigger value="income">
-                  Income Transactions
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 px-1.5 py-0 text-[10px]"
-                  >
-                    {incomeRows.length}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="expense">
-                  Expenditure Transactions
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 px-1.5 py-0 text-[10px]"
-                  >
-                    {expenseRows.length}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="bills">
-                  Bills Preview
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 px-1.5 py-0 text-[10px]"
-                  >
-                    {billRows.length}
-                  </Badge>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="income" className="mt-4">
-                {renderReportTable(incomeRows, false)}
-              </TabsContent>
-              <TabsContent value="expense" className="mt-4">
-                {renderReportTable(expenseRows, false)}
-              </TabsContent>
-              <TabsContent value="bills" className="mt-4">
-                {renderReportTable(billRows, true)}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+        <TablePanel aria-busy={loading}>
+          <TableToolbar>
+            <Select value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}><SelectTrigger aria-label="Report section" className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="income">Income transactions</SelectItem><SelectItem value="expense">Expenditure transactions</SelectItem><SelectItem value="bills">Bills preview</SelectItem></SelectContent></Select>
+            <div className="flex flex-wrap gap-2 lg:ml-auto">
+              <Select value={sort} onValueChange={setSort}><SelectTrigger aria-label="Sort records" size="sm" className="h-8 w-auto min-w-36 font-normal"><SelectValue /></SelectTrigger><SelectContent align="end"><SelectItem value="desc">Newest first</SelectItem><SelectItem value="asc">Oldest first</SelectItem></SelectContent></Select>
+              <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}><SelectTrigger aria-label="Rows per page" size="sm" className="h-8 w-auto min-w-24 font-normal"><span className="text-muted-foreground">Show</span><SelectValue /></SelectTrigger><SelectContent align="end">{[10, 30, 50, 100].map((size) => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}</SelectContent></Select>
+            </div>
+          </TableToolbar>
+          {reportFilters}
+          <p className="border-b bg-muted/20 px-5 py-3 text-xs text-muted-foreground">Limited report preview: up to 250 records per source contribute to the summary; each section displays up to 100 rows. Narrow the date range to review smaller periods.</p>
+          {renderReportTable(visibleRows, activeTab === "bills")}
+          <RecordPagination from={reportRows.length ? offset + 1 : 0} to={offset + visibleRows.length} total={reportRows.length} page={currentPage} pageCount={pageCount} onPageChange={setPage} disabled={loading} />
+        </TablePanel>
       )}
+      <CustomViewDetailsDialog open={Boolean(viewing)} onOpenChange={(open) => { if (!open) setViewing(null); }} title="Transaction details" description="Financial record from the selected report period.">
+        {viewing && <><DetailSection title="Transaction"><DetailItem label="Reference">{viewing.billNo || viewing.reference || "—"}</DetailItem><DetailItem label="Date">{reportDate(viewing.date, true)}</DetailItem><DetailItem label="Farm">{viewing.farm}</DetailItem><DetailItem label="Farmer">{viewing.farmer}</DetailItem><DetailItem label="Source">{viewing.type || "Bill"}</DetailItem><DetailItem label="Status"><StatusBadge status={viewing.status} /></DetailItem></DetailSection><DetailSection title="Amount & details"><DetailItem label="Amount">{formatTzs(viewing.amount)}</DetailItem><DetailItem label="Quantity">{viewing.quantity}</DetailItem><DetailItem label="Subject">{viewing.subject}</DetailItem><DetailItem label="Officer">{viewing.officer || "—"}</DetailItem><DetailItem label="Notes" className="sm:col-span-2">{viewing.notes || "—"}</DetailItem></DetailSection></>}
+      </CustomViewDetailsDialog>
     </div>
   );
 }

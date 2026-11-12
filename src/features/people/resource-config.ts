@@ -1,3 +1,4 @@
+import { withCreatedColumn } from "@/lib/resource-table";
 import type { FormField, PeopleOption, PeopleResource, PeopleResourceConfig } from "@/features/people/types";
 
 const option = (value: string, label: string): PeopleOption => ({ value, label });
@@ -203,6 +204,12 @@ export const RESOLVED_NAME_FIELD_MAP: Record<string, string> = {
   extensionOfficerId: "officerName",
   createdBy: "createdByName",
 };
+
+
+// Shared resource-table convention: creation date is the final data column.
+Object.values(configs).forEach((config) => {
+  config.columns = withCreatedColumn(config.columns, { key: "createdAt", label: "Created at", type: "date" });
+});
 
 export function getPeopleResourceConfig(resource: PeopleResource) {
   return configs[resource];

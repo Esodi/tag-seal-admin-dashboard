@@ -1,6 +1,13 @@
 export const commerceResources = ["listings", "reservations", "orders"] as const;
 export type CommerceResource = (typeof commerceResources)[number];
 
+export type CommercePerson = { id: number; name?: string; email?: string; username?: string; phone?: string };
+export type CommerceAnimal = { uuid?: string; name?: string; identificationNumber?: string };
+export type CommerceItem = {
+  id: number; uuid: string; livestock_uuid: string; livestock?: CommerceAnimal;
+  quantity?: number; allocated_asking_price?: string; agreed_price?: string;
+};
+
 export type MarketplaceListingRecord = {
   id: number;
   uuid: string;
@@ -8,6 +15,11 @@ export type MarketplaceListingRecord = {
   farm_uuid: string;
   listing_title: string;
   listing_type: "individual" | "group_lot";
+  total_quantity?: number;
+  available_quantity?: number;
+  reserved_quantity?: number;
+  sold_quantity?: number;
+  location_name?: string | null;
   total_asking_price: string;
   is_negotiable: boolean;
   minimum_acceptable_price?: string | null;
@@ -19,9 +31,9 @@ export type MarketplaceListingRecord = {
   description?: string | null;
   expires_at?: string | null;
   published_at?: string | null;
-  seller?: { id: number; name?: string; email?: string; username?: string };
+  seller?: CommercePerson;
   farm?: { id: number; uuid: string; name: string };
-  items?: Array<{ id: number; uuid: string; livestock_uuid: string; allocated_asking_price: string }>;
+  items?: CommerceItem[];
   created_at: string;
 };
 
@@ -36,8 +48,8 @@ export type AnimalReservationRecord = {
   expires_at?: string | null;
   released_at?: string | null;
   release_reason?: string | null;
-  held_by?: { id: number; name?: string; email?: string; username?: string };
-  livestock?: { id: number; uuid: string; identificationNumber?: string; name?: string };
+  held_by?: CommercePerson;
+  livestock?: CommerceAnimal;
   created_at: string;
 };
 
@@ -56,12 +68,20 @@ export type PurchaseOrderRecord = {
   settlement_verified_at?: string | null;
   handover_verified_at?: string | null;
   ownership_transferred_at?: string | null;
-  seller?: { id: number; name?: string; email?: string };
-  buyer?: { id: number; name?: string; email?: string };
+  reserved_until?: string | null;
+  payment_evidence_submitted_at?: string | null;
+  payment_evidence_ref?: string | null;
+  cancellation_reason?: string | null;
+  dispute_reason?: string | null;
+  seller?: CommercePerson;
+  buyer?: CommercePerson;
   origin_farm?: { id: number; uuid: string; name: string };
-  items?: Array<{ id: number; uuid: string; livestock_uuid: string; agreed_price: string }>;
+  destination_farm?: { id: number; uuid: string; name: string };
+  items?: CommerceItem[];
   created_at: string;
 };
+
+export type CommerceRecord = MarketplaceListingRecord | AnimalReservationRecord | PurchaseOrderRecord;
 
 export type CommerceResponse = {
   data: Array<MarketplaceListingRecord | AnimalReservationRecord | PurchaseOrderRecord>;

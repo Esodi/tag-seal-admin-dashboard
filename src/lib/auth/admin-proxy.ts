@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { formatFriendlyError } from "@/lib/friendly-error";
 
 const apiUrl = process.env.LARAVEL_API_URL ?? "http://127.0.0.1:8000";
 
@@ -25,17 +26,44 @@ export async function proxyAdminRequest(request: Request, path: string) {
       body: body || undefined,
       cache: "no-store",
     });
-    const response = new NextResponse(await upstream.text(), {
+
+    const rawText = await upstream.text();
+    let payload: Record<string, unknown> | null = null;
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      payload = null;
+    }
+
+    // Sanitize technical SQL or server trace errors before returning to frontend
+    if (upstream.status >= 400 && payload && typeof payload === "object") {
+      const rawMessage = typeof payload.message === "string" ? payload.message : "";
+      const friendlyMessage = formatFriendlyError(rawMessage);
+      if (friendlyMessage !== rawMessage) {
+        payload.message = friendlyMessage;
+        // Strip sensitive internal stack trace fields if present
+        delete payload.exception;
+        delete payload.trace;
+        delete payload.file;
+        delete payload.line;
+        return NextResponse.json(payload, { status: upstream.status });
+      }
+    }
+
+    const response = new NextResponse(rawText, {
       status: upstream.status,
       headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
     });
+
     if (upstream.status === 401) {
       response.cookies.delete("tagseal_admin_token");
       response.cookies.delete("tagseal_admin_user");
       response.cookies.delete("tagseal_admin_expires_at");
     }
+
     return response;
-  } catch {
-    return NextResponse.json({ message: "The Laravel admin service is unavailable." }, { status: 503 });
+  } catch (error) {
+    const friendly = formatFriendlyError(error, "The Laravel admin service is currently unavailable.");
+    return NextResponse.json({ status: false, message: friendly }, { status: 503 });
   }
 }

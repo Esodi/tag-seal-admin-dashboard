@@ -17,7 +17,7 @@ export async function getInitialEventResource(
       };
     }
     const response = await fetch(
-      `${apiUrl}/api/v1/admin/events/${resource}?per_page=15`,
+      `${apiUrl}/api/v1/admin/events/${resource}?per_page=10`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

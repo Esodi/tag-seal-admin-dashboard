@@ -9,7 +9,7 @@ export async function getInitialDairyResource(resource: DairyResource): Promise<
   try {
     const token = (await cookies()).get("tagseal_admin_token")?.value;
     if (!token) return { data: null, error: "Your administrator session is unavailable." };
-    const response = await fetch(`${apiUrl}/api/v1/admin/dairy/${resource}?per_page=15`, {
+    const response = await fetch(`${apiUrl}/api/v1/admin/dairy/${resource}?per_page=10`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store",
     });

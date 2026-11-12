@@ -1,5 +1,8 @@
 "use client";
 
+import { RecordPagination } from "@/components/ui/record-pagination";
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import {
   useCallback,
   useEffect,
@@ -7,33 +10,16 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  ArrowDownAZ,
-  ArrowDownWideNarrow,
-  ArrowUpAZ,
-  ArrowUpNarrowWide,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  ListFilter,
-  MoreVertical,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-  UserCheck,
-  UserX,
-} from "lucide-react";
+import { ArrowDownAZ, ArrowDownWideNarrow, ArrowUpAZ, ArrowUpNarrowWide, Eye, ListFilter, MoreVertical, Pencil, Plus, RefreshCw, Search, Trash2, UserCheck, UserX } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import {
   CustomViewDetailsDialog,
-  DetailItem,
+  DetailItem, DetailSection,
 } from "@/components/ui/custom-view-details-dialog";
 import {
   DropdownMenu,
@@ -352,26 +338,12 @@ export function UsersDashboard({
             note: "Linked farmer profiles",
           },
         ].map(({ label, value, note }) => (
-          <Card key={label} className="gap-1 py-4 shadow-none">
-            <CardContent className="px-4">
-              <p className="text-xs font-medium text-muted-foreground">
-                {label}
-              </p>
-              {loading && !result ? (
-                <Skeleton className="my-1 h-8 w-16" />
-              ) : (
-                <p className="mt-2 text-2xl font-bold">
-                  <StatNumber value={value} />
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">{note}</p>
-            </CardContent>
-          </Card>
+          <DashboardStatCard key={label} label={<>{label}</>} value={<StatNumber value={value} />} note={<>{note}</>} loading={loading && !result} />
         ))}
       </div>
 
-      <Card className="mt-4 gap-0 overflow-hidden py-0 shadow-none">
-        <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center">
+      <TablePanel className="mt-4">
+        <TableToolbar>
           <div className="relative min-w-0 flex-1 lg:max-w-sm">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -494,7 +466,7 @@ export function UsersDashboard({
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </TableToolbar>
 
         {loadError ? (
           <div className="p-4">
@@ -528,37 +500,9 @@ export function UsersDashboard({
         )}
 
         {result && !loadError ? (
-          <div className="flex flex-col gap-3 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              Showing {result.meta.from ?? 0}–{result.meta.to ?? 0} of{" "}
-              {result.meta.total.toLocaleString("en-TZ")}
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-                aria-label="Previous page"
-              >
-                <ChevronLeft />
-              </Button>
-              <span className="px-2 tabular-nums">
-                Page {result.meta.currentPage} of {result.meta.lastPage}
-              </span>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                disabled={page >= result.meta.lastPage || loading}
-                onClick={() => setPage((value) => value + 1)}
-                aria-label="Next page"
-              >
-                <ChevronRight />
-              </Button>
-            </div>
-          </div>
+          <RecordPagination from={result.meta.from} to={result.meta.to} total={result.meta.total} page={result.meta.currentPage} pageCount={result.meta.lastPage} onPageChange={setPage} disabled={loading} />
         ) : null}
-      </Card>
+      </TablePanel>
 
       {initialOptions ? (
         <UserAccountFormDialog
@@ -653,7 +597,7 @@ function UsersTable({
     return (
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
+          <TableRow>
             <TableHead className="w-12" />
             <TableHead className="w-14">#</TableHead>
             <TableHead>Full name</TableHead>
@@ -738,7 +682,7 @@ function UsersTable({
     <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
+          <TableRow>
             <TableHead className="w-12">
               <Checkbox
                 aria-label="Select all user accounts on this page"
@@ -756,7 +700,7 @@ function UsersTable({
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12">
-              <span className="sr-only">Actions</span>
+              Actions
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -1467,17 +1411,15 @@ function UserDetailsDialog({
     [options],
   );
 
-  const roleFields = useMemo(() => {
+  const roleSections = useMemo(() => {
     if (!user) return [];
     const roleConfig = getPeopleResourceConfig(roleResourceKey(user.role));
-    return roleConfig.sections
-      .flatMap((section) => section.fields)
-      .filter(
-        (field) =>
-          !CREDENTIAL_FIELD_NAMES.has(field.name) &&
-          field.type !== "password" &&
-          field.name !== "uuid",
-      );
+    return roleConfig.sections.map((section) => ({
+      ...section,
+      fields: section.fields.filter((field) =>
+        !CREDENTIAL_FIELD_NAMES.has(field.name) && field.type !== "password" && field.name !== "uuid",
+      ),
+    })).filter((section) => section.fields.length > 0);
   }, [user]);
 
   const profileRecord = (user?.profileDetails ?? null) as PeopleRecord | null;
@@ -1498,7 +1440,8 @@ function UserDetailsDialog({
       }
     >
       {user ? (
-        <div className="form-row-grid">
+        <div className="space-y-6">
+          <DetailSection title="Account overview">
           <DetailItem label="Full name">
             {user.profile?.name ?? "Unlinked"}
           </DetailItem>
@@ -1518,18 +1461,17 @@ function UserDetailsDialog({
               </Badge>
             </DetailItem>
           ) : null}
-          {profileRecord
-            ? roleFields.map((field) => (
-                <div
-                  key={field.name}
-                  className={field.full ? "sm:col-span-2" : undefined}
-                >
-                  <DetailItem label={field.label}>
-                    {displayFieldValue(profileRecord, field, peopleOptions)}
-                  </DetailItem>
-                </div>
-              ))
-            : null}
+          </DetailSection>
+          {profileRecord ? roleSections.map((section) => (
+            <DetailSection key={section.title} title={section.title}>
+              {section.fields.map((field) => (
+                <DetailItem key={field.name} label={field.label} className={field.full ? "sm:col-span-2" : undefined}>
+                  {displayFieldValue(profileRecord, field, peopleOptions)}
+                </DetailItem>
+              ))}
+            </DetailSection>
+          )) : null}
+          <DetailSection title="Access & record information">
           {user.profileDetails?.createdByName ? (
             <DetailItem label="Created by">
               {String(user.profileDetails.createdByName)}
@@ -1554,6 +1496,7 @@ function UserDetailsDialog({
               </div>
             </DetailItem>
           </div>
+          </DetailSection>
         </div>
       ) : null}
     </CustomViewDetailsDialog>

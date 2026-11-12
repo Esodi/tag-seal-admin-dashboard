@@ -16,13 +16,16 @@ import {
 import { toast } from "@/components/ui/toast";
 import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { markSessionExpired } from "@/lib/auth/session";
+import {
+  INACTIVITY_TIMEOUT_MINUTES,
+  INACTIVITY_WARNING_COUNTDOWN_SECONDS,
+} from "@/lib/constant_values";
 
-const IDLE_TIME_LIMIT_MS = 60 * 1000; // 1 minute of inactivity
-const COUNTDOWN_SECONDS = 30; // 30 seconds to confirm
+const IDLE_TIME_LIMIT_MS = INACTIVITY_TIMEOUT_MINUTES * 60 * 1000;
 
 export function IdleTimeoutDialog() {
   const [open, setOpen] = useState(false);
-  const [secondsRemaining, setSecondsRemaining] = useState(COUNTDOWN_SECONDS);
+  const [secondsRemaining, setSecondsRemaining] = useState(INACTIVITY_WARNING_COUNTDOWN_SECONDS);
   const [refreshing, setRefreshing] = useState(false);
 
   const pathname = usePathname();
@@ -30,7 +33,7 @@ export function IdleTimeoutDialog() {
   const { status, refreshSessionKeepAlive, signOut } = useAuthSession();
 
   const isProtected = Boolean(pathname?.startsWith("/dashboard"));
-  const lastActivityRef = useRef<number>(Date.now());
+  const lastActivityRef = useRef<number>(0);
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -86,7 +89,7 @@ export function IdleTimeoutDialog() {
 
       if (!openRef.current) {
         if (elapsed >= IDLE_TIME_LIMIT_MS) {
-          setSecondsRemaining(COUNTDOWN_SECONDS);
+          setSecondsRemaining(INACTIVITY_WARNING_COUNTDOWN_SECONDS);
           setOpen(true);
         }
       } else {
@@ -145,7 +148,7 @@ export function IdleTimeoutDialog() {
             Are you still working?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            You have been inactive for 1 minute. For security reasons, your dashboard session will close automatically.
+            You have been inactive for {INACTIVITY_TIMEOUT_MINUTES} {INACTIVITY_TIMEOUT_MINUTES === 1 ? "minute" : "minutes"}. For security reasons, your dashboard session will close automatically.
           </AlertDialogDescription>
           <p className="text-supporting tabular-nums text-muted-foreground" aria-live="polite">
             Session closes in {secondsRemaining} sec.
@@ -175,4 +178,3 @@ export function IdleTimeoutDialog() {
     </AlertDialog>
   );
 }
-

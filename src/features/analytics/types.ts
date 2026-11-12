@@ -50,7 +50,7 @@ export type AttentionItem = {
   description: string;
   href: string;
 };
-export type TopFarm = { farmName: string; country: string; region: string; animals: number; events: number; lastActivity?: string | null };
+export type TopFarm = { farmUuid?: string; farmName: string; country: string; region: string; animals: number; events: number; lastActivity?: string | null };
 export type AnalyticsReport = { columns: string[]; rows: Array<Record<string, string | number | null>> };
 
 export type AnalyticsResponse = {

@@ -1,3 +1,4 @@
+import { withCreatedColumn } from "@/lib/resource-table";
 import type {
   ReferenceOption,
   ReferenceResource,
@@ -347,6 +348,12 @@ export const referenceResourceConfigs: Record<
     ],
   },
 };
+
+
+// Shared resource-table convention: creation date is the final data column.
+Object.values(referenceResourceConfigs).forEach((config) => {
+  config.columns = withCreatedColumn(config.columns, { key: "createdAt", label: "Created at", type: "date" });
+});
 
 export function getReferenceResourceConfig(
   resource: ReferenceResource,

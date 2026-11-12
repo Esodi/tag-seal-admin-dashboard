@@ -5,6 +5,7 @@ export const animalResources = [
   "species",
   "breeds",
   "acquisition-methods",
+  "stages",
 ] as const;
 
 export type AnimalResource = (typeof animalResources)[number];

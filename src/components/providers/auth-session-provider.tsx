@@ -8,7 +8,9 @@ export type AdminUser = {
   id: number;
   username?: string;
   email?: string;
-  role: "systemUser";
+  role: string;
+  platformRole?: "admin" | "superAdmin";
+  status?: string;
   firstname?: string;
   surname?: string;
   phone1?: string;

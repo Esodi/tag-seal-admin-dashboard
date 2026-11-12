@@ -250,3 +250,52 @@ export type BlueprintPreviewFlow = {
   events: EventDefinitionRecord[];
 };
 
+export type BlueprintStudioStage = {
+  name: string;
+  code?: string;
+  isTagApplicable: boolean;
+};
+
+export type BlueprintStudioEvent = {
+  name: string;
+  code: string;
+  family: string;
+  behaviorCode?: string;
+  description?: string;
+  enabled?: boolean;
+};
+
+export type BlueprintStudioField = {
+  key: string;
+  label: string;
+  type: "text" | "number" | "date" | "select" | "boolean";
+  required?: boolean;
+  helpText?: string;
+  options?: string[];
+};
+
+export type BlueprintStudioSection = {
+  id: string;
+  title: string;
+  fields: BlueprintStudioField[];
+};
+
+export type BlueprintStudioPayload = {
+  code: string;
+  speciesUuid?: string;
+  speciesName?: string;
+  speciesCode?: string;
+  subjectModes: string[];
+  defaultSubjectMode: "individual" | "group";
+  groupDisplayName?: string;
+  legacyLivestockTypeId?: number;
+  reproductionMode?: string;
+  stages?: BlueprintStudioStage[];
+  formSchema?: {
+    sections: BlueprintStudioSection[];
+  };
+  events?: BlueprintStudioEvent[];
+  publishImmediately?: boolean;
+  isStudio?: boolean;
+};
+

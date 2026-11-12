@@ -25,6 +25,8 @@ export * from "./stat-number";
 export * from "./status-badge";
 export * from "./stepper";
 export * from "./table";
+export * from "./table-layout";
+export * from "./record-pagination";
 export * from "./textarea";
 export * from "./toast";
 export * from "./toaster";

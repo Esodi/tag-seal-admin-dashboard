@@ -1,5 +1,12 @@
 "use client";
 
+import { printReport, reportDate } from "@/lib/report-print";
+
+import { BulkRecordAction } from "@/components/ui/bulk-record-action";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RecordPagination } from "@/components/ui/record-pagination";
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import {
   useCallback,
   useEffect,
@@ -7,30 +14,16 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  ArrowDownWideNarrow,
-  ArrowUpNarrowWide,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Database,
-  Eye,
-  Landmark,
-  MoreVertical,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, Database, Eye, MoreVertical, Pencil, Plus, Printer, RefreshCw, Search, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import {
   CustomViewDetailsDialog,
   DetailItem,
+  DetailSection,
 } from "@/components/ui/custom-view-details-dialog";
 import {
   DropdownMenu,
@@ -85,16 +78,7 @@ import { authenticatedFetch } from "@/lib/auth/session";
 
 type SortOrder = "desc" | "asc";
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "—";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-TZ", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(parsed);
-}
+function formatDateTime(value?: string | null) { return reportDate(value, true); }
 
 function formatTzs(value?: number | string | null) {
   if (value === null || value === undefined || value === "") return "—";
@@ -122,9 +106,10 @@ export function FinanceResourceDashboard({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [perPage, setPerPage] = useState(initialData?.meta.perPage ?? 15);
+  const [perPage, setPerPage] = useState(initialData?.meta.perPage ?? 10);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<FinanceRecordItem | null>(null);
@@ -136,6 +121,7 @@ export function FinanceResourceDashboard({
     initialData?.options ?? {},
   );
   const didMount = useRef(false);
+  const activeRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -152,9 +138,13 @@ export function FinanceResourceDashboard({
       nextSearch = debouncedSearch,
       nextStatus = statusFilter,
       nextSort = sortOrder,
+      background = false,
     ) => {
-      setLoading(true);
-      setError(undefined);
+      if (background && activeRequest.current) return;
+      activeRequest.current?.abort();
+      const controller = new AbortController();
+      activeRequest.current = controller;
+      if (!background) { setLoading(true); setSelected(new Set()); setError(undefined); }
       const params = new URLSearchParams({
         page: String(nextPage),
         per_page: String(nextPerPage),
@@ -165,7 +155,7 @@ export function FinanceResourceDashboard({
       try {
         const response = await authenticatedFetch(
           `/api/admin/finance/${resource}?${params.toString()}`,
-          { cache: "no-store" },
+          { cache: "no-store", signal: controller.signal },
         );
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload?.status === false) {
@@ -173,18 +163,21 @@ export function FinanceResourceDashboard({
             payload?.message ?? `Unable to load ${config.title.toLowerCase()}.`,
           );
         }
+        if (controller.signal.aborted) return;
+        setError(undefined);
         setData(payload.data);
         if (payload.data?.options) {
           setOptions(payload.data.options);
         }
       } catch (err) {
+        if (controller.signal.aborted || background) return;
         setError(
           err instanceof Error
             ? err.message
             : `Unable to load ${config.title.toLowerCase()}.`,
         );
       } finally {
-        setLoading(false);
+        if (activeRequest.current === controller) { activeRequest.current = null; if (!background) setLoading(false); }
       }
     },
     [
@@ -205,6 +198,18 @@ export function FinanceResourceDashboard({
     }
     void loadRecords(page, perPage, debouncedSearch, statusFilter, sortOrder);
   }, [debouncedSearch, loadRecords, page, perPage, sortOrder, statusFilter]);
+
+  useEffect(() => () => activeRequest.current?.abort(), []);
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || !navigator.onLine || loading || formOpen || viewing || deleting || selected.size) return;
+      void loadRecords(page, perPage, debouncedSearch, statusFilter, sortOrder, true);
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); };
+  }, [loadRecords, page, perPage, debouncedSearch, statusFilter, sortOrder, loading, formOpen, viewing, deleting, selected.size]);
 
   const ensureOptions = useCallback(async () => {
     if (Object.keys(options).length > 0) return;
@@ -546,9 +551,7 @@ export function FinanceResourceDashboard({
         );
       case "farm":
         return (
-          <span className="font-medium text-foreground">
-            {record.farmName ?? "—"}
-          </span>
+          <div className="min-w-36 max-w-56 whitespace-normal"><p className="font-medium">{record.farmName ?? "—"}</p><p className="mt-0.5 text-xs text-muted-foreground">{record.farmerName || "—"}</p></div>
         );
       case "subjectType":
         return record.subjectType ? (
@@ -608,20 +611,12 @@ export function FinanceResourceDashboard({
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <DashboardHeader
-        eyebrow="Finance & Billing"
+        parent="Finance & Billing" parentHref="/dashboard/finance"
         title={config.title}
         description={config.description}
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void loadRecords()}
-              disabled={loading}
-            >
-              <RefreshCw className={loading ? "animate-spin" : ""} />
-              Refresh
-            </Button>
+            <Button variant="outline" size="sm" disabled={loading || Boolean(error) || !items.length} onClick={() => printReport(config.title, `Current page • ${items.length} records • Status: ${statusFilter}${search ? ` • Search: ${search}` : ""}`, [{ title: config.title, columns: ["Reference", "Farm", "Farmer", "Amount (TZS)", "Status", "Created"], rows: items.map(record => [record.billNo || record.referenceNo || "—", record.farmName, record.farmerName, formatTzs(record.amount ?? record.totalAmount ?? record.totalCost), record.status, reportDate(record.createdAt, true)]) }])}><Printer />Print page</Button>
             <Button size="sm" onClick={openCreate}>
               <Plus />
               {config.primaryAction}
@@ -654,31 +649,17 @@ export function FinanceResourceDashboard({
             prefix: config.stats.tertiaryPrefix,
           },
         ].map((card) => (
-          <Card key={card.label} className="border-border/70 shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {card.label}
-                </p>
-                <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <Landmark className="size-4" />
-                </span>
-              </div>
-              <div className="mt-3 text-2xl font-bold tracking-tight">
-                <StatNumber value={card.value} prefix={card.prefix} />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{card.note}</p>
-            </CardContent>
-          </Card>
+          <DashboardStatCard key={card.label} label={<>{card.label}</>} value={<StatNumber value={card.value} prefix={card.prefix} />} note={<>{card.note}</>} />
         ))}
       </div>
 
-      <Card className="border-border/70 shadow-none">
-        <CardContent className="space-y-4 p-5">
-          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+      <TablePanel>
+        <div className="min-w-0 [&>[data-slot=card]]:m-5">
+          <TableToolbar className="justify-between">
             <div className="relative flex-1 lg:max-w-md">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                aria-label="Search financial records"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={config.searchPlaceholder}
@@ -687,6 +668,7 @@ export function FinanceResourceDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <BulkRecordAction ids={[...selected]} disabled={loading} getRequest={(id) => ({ url: `/api/admin/finance/${resource}/${id}`, method: "DELETE" })} onComplete={async () => { setSelected(new Set()); await loadRecords(); }} />
               <Select
                 value={statusFilter}
                 onValueChange={(next) => {
@@ -694,7 +676,7 @@ export function FinanceResourceDashboard({
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="h-9 w-[155px]">
+                <SelectTrigger aria-label="Filter by status" size="sm" className="h-8 w-auto min-w-36 font-normal">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -706,25 +688,12 @@ export function FinanceResourceDashboard({
                 </SelectContent>
               </Select>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))
-                }
-              >
-                {sortOrder === "desc" ? (
-                  <>
-                    <ArrowDownWideNarrow className="size-4" />
-                    Newest first
-                  </>
-                ) : (
-                  <>
-                    <ArrowUpNarrowWide className="size-4" />
-                    Oldest first
-                  </>
-                )}
-              </Button>
+              <Select value={sortOrder} onValueChange={(value) => { setSortOrder(value as SortOrder); setPage(1); }}>
+                <SelectTrigger aria-label="Sort records" size="sm" className="h-8 w-auto min-w-[9.5rem] font-normal">
+                  {sortOrder === "desc" ? <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" /> : <ArrowUpNarrowWide className="size-3.5 text-muted-foreground" />}<SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end"><SelectItem value="desc">Newest first</SelectItem><SelectItem value="asc">Oldest first</SelectItem></SelectContent>
+              </Select>
 
               <Select
                 value={String(perPage)}
@@ -733,19 +702,20 @@ export function FinanceResourceDashboard({
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="h-9 w-[115px]">
+                <SelectTrigger aria-label="Rows per page" size="sm" className="h-8 w-auto min-w-[6.25rem] font-normal">
+                  <span className="text-muted-foreground">Show</span>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[10, 15, 25, 50].map((size) => (
+                  {[10, 30, 50, 100].map((size) => (
                     <SelectItem key={size} value={String(size)}>
-                      {size} / page
+                      {size}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </TableToolbar>
 
           {error ? (
             <EmptyCard
@@ -775,28 +745,33 @@ export function FinanceResourceDashboard({
                   : `Get started by creating your first ${config.singularLabel.toLowerCase()}.`
               }
               action={
-                <Button size="sm" onClick={openCreate}>
+
+            <Button size="sm" onClick={openCreate}>
                   <Plus />
                   {config.primaryAction}
                 </Button>
               }
             />
           ) : (
-            <div className="overflow-x-auto rounded-xl border">
+            <div className="min-w-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40">
+                  <TableRow>
+                    <TableHead className="w-12"><Checkbox aria-label="Select all records on this page" checked={items.length > 0 && items.every((item) => selected.has(item.id)) ? true : items.some((item) => selected.has(item.id)) ? "indeterminate" : false} onCheckedChange={(checked) => setSelected(checked === true ? new Set(items.map((item) => item.id)) : new Set())} /></TableHead>
+                    <TableHead className="w-14">#</TableHead>
                     {config.columns.map((column) => (
-                      <TableHead key={column.key}>{column.label}</TableHead>
+                      <TableHead key={column.key} className={/amount|cost|quantity/i.test(column.key) ? "text-right" : undefined}>{column.label}</TableHead>
                     ))}
-                    <TableHead className="w-16 text-right">Actions</TableHead>
+                    <TableHead className="w-16 text-right"><span className="sr-only">Actions</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((record) => (
-                    <TableRow key={record.id}>
+                  {items.map((record, index) => (
+                    <TableRow key={record.id} data-state={selected.has(record.id) ? "selected" : undefined}>
+                      <TableCell><Checkbox aria-label={`Select record ${record.id}`} checked={selected.has(record.id)} onCheckedChange={(checked) => setSelected((current) => { const next = new Set(current); if (checked === true) next.add(record.id); else next.delete(record.id); return next; })} /></TableCell>
+                      <TableCell className="text-muted-foreground tabular-nums">{(meta?.from ?? 1) + index}</TableCell>
                       {config.columns.map((column) => (
-                        <TableCell key={column.key}>
+                        <TableCell key={column.key} className={/amount|cost|quantity/i.test(column.key) ? "text-right" : undefined}>
                           {renderCell(record, column)}
                         </TableCell>
                       ))}
@@ -849,52 +824,11 @@ export function FinanceResourceDashboard({
             </div>
           )}
 
-          {meta && meta.total > 0 ? (
-            <div className="flex flex-col items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground sm:flex-row">
-              <p>
-                Showing{" "}
-                <span className="font-semibold text-foreground">
-                  {meta.from ?? 0}
-                </span>{" "}
-                to{" "}
-                <span className="font-semibold text-foreground">
-                  {meta.to ?? 0}
-                </span>{" "}
-                of{" "}
-                <span className="font-semibold text-foreground">
-                  {meta.total}
-                </span>{" "}
-                records
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={meta.currentPage <= 1 || loading}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="size-4" />
-                  Previous
-                </Button>
-                <span className="px-2 font-medium text-foreground">
-                  Page {meta.currentPage} of {meta.lastPage}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={meta.currentPage >= meta.lastPage || loading}
-                  onClick={() =>
-                    setPage((p) => Math.min(meta.lastPage, p + 1))
-                  }
-                >
-                  Next
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
+          {meta ? (
+            <RecordPagination from={meta.from} to={meta.to} total={meta.total} page={meta.currentPage} pageCount={meta.lastPage} onPageChange={setPage} disabled={loading} />
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </TablePanel>
 
       <FormDialog
         open={formOpen}
@@ -938,7 +872,8 @@ export function FinanceResourceDashboard({
         }
       >
         {viewing ? (
-          <div className="form-row-grid">
+          <div className="space-y-6">
+            <DetailSection title="Record & parties">
             {viewing.billNo ? (
               <DetailItem label="Bill No">{viewing.billNo}</DetailItem>
             ) : null}
@@ -959,6 +894,8 @@ export function FinanceResourceDashboard({
                 {viewing.extensionOfficerName ?? "—"}
               </DetailItem>
             ) : null}
+            </DetailSection>
+            <DetailSection title="Amounts & payment">
             <DetailItem label="Subject">
               {viewing.subjectType ?? "—"}
             </DetailItem>
@@ -999,13 +936,16 @@ export function FinanceResourceDashboard({
             <DetailItem label="Status">
               <StatusBadge status={viewing.status ?? "pending"} />
             </DetailItem>
-            <DetailItem label="Notes">{viewing.notes ?? "—"}</DetailItem>
+            </DetailSection>
+            <DetailSection title="Notes & record history">
+            <DetailItem className="sm:col-span-2" label="Notes">{viewing.notes ?? "—"}</DetailItem>
             <DetailItem label="Created At">
               {formatDateTime(viewing.createdAt)}
             </DetailItem>
             <DetailItem label="Updated At">
               {formatDateTime(viewing.updatedAt)}
             </DetailItem>
+            </DetailSection>
           </div>
         ) : null}
       </CustomViewDetailsDialog>

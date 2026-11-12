@@ -75,12 +75,6 @@ const standardRegistrationSchema = {
           placeholder: { en: "e.g. 32.5", sw: "mfano 32.5" },
         },
         {
-          key: "notes",
-          component: "multiline_text",
-          label: { en: "Field Notes & Remarks", sw: "Maelezo ya Ziada" },
-          placeholder: { en: "Enter any special markings or history...", sw: "Weka maelezo yoyote..." },
-        },
-        {
           key: "photo_intake",
           component: "photo",
           label: { en: "Animal Profile Photo", sw: "Picha ya Mnyama" },

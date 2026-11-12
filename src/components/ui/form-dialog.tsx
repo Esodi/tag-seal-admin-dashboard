@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -100,6 +101,11 @@ export function FormDialog({
   const [activeStep, setActiveStep] = useState(0);
   const [highestVisitedStep, setHighestVisitedStep] = useState(0);
   const stepTransitionAtRef = useRef(0);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [activeStep]);
 
   useEffect(() => {
     if (open) {
@@ -179,13 +185,14 @@ export function FormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size={size}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+      <DialogContent size={size} {...(!description ? { "aria-describedby": undefined } : {})} className="flex flex-col gap-0 overflow-hidden p-0 sm:p-0">
+        <DialogHeader className="shrink-0 border-b bg-muted/20 px-5 py-5 pr-16 sm:px-7 sm:py-6 sm:pr-16">
+          <DialogTitle className="text-xl leading-snug">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
 
-        <form onSubmit={submit} className="grid gap-5">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody ref={bodyRef} className="space-y-5">
           {isStepperActive && steps && currentStep ? (
             <>
               <FormStepperHeader
@@ -199,7 +206,7 @@ export function FormDialog({
 
               <section
                 key={currentStep.id}
-                className="rounded-xl border bg-muted/20 p-4"
+                className="min-w-0 rounded-xl border border-border/70 bg-card p-4 sm:p-5"
               >
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-foreground">
@@ -219,7 +226,7 @@ export function FormDialog({
               {steps.map((step) => (
                 <section
                   key={step.id}
-                  className="rounded-lg border bg-muted/20 p-4"
+                  className="min-w-0 rounded-xl border border-border/70 bg-card p-4 sm:p-5"
                 >
                   <h3 className="text-sm font-semibold">{step.title}</h3>
                   {step.description ? (
@@ -234,21 +241,16 @@ export function FormDialog({
           ) : (
             <div className={cn("grid gap-4", fieldsClassName)}>{children}</div>
           )}
+          </DialogBody>
 
-          <DialogFooter className="sm:items-center sm:justify-between">
-            <div className="hidden text-xs text-muted-foreground sm:block">
-              {isStepperActive
-                ? `Step ${safeStep + 1} of ${totalSteps} · ${currentStep?.title ?? ""}`
-                : null}
-            </div>
+          <DialogFooter className="shrink-0 flex-row items-center justify-between bg-muted/20 px-5 py-4 sm:justify-between sm:px-7 [&_button]:min-h-10 sm:[&_button]:min-w-24">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {cancelLabel}
+              </Button>
+            </DialogClose>
 
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {cancelLabel}
-                </Button>
-              </DialogClose>
-
+            <div className="ml-auto flex items-center justify-end gap-2">
               {isStepperActive && safeStep > 0 ? (
                 <Button
                   key="stepper-previous-button"

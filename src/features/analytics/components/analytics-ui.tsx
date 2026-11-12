@@ -1,5 +1,9 @@
 "use client";
 
+import { printReport, reportDate, escapeReportText } from "@/lib/report-print";
+
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TableToolbar } from "@/components/ui/table-layout";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Download, Printer, Search, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -110,7 +114,7 @@ export function ChartPrintButton({ targetId, title }: { targetId: string; title:
     const popup = window.open("", "_blank", "width=1100,height=760");
     if (!popup) return;
     const source = new XMLSerializer().serializeToString(chart);
-    popup.document.write(`<!doctype html><html><head><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17221b}h1{font-size:20px;margin:0 0 8px}p{color:#66736b;margin:0 0 28px}svg{width:100%;height:auto;max-height:620px}@media print{body{padding:12mm}}</style></head><body><h1>${title}</h1><p>Tag & Seal · ${new Date().toLocaleString("en-TZ")}</p>${source}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    popup.document.write(`<!doctype html><html><head><title>${escapeReportText(title)}</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#17221b}h1{font-size:20px;margin:0 0 8px}p{color:#66736b;margin:0 0 28px}svg{width:100%;height:auto;max-height:620px}@media print{body{padding:12mm}}</style></head><body><h1>${escapeReportText(title)}</h1><p>Tag & Seal · ${reportDate(new Date().toISOString(), true)}</p>${source}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     popup.document.close();
   };
 
@@ -127,7 +131,7 @@ export function AnalyticsKpiGrid({ children }: { children: React.ReactNode }) {
 
 export function AnalyticsKpiCard({ stat, icon: Icon }: { stat: AnalyticsStat; icon: LucideIcon }) {
   const positive = (stat.change ?? 0) >= 0;
-  return <article className="card p-4"><div className="flex items-start justify-between gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-primary"><Icon className="size-4.5" /></span>{stat.change !== null && <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", positive ? "text-success" : "text-danger")}>{positive ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}{Math.abs(stat.change).toLocaleString("en-TZ", { maximumFractionDigits: 1 })}%</span>}</div><p className="mt-4 text-xl font-semibold tabular-nums">{formatNumber(stat.value)}{stat.unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{stat.unit}</span> : null}</p><p className="mt-1 text-supporting font-medium text-foreground">{stat.label}</p><p className="mt-1 text-supporting text-muted-foreground">{stat.note}</p></article>;
+  return <DashboardStatCard label={stat.label} value={<>{formatNumber(stat.value)}{stat.unit ? <span className="ml-1 text-supporting font-medium text-muted-foreground">{stat.unit}</span> : null}</>} note={stat.note} icon={Icon} trend={stat.change !== null ? <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", positive ? "text-success" : "text-danger")}>{positive ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}{Math.abs(stat.change).toLocaleString("en-TZ", { maximumFractionDigits: 1 })}%</span> : null} />;
 }
 
 export function AnalyticsCard({ title, description, action, children, className }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
@@ -171,7 +175,7 @@ export function AnalyticsReportTable({ report, labels, query, page, pageSize, on
   };
 
   return <section className="card overflow-hidden">
-    <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center"><div className="relative flex-1 lg:max-w-md"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => { onQuery(event.target.value); onPage(1); }} className="pl-10" placeholder={`Search ${title.toLowerCase()}…`} /></div><div className="flex flex-wrap gap-2 lg:ml-auto"><FormSelect value={String(pageSize)} onValueChange={(value) => { onPageSize(Number(value)); onPage(1); }} options={[10, 25, 50, 100].map((size) => ({ value: String(size), label: `${size} rows` }))} searchable={false} size="sm" triggerClassName="w-28 bg-background" /><Button type="button" size="sm" variant="outline" onClick={() => window.print()}><Printer />Print</Button><Button type="button" size="sm" variant="outline" onClick={exportCsv}><Download />CSV</Button></div></div>
+    <TableToolbar><div className="relative flex-1 lg:max-w-md"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => { onQuery(event.target.value); onPage(1); }} className="pl-10" placeholder={`Search ${title.toLowerCase()}…`} /></div><div className="flex flex-wrap gap-2 lg:ml-auto"><FormSelect value={String(pageSize)} onValueChange={(value) => { onPageSize(Number(value)); onPage(1); }} options={[10, 25, 50, 100].map((size) => ({ value: String(size), label: `${size} rows` }))} searchable={false} size="sm" triggerClassName="w-28 bg-background" /><Button type="button" size="sm" variant="outline" onClick={() => printReport(title, `Filtered report • ${filtered.length} records${query ? ` • Search: ${query}` : ""}`, [{ title, columns: report.columns.map(column => labels[column] ?? humanize(column)), rows: filtered.map(row => report.columns.map(column => formatCell(column, row[column]))) }])}><Printer />Print</Button><Button type="button" size="sm" variant="outline" onClick={exportCsv}><Download />CSV</Button></div></TableToolbar>
     <div className="overflow-x-auto"><Table className="min-w-max"><TableHeader><TableRow><TableHead className="w-14">#</TableHead>{report.columns.map((column) => <TableHead key={column}>{labels[column] ?? humanize(column)}</TableHead>)}</TableRow></TableHeader><TableBody>{visible.length ? visible.map((row, index) => <TableRow key={`${start + index}-${report.columns.map((column) => row[column]).join("-")}`}><TableCell className="text-muted-foreground tabular-nums">{start + index}</TableCell>{report.columns.map((column) => <TableCell key={column} className="text-muted-foreground">{formatCell(column, row[column])}</TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={report.columns.length + 1} className="h-52 text-center text-supporting text-muted-foreground">No report rows match the selected filters.</TableCell></TableRow>}</TableBody></Table></div>
     <div className="flex flex-col gap-3 border-t px-4 py-3 text-supporting text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Showing {start}–{end} of {filtered.length.toLocaleString("en-TZ")}</span><div className="flex items-center gap-2"><Button size="sm" variant="outline" disabled={safePage <= 1} onClick={() => onPage(safePage - 1)}>Previous</Button><span className="px-2 tabular-nums">Page {safePage} of {pageCount}</span><Button size="sm" variant="outline" disabled={safePage >= pageCount} onClick={() => onPage(safePage + 1)}>Next</Button></div></div>
   </section>;
@@ -183,7 +187,7 @@ function formatCell(key: string, value: string | number | null) {
   if (typeof value === "number") return formatNumber(value);
   if (key.toLowerCase().includes("date") || key.toLowerCase().includes("activity") || key.toLowerCase().includes("occurred")) {
     const date = new Date(value);
-    if (!Number.isNaN(date.getTime())) return new Intl.DateTimeFormat("en-TZ", { day: "numeric", month: "short", year: "numeric" }).format(date);
+    if (!Number.isNaN(date.getTime())) return reportDate(value, true);
   }
   return humanize(value);
 }

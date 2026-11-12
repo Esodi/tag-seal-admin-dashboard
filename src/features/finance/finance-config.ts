@@ -1,3 +1,4 @@
+import { withCreatedColumn } from "@/lib/resource-table";
 import type {
   FinanceCrudResource,
   FinanceFormSection,
@@ -64,10 +65,8 @@ export const financeResourceConfigs: Record<
     columns: [
       { key: "billNo", label: "Bill No" },
       { key: "farm", label: "Farm" },
-      { key: "farmerName", label: "Farmer" },
       { key: "extensionOfficerName", label: "Extension Officer" },
       { key: "subjectType", label: "Subject" },
-      { key: "quantity", label: "Qty" },
       { key: "amount", label: "Amount" },
       { key: "status", label: "Status" },
       { key: "createdAt", label: "Created" },
@@ -188,11 +187,8 @@ export const financeResourceConfigs: Record<
     columns: [
       { key: "sourceType", label: "Source" },
       { key: "farm", label: "Farm" },
-      { key: "farmerName", label: "Farmer" },
       { key: "referenceNo", label: "Reference" },
       { key: "subjectType", label: "Subject" },
-      { key: "quantity", label: "Qty" },
-      { key: "unitAmount", label: "Unit" },
       { key: "totalAmount", label: "Total" },
       { key: "status", label: "Status" },
       { key: "incomeDate", label: "Income Date" },
@@ -325,11 +321,8 @@ export const financeResourceConfigs: Record<
     columns: [
       { key: "sourceType", label: "Source" },
       { key: "farm", label: "Farm" },
-      { key: "farmerName", label: "Farmer" },
       { key: "billNo", label: "Bill No" },
       { key: "subjectType", label: "Subject" },
-      { key: "quantity", label: "Qty" },
-      { key: "unitCost", label: "Unit" },
       { key: "totalCost", label: "Total" },
       { key: "status", label: "Status" },
       { key: "expenseDate", label: "Expense Date" },
@@ -436,6 +429,12 @@ export const financeResourceConfigs: Record<
     ],
   },
 };
+
+
+// Shared resource-table convention: creation date is the final data column.
+Object.values(financeResourceConfigs).forEach((config) => {
+  config.columns = withCreatedColumn(config.columns, { key: "createdAt", label: "Created at" });
+});
 
 export function getFinanceResourceConfig(
   resource: FinanceCrudResource,

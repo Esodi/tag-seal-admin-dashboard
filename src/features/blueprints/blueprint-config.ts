@@ -66,7 +66,7 @@ export const blueprintResourceConfigs: Record<BlueprintResource, BlueprintResour
     createLabel: "Build Form",
     searchPlaceholder: "Search by form code, purpose, or version...",
     columns: [
-      { key: "code", label: "Form Code", primary: true, secondaryKey: "checksum" },
+      { key: "code", label: "Form Code", primary: true },
       { key: "version", label: "Version", type: "badge" },
       { key: "purpose", label: "Purpose", type: "badge" },
       { key: "fields_count", label: "Sections", type: "count" },

@@ -4,16 +4,35 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Activity, BarChart3, Beef, Bell, ChevronDown, CircleHelp,
-  FileStack, Landmark, LayoutDashboard, MapPinned, Menu, Milk, Search, Settings,
+  Activity, BarChart3, Beef, Bell, Briefcase, ChevronDown, CircleHelp,
+  FileStack, Landmark, LayoutDashboard, MapPinned, Menu, Warehouse, Search, Settings,
   Settings2, ShieldCheck, ShoppingBag, Users, X,
 } from "lucide-react";
 import { featureGroups } from "@/lib/features";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { Logo } from "@/components/ui/logo";
 
-const groupIcons = { people: Users, events: Activity, animals: Beef, commerce: ShoppingBag, dairy: Milk, blueprints: FileStack, finance: Landmark, reference: Settings2, locations: MapPinned, system: ShieldCheck } as const;
-const managementSlugs = ["people", "events", "animals", "commerce", "dairy", "blueprints", "finance", "reference", "locations", "system"];
+const groupIcons = { people: Users, events: Activity, animals: Beef, career: Briefcase, commerce: ShoppingBag, dairy: Warehouse, blueprints: FileStack, finance: Landmark, reference: Settings2, locations: MapPinned, security: ShieldCheck } as const;
+const managementSlugs = ["people", "events", "animals", "career", "commerce", "dairy", "blueprints", "finance", "reference", "locations", "security"];
+const groupLabels: Record<string, string> = {
+  people: "People", events: "Events", animals: "Animals", career: "Careers",
+  commerce: "Commerce", dairy: "Cooperatives", blueprints: "Blueprints",
+  finance: "Finance", reference: "Reference Data", locations: "Locations",
+};
+const featureLabels: Record<string, string> = {
+  "dairy/unions": "Unions",
+  "dairy/cooperatives": "Cooperatives",
+  "dairy/centres": "Collection Centres",
+  "dairy/transporters": "Transporters",
+  "dairy/factories": "Factories",
+  "people/system-user-profiles": "Admin Profiles",
+  "animals/acquisition-methods": "Acquisition",
+  "career/memberships": "Memberships",
+  "career/onboardings": "Onboarding",
+  "commerce/listings": "Listings",
+  "reference/tail-docking-methods": "Tail Docking",
+  "reference/teeth-clipping-methods": "Teeth Clipping",
+};
 
 function Brand() {
   return (
@@ -45,10 +64,10 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
     const groupActive = activeGroup === group.slug;
     return <div key={group.slug}>
       <button type="button" onClick={() => setOpenGroups((current) => ({ ...current, [group.slug]: !current[group.slug] }))} aria-expanded={open} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${groupActive ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
-        <GroupIcon className="size-[18px]" strokeWidth={groupActive ? 2.2 : 1.8} /><span className="min-w-0 flex-1 truncate">{group.label}</span><span className="text-[10px] tabular-nums text-muted-foreground">{visibleFeatures.length}</span><ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        <GroupIcon className="size-[18px]" strokeWidth={groupActive ? 2.2 : 1.8} /><span className="min-w-0 flex-1 truncate">{groupLabels[group.slug] ?? group.label}</span><span className="text-[10px] tabular-nums text-muted-foreground">{visibleFeatures.length}</span><ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       <div className={`grid transition-[grid-template-rows] duration-200 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}><div className="overflow-hidden"><div className="ml-5 space-y-1 border-l py-1 pl-3">
-        {visibleFeatures.map((item) => { const href = `/dashboard/${group.slug}/${item.slug}`; const active = pathname === href; return <Link key={item.slug} href={href} onClick={close} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${active ? "bg-accent font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><span className={`size-1.5 rounded-full ${active ? "bg-primary" : "bg-border"}`} /><span className="min-w-0 flex-1 truncate">{item.label}</span>{item.status === "new" && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-foreground">New</span>}</Link>; })}
+        {visibleFeatures.map((item) => { const href = `/dashboard/${group.slug}/${item.slug}`; const active = pathname === href; return <Link key={item.slug} href={href} onClick={close} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${active ? "bg-accent font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><span className={`size-1.5 shrink-0 rounded-full ${active ? "bg-primary" : "bg-border"}`} /><span className="min-w-0 flex-1">{featureLabels[`${group.slug}/${item.slug}`] ?? item.label}</span></Link>; })}
       </div></div></div>
     </div>;
   };
@@ -63,14 +82,14 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
     </nav>
     <div className="border-t p-3">
       <div className="mb-2 space-y-1"><NavLink href="/dashboard/analytics" label="Reports & Analysis" icon={BarChart3} pathname={pathname} onClick={close} /><NavLink href="/dashboard/help" label="Help Center" icon={CircleHelp} pathname={pathname} onClick={close} /><NavLink href="/dashboard/settings" label="Settings" icon={Settings} pathname={pathname} onClick={close} /></div>
-      <AccountMenu user={user} />
+      <AccountMenu user={user} onNavigate={close} />
     </div>
   </div>;
 
   return <div className="min-h-screen bg-background">
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r bg-card lg:block">{sidebar}</aside>
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[16.625rem] border-r bg-card lg:block">{sidebar}</aside>
     {mobileOpen && <><button className="fixed inset-0 z-40 bg-black/35 lg:hidden" aria-label="Close menu" onClick={close} /><aside className="fixed inset-y-0 left-0 z-50 w-[min(19rem,88vw)] border-r bg-card lg:hidden">{sidebar}</aside></>}
-    <div className="lg:pl-64">
+    <div className="lg:pl-[16.625rem]">
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur-xl sm:px-6">
         <button className="rounded-xl p-2 hover:bg-muted lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu"><Menu className="size-5" /></button>
         <div className="relative hidden max-w-md flex-1 md:block"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input className="h-10 w-full rounded-xl border bg-card pl-10 pr-16 text-sm outline-none transition focus:ring-2 focus:ring-primary/20" placeholder="Search animals, farms, people…" /><kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-muted px-2 py-1 text-[10px] text-muted-foreground">⌘ K</kbd></div>

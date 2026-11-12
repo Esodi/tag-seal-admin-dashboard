@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import type { PeopleOptionsResponse, PeopleResource, PeopleResponse } from "@/features/people/types";
+import { formatFriendlyError } from "@/lib/friendly-error";
 
 const apiUrl = process.env.LARAVEL_API_URL ?? "http://127.0.0.1:8000";
 
@@ -13,7 +14,7 @@ async function adminGet<T>(path: string): Promise<T> {
     cache: "no-store",
   });
   const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.message ?? "People & Organization data could not be loaded.");
+  if (!response.ok) throw new Error(formatFriendlyError(payload?.message, "People & Organization data could not be loaded."));
   return payload as T;
 }
 
@@ -28,7 +29,7 @@ export async function getInitialPeopleResource(resource: PeopleResource) {
     return {
       records: null,
       options: null,
-      error: error instanceof Error ? error.message : "People & Organization data could not be loaded.",
+      error: formatFriendlyError(error, "People & Organization data could not be loaded."),
     };
   }
 }

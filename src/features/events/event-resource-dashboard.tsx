@@ -1,5 +1,8 @@
 "use client";
 
+import { RecordPagination } from "@/components/ui/record-pagination";
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TableTabSection, TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import {
   useCallback,
   useEffect,
@@ -7,26 +10,12 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Activity,
-  ArrowDownWideNarrow,
-  ArrowUpNarrowWide,
-  ChevronLeft,
-  ChevronRight,
-  Database,
-  Eye,
-  MoreVertical,
-  Pencil,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Database, Eye, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
+import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import {
   CustomViewDetailsDialog,
@@ -135,9 +124,12 @@ export function EventResourceDashboard({
   const [activeTab, setActiveTab] = useState<"all" | "deleted">("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [perPage, setPerPage] = useState(initialData?.meta.perPage ?? 15);
+  const [perPage, setPerPage] = useState(initialData?.meta.perPage ?? 10);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkPermanentDeleteOpen, setBulkPermanentDeleteOpen] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<EventRecordItem | null>(null);
@@ -150,6 +142,7 @@ export function EventResourceDashboard({
     initialData?.options ?? {},
   );
   const didMount = useRef(false);
+  const activeRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -167,9 +160,13 @@ export function EventResourceDashboard({
       nextStatus = statusFilter,
       nextSort = sortOrder,
       nextTab = activeTab,
+      background = false,
     ) => {
-      setLoading(true);
-      setError(undefined);
+      if (background && activeRequest.current) return;
+      activeRequest.current?.abort();
+      const controller = new AbortController();
+      activeRequest.current = controller;
+      if (!background) { setLoading(true); setError(undefined); }
       const params = new URLSearchParams({
         page: String(nextPage),
         per_page: String(nextPerPage),
@@ -181,7 +178,7 @@ export function EventResourceDashboard({
       try {
         const response = await authenticatedFetch(
           `/api/admin/events/${resource}?${params.toString()}`,
-          { cache: "no-store" },
+          { cache: "no-store", signal: controller.signal },
         );
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload?.status === false) {
@@ -189,18 +186,25 @@ export function EventResourceDashboard({
             payload?.message ?? `Unable to load ${config.title.toLowerCase()}.`,
           );
         }
+        if (controller.signal.aborted) return;
         setData(payload.data);
+        setError(undefined);
+        if (!background) setSelected(new Set());
         if (payload.data?.options) {
           setOptions(payload.data.options);
         }
       } catch (err) {
+        if (controller.signal.aborted || background) return;
         setError(
           err instanceof Error
             ? err.message
             : `Unable to load ${config.title.toLowerCase()}.`,
         );
       } finally {
-        setLoading(false);
+        if (activeRequest.current === controller) {
+          activeRequest.current = null;
+          if (!background) setLoading(false);
+        }
       }
     },
     [
@@ -237,6 +241,27 @@ export function EventResourceDashboard({
     sortOrder,
     statusFilter,
   ]);
+
+  useEffect(() => () => { activeRequest.current?.abort(); }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || !navigator.onLine || loading ||
+          formOpen || viewing || deleting || restoring || bulkDeleteOpen || bulkPermanentDeleteOpen || selected.size) return;
+      void loadRecords(page, perPage, debouncedSearch, statusFilter, sortOrder, activeTab, true);
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadRecords, page, perPage, debouncedSearch, statusFilter, sortOrder, activeTab,
+      loading, formOpen, viewing, deleting, restoring, bulkDeleteOpen, bulkPermanentDeleteOpen, selected.size]);
 
   const ensureOptions = useCallback(async () => {
     if (Object.keys(options).length > 0) return;
@@ -427,6 +452,94 @@ export function EventResourceDashboard({
           : `Unable to restore ${config.singularLabel.toLowerCase()}.`,
       );
     }
+  };
+
+  const handleBulkDelete = async (force = false) => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    let deletedCount = 0;
+    let firstErrorMessage: string | null = null;
+    const query = force ? "?force=1" : "";
+
+    for (const id of ids) {
+      try {
+        const response = await authenticatedFetch(
+          `/api/admin/events/${resource}/${id}${query}`,
+          { method: "DELETE" },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.status === false) {
+          firstErrorMessage ??=
+            payload?.message ??
+            `Unable to delete ${config.singularLabel.toLowerCase()}.`;
+        } else {
+          deletedCount += 1;
+        }
+      } catch (err) {
+        firstErrorMessage ??=
+          err instanceof Error ? err.message : "Bulk delete failed.";
+      }
+    }
+
+    if (force) {
+      setBulkPermanentDeleteOpen(false);
+    } else {
+      setBulkDeleteOpen(false);
+    }
+    setSelected(new Set());
+    if (deletedCount > 0) {
+      toast.success(
+        force
+          ? `Permanently deleted ${deletedCount} ${deletedCount === 1 ? config.singularLabel.toLowerCase() : config.title.toLowerCase()}.`
+          : `Deleted ${deletedCount} ${deletedCount === 1 ? config.singularLabel.toLowerCase() : config.title.toLowerCase()}.`,
+      );
+    }
+    if (firstErrorMessage) {
+      toast.error(firstErrorMessage);
+    }
+    await loadRecords();
+  };
+
+  const handleBulkRestore = async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    let restoredCount = 0;
+    let firstErrorMessage: string | null = null;
+
+    for (const id of ids) {
+      try {
+        const response = await authenticatedFetch(
+          `/api/admin/events/${resource}/${id}`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "restore" }),
+          },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.status === false) {
+          firstErrorMessage ??=
+            payload?.message ??
+            `Unable to restore ${config.singularLabel.toLowerCase()}.`;
+        } else {
+          restoredCount += 1;
+        }
+      } catch (err) {
+        firstErrorMessage ??=
+          err instanceof Error ? err.message : "Bulk restore failed.";
+      }
+    }
+
+    setSelected(new Set());
+    if (restoredCount > 0) {
+      toast.success(
+        `Restored ${restoredCount} ${restoredCount === 1 ? config.singularLabel.toLowerCase() : config.title.toLowerCase()}.`,
+      );
+    }
+    if (firstErrorMessage) {
+      toast.error(firstErrorMessage);
+    }
+    await loadRecords();
   };
 
   const renderField = useCallback(
@@ -703,6 +816,54 @@ export function EventResourceDashboard({
   const summary = data?.summary;
   const deletedCount = meta?.deletedCount ?? 0;
 
+  const toggleAllOnPage = (checked: boolean) => {
+    if (checked) {
+      setSelected(new Set(items.map((record) => record.id)));
+    } else {
+      setSelected(new Set());
+    }
+  };
+
+  const toggleOne = (id: number, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const allSelected =
+    items.length > 0 && items.every((record) => selected.has(record.id));
+  const someSelected = items.some((record) => selected.has(record.id));
+
+  const statsList = (
+    data?.meta as {
+      stats?: Array<{ label: string; value: number; note?: string }>;
+    }
+  )?.stats ?? [
+    {
+      label: config.stats.totalLabel,
+      value: summary?.total ?? 0,
+      note: config.stats.totalNote,
+    },
+    {
+      label: config.stats.activeLabel,
+      value: summary?.active ?? 0,
+      note: config.stats.activeNote,
+    },
+    {
+      label: config.stats.secondaryLabel,
+      value: summary?.secondary ?? 0,
+      note: config.stats.secondaryNote,
+    },
+    {
+      label: config.stats.tertiaryLabel,
+      value: summary?.tertiary ?? 0,
+      note: config.stats.tertiaryNote,
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <DashboardHeader
@@ -711,15 +872,6 @@ export function EventResourceDashboard({
         description={config.description}
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void loadRecords()}
-              disabled={loading}
-            >
-              <RefreshCw className={loading ? "animate-spin" : ""} />
-              Refresh
-            </Button>
             <Button size="sm" onClick={openCreate}>
               <Plus />
               {config.primaryAction}
@@ -728,60 +880,29 @@ export function EventResourceDashboard({
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: config.stats.totalLabel,
-            value: summary?.total ?? 0,
-            note: config.stats.totalNote,
-          },
-          {
-            label: config.stats.activeLabel,
-            value: summary?.active ?? 0,
-            note: config.stats.activeNote,
-          },
-          {
-            label: config.stats.secondaryLabel,
-            value: summary?.secondary ?? 0,
-            note: config.stats.secondaryNote,
-          },
-          {
-            label: config.stats.tertiaryLabel,
-            value: summary?.tertiary ?? 0,
-            note: config.stats.tertiaryNote,
-          },
-        ].map((card) => (
-          <Card key={card.label} className="border-border/70 shadow-none">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {card.label}
-                </p>
-                <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <Activity className="size-4" />
-                </span>
-              </div>
-              <div className="mt-3 text-2xl font-bold tracking-tight">
-                <StatNumber value={card.value} />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{card.note}</p>
-            </CardContent>
-          </Card>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {statsList.map((stat) => (
+          <DashboardStatCard key={stat.label} label={<>{stat.label}</>} value={<StatNumber value={stat.value} />} note={<>{stat.note}</>} loading={loading && !data} />
         ))}
+        {!data &&
+          Array.from({ length: 4 }, (_, index) => (
+            <DashboardStatCard key={index} loading />
+          ))}
       </div>
 
-      <Card className="border-border/70 shadow-none">
-        <CardContent className="space-y-4 p-5">
+      <TablePanel>
+        <div className="min-w-0 [&>[data-slot=card]]:m-5">
           {config.supportsTabs ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+            <TableTabSection>
               <Tabs
                 value={activeTab}
                 onValueChange={(next) => {
                   setActiveTab(next as "all" | "deleted");
                   setPage(1);
+                  setSelected(new Set());
                 }}
               >
-                <TabsList>
+                <TabsList variant="resource" aria-label="Record visibility">
                   <TabsTrigger value="all">
                     All
                     <Badge
@@ -802,10 +923,10 @@ export function EventResourceDashboard({
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
-            </div>
+            </TableTabSection>
           ) : null}
 
-          <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
+          <TableToolbar className="justify-between">
             <div className="relative flex-1 lg:max-w-md">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -817,12 +938,45 @@ export function EventResourceDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {selected.size > 0 ? (
+                activeTab === "deleted" ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleBulkRestore()}
+                    >
+                      <RotateCcw className="size-4" />
+                      Restore ({selected.size})
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setBulkPermanentDeleteOpen(true)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete permanently ({selected.size})
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setBulkDeleteOpen(true)}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete ({selected.size})
+                  </Button>
+                )
+              ) : null}
+
               {config.supportsTabs && activeTab === "all" ? (
                 <Select
                   value={statusFilter}
                   onValueChange={(next) => {
                     setStatusFilter(next);
                     setPage(1);
+                    setSelected(new Set());
                   }}
                 >
                   <SelectTrigger className="h-9 w-[150px]">
@@ -836,46 +990,36 @@ export function EventResourceDashboard({
                 </Select>
               ) : null}
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))
-                }
-              >
-                {sortOrder === "desc" ? (
-                  <>
-                    <ArrowDownWideNarrow className="size-4" />
-                    Newest first
-                  </>
-                ) : (
-                  <>
-                    <ArrowUpNarrowWide className="size-4" />
-                    Oldest first
-                  </>
-                )}
-              </Button>
+              <Select value={sortOrder} onValueChange={(value) => { setSortOrder(value as SortOrder); setPage(1); setSelected(new Set()); }}>
+                <SelectTrigger aria-label="Sort records" size="sm" className="h-8 w-auto min-w-[9.5rem] max-w-56 font-normal">
+                  {sortOrder === "desc" ? <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" /> : <ArrowUpNarrowWide className="size-3.5 text-muted-foreground" />}
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent align="end"><SelectItem value="desc">Newest first</SelectItem><SelectItem value="asc">Oldest first</SelectItem></SelectContent>
+              </Select>
 
               <Select
                 value={String(perPage)}
                 onValueChange={(next) => {
                   setPerPage(Number(next));
                   setPage(1);
+                  setSelected(new Set());
                 }}
               >
-                <SelectTrigger className="h-9 w-[115px]">
-                  <SelectValue />
+                <SelectTrigger aria-label="Rows per page" size="sm" className="h-8 w-auto min-w-[6.25rem] max-w-40 font-normal">
+                  <span className="text-muted-foreground">Show</span>
+                  <SelectValue placeholder="Rows" />
                 </SelectTrigger>
-                <SelectContent>
-                  {[10, 15, 25, 50].map((size) => (
+                <SelectContent align="end">
+                  {[10, 30, 50, 100].map((size) => (
                     <SelectItem key={size} value={String(size)}>
-                      {size} / page
+                      {size}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </TableToolbar>
 
           {error ? (
             <EmptyCard
@@ -890,10 +1034,41 @@ export function EventResourceDashboard({
               }
             />
           ) : loading && !items.length ? (
-            <div className="space-y-2.5">
-              {Array.from({ length: 6 }).map((_, idx) => (
-                <Skeleton key={idx} className="h-12 w-full rounded-xl" />
-              ))}
+            <div className="min-w-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12" />
+                    <TableHead className="w-14">#</TableHead>
+                    {config.columns.map((column) => (
+                      <TableHead key={column.key}>{column.label}</TableHead>
+                    ))}
+                    <TableHead className="w-16 text-right"><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 6 }, (_, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <Skeleton className="size-4 rounded-[4px]" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-6" />
+                      </TableCell>
+                      {config.columns.map((column, cellIndex) => (
+                        <TableCell key={column.key}>
+                          <Skeleton
+                            className={cellIndex === 0 ? "h-4 w-36" : "h-4 w-24"}
+                          />
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right">
+                        <Skeleton className="ml-auto size-7 rounded-md" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : items.length === 0 ? (
             <EmptyCard
@@ -920,25 +1095,56 @@ export function EventResourceDashboard({
               }
             />
           ) : (
-            <div className="overflow-x-auto rounded-xl border">
+            <div
+              className={`min-w-0 ${
+                loading ? "opacity-60 transition-opacity" : "transition-opacity"
+              }`}
+            >
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/40">
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        aria-label={`Select all ${config.title.toLowerCase()} on this page`}
+                        checked={
+                          allSelected ? true : someSelected ? "indeterminate" : false
+                        }
+                        onCheckedChange={(value) => toggleAllOnPage(value === true)}
+                      />
+                    </TableHead>
+                    <TableHead className="w-14">#</TableHead>
                     {config.columns.map((column) => (
                       <TableHead key={column.key}>{column.label}</TableHead>
                     ))}
-                    <TableHead className="w-16 text-right">Actions</TableHead>
+                    <TableHead className="w-16 text-right"><span className="sr-only">Actions</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((record) => (
-                    <TableRow key={record.id}>
-                      {config.columns.map((column) => (
-                        <TableCell key={column.key}>
-                          {renderCell(record, column)}
+                  {items.map((record, index) => {
+                    const isSelected = selected.has(record.id);
+                    return (
+                      <TableRow
+                        key={record.id}
+                        data-state={isSelected ? "selected" : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            aria-label={`Select ${record.eventName ?? record.subjectIdentifier ?? "record"}`}
+                            checked={isSelected}
+                            onCheckedChange={(value) =>
+                              toggleOne(record.id, value === true)
+                            }
+                          />
                         </TableCell>
-                      ))}
-                      <TableCell className="text-right">
+                        <TableCell className="text-muted-foreground tabular-nums">
+                          {(meta?.from ?? (page - 1) * perPage + 1) + index}
+                        </TableCell>
+                        {config.columns.map((column) => (
+                          <TableCell key={column.key}>
+                            {renderCell(record, column)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -995,58 +1201,18 @@ export function EventResourceDashboard({
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );
+                })}
                 </TableBody>
               </Table>
             </div>
           )}
 
-          {meta && meta.total > 0 ? (
-            <div className="flex flex-col items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground sm:flex-row">
-              <p>
-                Showing{" "}
-                <span className="font-semibold text-foreground">
-                  {meta.from ?? 0}
-                </span>{" "}
-                to{" "}
-                <span className="font-semibold text-foreground">
-                  {meta.to ?? 0}
-                </span>{" "}
-                of{" "}
-                <span className="font-semibold text-foreground">
-                  {meta.total}
-                </span>{" "}
-                records
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={meta.currentPage <= 1 || loading}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="size-4" />
-                  Previous
-                </Button>
-                <span className="px-2 font-medium text-foreground">
-                  Page {meta.currentPage} of {meta.lastPage}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={meta.currentPage >= meta.lastPage || loading}
-                  onClick={() =>
-                    setPage((p) => Math.min(meta.lastPage, p + 1))
-                  }
-                >
-                  Next
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
+          {meta ? (
+            <RecordPagination from={meta.from} to={meta.to} total={meta.total} page={meta.currentPage} pageCount={meta.lastPage} onPageChange={setPage} disabled={loading} />
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </TablePanel>
 
       <FormDialog
         open={formOpen}
@@ -1194,6 +1360,32 @@ export function EventResourceDashboard({
         confirmLabel="Restore record"
         icon={<RotateCcw className="size-5" />}
         onConfirm={() => void handleRestore()}
+      />
+
+      <ConfirmationAlertDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={`Delete ${selected.size} ${selected.size === 1 ? config.singularLabel.toLowerCase() : config.title.toLowerCase()}?`}
+        description={
+          config.supportsTabs
+            ? `Selected ${config.title.toLowerCase()} will be moved to the Deleted tab. You can restore them later.`
+            : `Selected ${config.title.toLowerCase()} will be deleted.`
+        }
+        confirmLabel="Delete selected"
+        destructive
+        icon={<Trash2 className="size-5" />}
+        onConfirm={() => void handleBulkDelete(false)}
+      />
+
+      <TypedConfirmationAlertDialog
+        open={bulkPermanentDeleteOpen}
+        onOpenChange={setBulkPermanentDeleteOpen}
+        title={`Permanently delete ${selected.size} ${selected.size === 1 ? config.singularLabel.toLowerCase() : config.title.toLowerCase()}?`}
+        description={`This will permanently delete ${selected.size} ${selected.size === 1 ? config.singularLabel.toLowerCase() : config.title.toLowerCase()} and cannot be undone.`}
+        confirmationText="delete"
+        confirmLabel="Delete permanently"
+        icon={<Trash2 className="size-5" />}
+        onConfirm={() => void handleBulkDelete(true)}
       />
     </div>
   );

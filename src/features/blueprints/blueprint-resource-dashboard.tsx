@@ -1,31 +1,15 @@
 "use client";
 
+import { RecordPagination } from "@/components/ui/record-pagination";
+import { DashboardStatCard } from "@/components/ui/dashboard";
+import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import { useMemo, useState } from "react";
-import {
-  Activity,
-  Check,
-  CheckCircle2,
-  Copy,
-  Database,
-  Eye,
-  FileCode,
-  FileStack,
-  FileText,
-  Globe,
-  Layers,
-  MoreVertical,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Send,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { Activity, ArrowDownAZ, ArrowDownWideNarrow, ArrowUpAZ, ArrowUpNarrowWide, Copy, Eye, FileStack, Layers, MoreVertical, Pencil, Plus, Search, Send, Sparkles, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
+import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { CustomViewDetailsDialog, DetailItem } from "@/components/ui/custom-view-details-dialog";
 import {
@@ -39,6 +23,7 @@ import { EmptyCard } from "@/components/ui/empty-card";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StatNumber } from "@/components/ui/stat-number";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Table,
@@ -48,10 +33,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { blueprintResourceConfigs } from "./blueprint-config";
 import { BlueprintPreviewModal } from "./blueprint-preview-modal";
+import { BlueprintStudioDialog } from "./blueprint-studio-dialog";
 import type {
   AnimalBlueprintRecord,
   BlueprintOptionsResponse,
@@ -64,6 +49,21 @@ import type {
   LookupSetRecord,
 } from "./types";
 
+type SortOrder = "desc" | "asc" | "alpha-asc" | "alpha-desc";
+
+const SORT_OPTIONS: Array<{
+  value: SortOrder;
+  label: string;
+  icon: typeof ArrowDownWideNarrow;
+}> = [
+  { value: "desc", label: "Newest first", icon: ArrowDownWideNarrow },
+  { value: "asc", label: "Oldest first", icon: ArrowUpNarrowWide },
+  { value: "alpha-asc", label: "Name (A–Z)", icon: ArrowDownAZ },
+  { value: "alpha-desc", label: "Name (Z–A)", icon: ArrowUpAZ },
+];
+
+const PAGE_SIZE_OPTIONS = [10, 30, 50, 100] as const;
+
 function getRecordVersion(record: BlueprintRecord): string {
   if ("version" in record && typeof record.version === "number") {
     return `v${record.version}`;
@@ -72,6 +72,19 @@ function getRecordVersion(record: BlueprintRecord): string {
     return `v${record.blueprint_version}`;
   }
   return "v1";
+}
+
+function getRecordKey(record: BlueprintRecord): string {
+  if ("uuid" in record && record.uuid) return record.uuid;
+  if ("id" in record && record.id) return String(record.id);
+  return record.code || "unknown";
+}
+
+function getRecordDisplayName(record: BlueprintRecord): string {
+  if ("name" in record && record.name) return record.name;
+  if ("species" in record && record.species?.name) return record.species.name;
+  if ("code" in record && record.code) return record.code;
+  return "Record";
 }
 
 export function BlueprintResourceDashboard({
@@ -88,14 +101,21 @@ export function BlueprintResourceDashboard({
   const config = blueprintResourceConfigs[resource];
   const [items, setItems] = useState<BlueprintRecord[]>(() => initialData?.data ?? []);
   const [search, setSearch] = useState("");
-  const [statusTab, setStatusTab] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [secondaryFilter, setSecondaryFilter] = useState<string>("all");
+  const [sort, setSort] = useState<SortOrder>("desc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Dialog targets
   const [selectedRecord, setSelectedRecord] = useState<BlueprintRecord | null>(null);
   const [previewRecord, setPreviewRecord] = useState<BlueprintRecord | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [publishTarget, setPublishTarget] = useState<BlueprintRecord | null>(null);
   const [cloneTarget, setCloneTarget] = useState<BlueprintRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BlueprintRecord | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // Form states for Create modal
   const [createFormCode, setCreateFormCode] = useState("");
@@ -109,9 +129,9 @@ export function BlueprintResourceDashboard({
   const [createGroupLabel, setCreateGroupLabel] = useState("");
 
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
+    const result = items.filter((item) => {
       // Status filter
-      if (statusTab !== "all" && item.status !== statusTab) return false;
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
 
       // Secondary filter
       if (secondaryFilter !== "all") {
@@ -136,7 +156,26 @@ export function BlueprintResourceDashboard({
         "species" in item && item.species?.name?.toLowerCase().includes(q);
       return Boolean(codeMatch || nameMatch || speciesMatch);
     });
-  }, [items, search, statusTab, secondaryFilter, resource]);
+
+    // Sorting
+    return result.sort((a, b) => {
+      if (sort === "desc") {
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return db - da;
+      }
+      if (sort === "asc") {
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return da - db;
+      }
+      const nameA = getRecordDisplayName(a).toLowerCase();
+      const nameB = getRecordDisplayName(b).toLowerCase();
+      if (sort === "alpha-asc") return nameA.localeCompare(nameB);
+      if (sort === "alpha-desc") return nameB.localeCompare(nameA);
+      return 0;
+    });
+  }, [items, search, statusFilter, secondaryFilter, sort, resource]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -147,10 +186,57 @@ export function BlueprintResourceDashboard({
     return { total, published, draft, retired };
   }, [items]);
 
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
+
+  const from = filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = Math.min(filteredItems.length, currentPage * pageSize);
+
+  // Selection handlers
+  const allOnPageSelected =
+    paginatedItems.length > 0 &&
+    paginatedItems.every((item) => selected.has(getRecordKey(item)));
+  const someOnPageSelected = paginatedItems.some((item) =>
+    selected.has(getRecordKey(item)),
+  );
+
+  const toggleAllOnPage = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const item of paginatedItems) {
+        const key = getRecordKey(item);
+        if (checked) {
+          next.add(key);
+        } else {
+          next.delete(key);
+        }
+      }
+      return next;
+    });
+  };
+
+  const toggleOne = (key: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
+
   // Handlers
   const handlePublish = async (record: BlueprintRecord) => {
     try {
-      const res = await fetch(`/api/admin/blueprints/${resource}/${record.id || record.uuid}/publish`, {
+      const idOrUuid = record.uuid || record.id;
+      const res = await fetch(`/api/admin/blueprints/${resource}/${idOrUuid}/publish`, {
         method: "POST",
       });
       const data = await res.json();
@@ -158,7 +244,9 @@ export function BlueprintResourceDashboard({
         throw new Error(data.message || "Failed to publish definition.");
       }
       setItems((prev) =>
-        prev.map((i) => (i.uuid === record.uuid ? { ...i, status: "published" } : i)),
+        prev.map((i) =>
+          getRecordKey(i) === getRecordKey(record) ? { ...i, status: "published" as const } : i,
+        ),
       );
       toast.success(`${config.singular} has been published and manifest compiled.`);
       setPublishTarget(null);
@@ -169,7 +257,8 @@ export function BlueprintResourceDashboard({
 
   const handleClone = async (record: BlueprintRecord) => {
     try {
-      const res = await fetch(`/api/admin/blueprints/${resource}/${record.id || record.uuid}/clone`, {
+      const idOrUuid = record.uuid || record.id;
+      const res = await fetch(`/api/admin/blueprints/${resource}/${idOrUuid}/clone`, {
         method: "POST",
       });
       const data = await res.json();
@@ -188,7 +277,8 @@ export function BlueprintResourceDashboard({
 
   const handleDelete = async (record: BlueprintRecord) => {
     try {
-      const res = await fetch(`/api/admin/blueprints/${resource}/${record.id || record.uuid}`, {
+      const idOrUuid = record.uuid || record.id;
+      const res = await fetch(`/api/admin/blueprints/${resource}/${idOrUuid}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -196,12 +286,19 @@ export function BlueprintResourceDashboard({
         throw new Error(data.message || "Failed to delete definition.");
       }
       if (record.status === "draft") {
-        setItems((prev) => prev.filter((i) => i.uuid !== record.uuid));
+        setItems((prev) => prev.filter((i) => getRecordKey(i) !== getRecordKey(record)));
       } else {
         setItems((prev) =>
-          prev.map((i) => (i.uuid === record.uuid ? { ...i, status: "retired" } : i)),
+          prev.map((i) =>
+            getRecordKey(i) === getRecordKey(record) ? { ...i, status: "retired" as const } : i,
+          ),
         );
       }
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(getRecordKey(record));
+        return next;
+      });
       toast.success(`${config.singular} status updated.`);
       setDeleteTarget(null);
     } catch (err) {
@@ -209,24 +306,55 @@ export function BlueprintResourceDashboard({
     }
   };
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBulkDelete = async () => {
+    try {
+      const keys = Array.from(selected);
+      for (const key of keys) {
+        await fetch(`/api/admin/blueprints/${resource}/${key}`, {
+          method: "DELETE",
+        });
+      }
+      setItems((prev) =>
+        prev
+          .map((item) => {
+            const key = getRecordKey(item);
+            if (selected.has(key)) {
+              return item.status === "draft" ? null : { ...item, status: "retired" as const };
+            }
+            return item;
+          })
+          .filter(Boolean) as BlueprintRecord[],
+      );
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+      toast.success(`Updated ${keys.length} records.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error performing bulk action.");
+    }
+  };
+
+  const refreshItems = async () => {
+    try {
+      const res = await fetch(`/api/admin/blueprints/${resource}`);
+      const data = await res.json();
+      if (data?.data) {
+        setItems(data.data);
+      }
+    } catch {
+      // Silently catch background refresh errors
+    }
+  };
+
+  const handleCreateSubmit = async () => {
     try {
       let payload: Record<string, unknown> = {};
 
-      if (resource === "animal-blueprints") {
-        payload = {
-          code: createFormCode,
-          species_uuid: createSpeciesUuid,
-          registration_form_uuid: createRegFormUuid,
-          version: 1,
-        };
-      } else if (resource === "event-definitions") {
+      if (resource === "event-definitions") {
         payload = {
           name: createFormName,
           code: createFormCode,
-          blueprint_uuid: createBlueprintUuid,
-          form_uuid: createRegFormUuid,
+          blueprintUuid: createBlueprintUuid,
+          formUuid: createRegFormUuid,
           family: createFamily,
         };
       } else if (resource === "form-definitions") {
@@ -245,8 +373,8 @@ export function BlueprintResourceDashboard({
         payload = {
           name: createFormName,
           code: createFormCode,
-          default_subject_mode: createSubjectMode,
-          group_display_name: createGroupLabel || null,
+          defaultSubjectMode: createSubjectMode,
+          groupDisplayName: createGroupLabel || null,
         };
       }
 
@@ -272,6 +400,9 @@ export function BlueprintResourceDashboard({
     }
   };
 
+  const SelectedSortIcon =
+    SORT_OPTIONS.find((opt) => opt.value === sort)?.icon ?? ArrowDownWideNarrow;
+
   return (
     <div className="space-y-6">
       <DashboardHeader
@@ -280,189 +411,291 @@ export function BlueprintResourceDashboard({
         parentHref="/dashboard/blueprints"
         title={config.title}
         description={config.description}
-        badge={config.badge}
+
         actions={
           <Button
             size="sm"
             onClick={() => setIsCreateOpen(true)}
             className="gap-1.5 font-semibold"
           >
-            <Plus className="size-4" />
-            {config.createLabel}
+            {resource === "animal-blueprints" ? (
+              <>
+                <Sparkles className="size-4" />
+                Open Blueprint Studio
+              </>
+            ) : (
+              <>
+                <Plus className="size-4" />
+                {config.createLabel}
+              </>
+            )}
           </Button>
         }
       />
 
       {/* KPI Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-2xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Total Definitions</span>
-              <FileStack className="size-4 text-primary" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{stats.total}</p>
-            <p className="text-[11px] text-muted-foreground">Catalog records registered</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <DashboardStatCard label={<>Total Records</>} value={<StatNumber value={stats.total} />} note={<>Catalog definitions registered</>} />
 
-        <Card className="shadow-2xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Published (Active)</span>
-              <CheckCircle2 className="size-4 text-emerald-600" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 tabular-nums">
-              {stats.published}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Synced to mobile manifests</p>
-          </CardContent>
-        </Card>
+        <DashboardStatCard label={<>Published (Active)</>} value={<StatNumber value={stats.published} />} note={<>Synced to mobile offline manifests</>} />
 
-        <Card className="shadow-2xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Draft Versions</span>
-              <Layers className="size-4 text-amber-500" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tracking-tight text-amber-600 tabular-nums">
-              {stats.draft}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Under active configuration</p>
-          </CardContent>
-        </Card>
+        <DashboardStatCard label={<>Draft Versions</>} value={<StatNumber value={stats.draft} />} note={<>Under active schema configuration</>} />
 
-        <Card className="shadow-2xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Retired</span>
-              <Trash2 className="size-4 text-muted-foreground" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tracking-tight text-muted-foreground tabular-nums">
-              {stats.retired}
-            </p>
-            <p className="text-[11px] text-muted-foreground">Archived platform revisions</p>
-          </CardContent>
-        </Card>
+        <DashboardStatCard label={<>Retired</>} value={<StatNumber value={stats.retired} />} note={<>Archived platform revisions</>} />
       </div>
 
-      {/* Main Filter and Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs value={statusTab} onValueChange={setStatusTab} className="w-full sm:w-auto">
-          <TabsList className="h-9">
-            <TabsTrigger value="all" className="text-xs">
-              All ({items.length})
-            </TabsTrigger>
-            <TabsTrigger value="published" className="text-xs">
-              Published ({stats.published})
-            </TabsTrigger>
-            <TabsTrigger value="draft" className="text-xs">
-              Drafts ({stats.draft})
-            </TabsTrigger>
-            <TabsTrigger value="retired" className="text-xs">
-              Retired ({stats.retired})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {resource === "event-definitions" && (
-            <Select value={secondaryFilter} onValueChange={setSecondaryFilter}>
-              <SelectTrigger className="h-9 w-40 text-xs">
-                <SelectValue placeholder="All Families" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Families</SelectItem>
-                <SelectItem value="health">Health & Vet</SelectItem>
-                <SelectItem value="reproduction">Reproduction</SelectItem>
-                <SelectItem value="production">Production</SelectItem>
-                <SelectItem value="inventory">Inventory</SelectItem>
-                <SelectItem value="feeding">Feeding</SelectItem>
-                <SelectItem value="lifecycle">Lifecycle</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          {resource === "form-definitions" && (
-            <Select value={secondaryFilter} onValueChange={setSecondaryFilter}>
-              <SelectTrigger className="h-9 w-40 text-xs">
-                <SelectValue placeholder="All Purposes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Purposes</SelectItem>
-                <SelectItem value="registration">Registration Forms</SelectItem>
-                <SelectItem value="event">Event Forms</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          {resource === "dynamic-species" && (
-            <Select value={secondaryFilter} onValueChange={setSecondaryFilter}>
-              <SelectTrigger className="h-9 w-40 text-xs">
-                <SelectValue placeholder="All Subject Modes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Modes</SelectItem>
-                <SelectItem value="individual">Individual Animals</SelectItem>
-                <SelectItem value="group">Group / Herds</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
-          <div className="relative min-w-64 flex-1 sm:w-72">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      {/* Main Container Card matching Reference Resource Dashboard */}
+      <TablePanel className="mt-4">
+        {/* Filter and Action Header */}
+        <TableToolbar>
+          <div className="relative min-w-0 flex-1 lg:max-w-sm">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9"
               placeholder={config.searchPlaceholder}
-              className="h-9 pl-9 text-xs"
             />
           </div>
-        </div>
-      </div>
 
-      {/* Main Table */}
-      {filteredItems.length === 0 ? (
-        <EmptyCard
-          icon={FileStack}
-          title={`No ${config.title} found`}
-          description={
-            search
-              ? "No records matched your search criteria. Try a different query or clear filters."
-              : `No ${config.title.toLowerCase()} exist yet. Create your first one to get started.`
-          }
-          action={
-            <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 font-semibold">
-              <Plus className="size-4" />
-              {config.createLabel}
-            </Button>
-          }
-        />
-      ) : (
-        <Card className="overflow-hidden shadow-2xs">
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            {selected.size > 0 ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="size-3.5" />
+                Delete / Retire ({selected.size})
+              </Button>
+            ) : null}
+
+            {/* Status Filter */}
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
+                aria-label="Filter by status"
+                size="sm"
+                className="h-8 w-auto min-w-[8.5rem] max-w-44 font-normal"
+              >
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">All statuses ({items.length})</SelectItem>
+                <SelectItem value="published">Published ({stats.published})</SelectItem>
+                <SelectItem value="draft">Drafts ({stats.draft})</SelectItem>
+                <SelectItem value="retired">Retired ({stats.retired})</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Secondary Category Filter */}
+            {resource === "event-definitions" && (
+              <Select
+                value={secondaryFilter}
+                onValueChange={(val) => {
+                  setSecondaryFilter(val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Filter by family"
+                  size="sm"
+                  className="h-8 w-auto min-w-[8.5rem] max-w-44 font-normal"
+                >
+                  <SelectValue placeholder="Family" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="all">All Families</SelectItem>
+                  <SelectItem value="health">Health & Vet</SelectItem>
+                  <SelectItem value="reproduction">Reproduction</SelectItem>
+                  <SelectItem value="production">Production</SelectItem>
+                  <SelectItem value="inventory">Inventory</SelectItem>
+                  <SelectItem value="feeding">Feeding</SelectItem>
+                  <SelectItem value="lifecycle">Lifecycle</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {resource === "form-definitions" && (
+              <Select
+                value={secondaryFilter}
+                onValueChange={(val) => {
+                  setSecondaryFilter(val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Filter by purpose"
+                  size="sm"
+                  className="h-8 w-auto min-w-[8.5rem] max-w-44 font-normal"
+                >
+                  <SelectValue placeholder="Purpose" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="all">All Purposes</SelectItem>
+                  <SelectItem value="registration">Registration Forms</SelectItem>
+                  <SelectItem value="event">Event Forms</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {resource === "dynamic-species" && (
+              <Select
+                value={secondaryFilter}
+                onValueChange={(val) => {
+                  setSecondaryFilter(val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Filter by mode"
+                  size="sm"
+                  className="h-8 w-auto min-w-[8.5rem] max-w-44 font-normal"
+                >
+                  <SelectValue placeholder="Mode" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="all">All Subject Modes</SelectItem>
+                  <SelectItem value="individual">Individual Animals</SelectItem>
+                  <SelectItem value="group">Group / Herds</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Sort Select */}
+            <Select
+              value={sort}
+              onValueChange={(val) => {
+                setSort(val as SortOrder);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
+                aria-label="Sort records"
+                size="sm"
+                className="h-8 w-auto min-w-[9.5rem] max-w-56 font-normal"
+              >
+                <SelectedSortIcon className="size-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {SORT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Page Size Select */}
+            <Select
+              value={String(pageSize)}
+              onValueChange={(val) => {
+                setPageSize(Number(val));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
+                aria-label="Rows per page"
+                size="sm"
+                className="h-8 w-auto min-w-[6.25rem] max-w-40 font-normal"
+              >
+                <span className="text-muted-foreground">Show</span>
+                <SelectValue placeholder="Rows" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </TableToolbar>
+
+        {/* Main Table or Empty Card */}
+        {filteredItems.length === 0 ? (
+          <div className="p-4">
+            <EmptyCard
+              icon={FileStack}
+              title={
+                search || statusFilter !== "all" || secondaryFilter !== "all"
+                  ? `No matching ${config.title.toLowerCase()}`
+                  : `No ${config.title.toLowerCase()} yet`
+              }
+              description={
+                search || statusFilter !== "all" || secondaryFilter !== "all"
+                  ? "Try adjusting your search query or filter options."
+                  : `Get started by registering the first ${config.singular.toLowerCase()}.`
+              }
+              action={
+                <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 font-semibold">
+                  <Plus className="size-4" />
+                  {config.createLabel}
+                </Button>
+              }
+            />
+          </div>
+        ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-12 text-center text-xs">#</TableHead>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    aria-label={`Select all ${config.title.toLowerCase()} on this page`}
+                    checked={
+                      allOnPageSelected
+                        ? true
+                        : someOnPageSelected
+                        ? "indeterminate"
+                        : false
+                    }
+                    onCheckedChange={(val) => toggleAllOnPage(val === true)}
+                  />
+                </TableHead>
+                <TableHead className="w-14">#</TableHead>
                 {config.columns.map((col) => (
-                  <TableHead key={col.key} className="text-xs font-semibold">
-                    {col.label}
-                  </TableHead>
+                  <TableHead key={col.key}>{col.label}</TableHead>
                 ))}
-                <TableHead className="w-14 text-right text-xs">Actions</TableHead>
+                <TableHead className="w-24 text-right">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map((record, index) => {
+              {paginatedItems.map((record, index) => {
+                const key = getRecordKey(record);
+                const isSelected = selected.has(key);
                 const isDraft = record.status === "draft";
+                const displayName = getRecordDisplayName(record);
 
                 return (
-                  <TableRow key={record.uuid || record.id} className="transition hover:bg-muted/30">
-                    <TableCell className="text-center font-mono text-xs text-muted-foreground">
-                      {index + 1}
+                  <TableRow
+                    key={key}
+                    data-state={isSelected ? "selected" : undefined}
+                    className="transition hover:bg-muted/30"
+                  >
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`Select ${displayName}`}
+                        checked={isSelected}
+                        onCheckedChange={(val) => toggleOne(key, val === true)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {(currentPage - 1) * pageSize + index + 1}
                     </TableCell>
 
-                    {/* Column values mapped per resource */}
+                    {/* Columns rendered according to active resource */}
                     {resource === "animal-blueprints" && (
                       <>
                         <TableCell>
@@ -527,11 +760,6 @@ export function BlueprintResourceDashboard({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
-                            {record.code}
-                          </code>
-                        </TableCell>
-                        <TableCell>
                           <Badge variant="outline" className="text-xs">
                             {(record as EventDefinitionRecord).blueprint?.code || "Universal"}
                           </Badge>
@@ -545,7 +773,7 @@ export function BlueprintResourceDashboard({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <code className="text-xs text-muted-foreground">
+                          <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
                             {(record as EventDefinitionRecord).form?.code || "form_schema"}
                           </code>
                         </TableCell>
@@ -562,15 +790,9 @@ export function BlueprintResourceDashboard({
                       <>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="grid size-7 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40">
-                              <FileCode className="size-3.5" />
-                            </span>
-                            <div>
-                              <p className="font-semibold text-foreground">{record.code}</p>
-                              <p className="font-mono text-[10px] text-muted-foreground">
-                                {(record as FormDefinitionRecord).checksum?.slice(0, 18) ?? "draft schema"}
-                              </p>
-                            </div>
+                            <code className="rounded bg-muted px-2 py-1 font-mono text-xs font-semibold text-foreground">
+                              {record.code}
+                            </code>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -579,27 +801,17 @@ export function BlueprintResourceDashboard({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              (record as FormDefinitionRecord).purpose === "registration"
-                                ? "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                                : "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                            }
-                          >
+                          <Badge variant="outline" className="text-xs capitalize">
                             {(record as FormDefinitionRecord).purpose}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {(record as FormDefinitionRecord).schema_json?.sections?.length || 2} sections
+                          <span className="text-xs text-muted-foreground">
+                            {(record as FormDefinitionRecord).schema_json?.sections?.length ?? 1} sections
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <Globe className="size-3 text-primary" />
-                            <span>EN, SW (100%)</span>
-                          </div>
+                          <span className="font-mono text-xs text-muted-foreground">EN, SW</span>
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={record.status} />
@@ -613,18 +825,13 @@ export function BlueprintResourceDashboard({
                     {resource === "lookup-sets" && (
                       <>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="grid size-7 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40">
-                              <Database className="size-3.5" />
-                            </span>
-                            <div>
-                              <p className="font-semibold text-foreground">
-                                {(record as LookupSetRecord).name}
-                              </p>
-                              <p className="font-mono text-[10px] text-muted-foreground">
-                                {record.code}
-                              </p>
-                            </div>
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {(record as LookupSetRecord).name}
+                            </p>
+                            <p className="font-mono text-[10px] text-muted-foreground">
+                              {record.code}
+                            </p>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -642,7 +849,7 @@ export function BlueprintResourceDashboard({
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {(record as LookupSetRecord).options_count ?? (record as LookupSetRecord).options?.length ?? 0} choices
+                            {(record as LookupSetRecord).options?.length ?? 0} choices
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -677,7 +884,7 @@ export function BlueprintResourceDashboard({
                           </code>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize text-xs">
+                          <Badge variant="outline" className="text-xs capitalize">
                             {(record as DynamicSpeciesRecord).default_subject_mode}
                           </Badge>
                         </TableCell>
@@ -703,36 +910,59 @@ export function BlueprintResourceDashboard({
                       </>
                     )}
 
-                    {/* Action Dropdown Menu */}
+                    {/* Action Dropdown Menu matching BreedDashboard */}
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Actions for ${displayName}`}
+                          >
                             <MoreVertical className="size-4" />
-                            <span className="sr-only">Open menu</span>
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => setSelectedRecord(record)} className="gap-2">
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem onClick={() => setSelectedRecord(record)}>
                             <Eye className="size-4 text-muted-foreground" />
                             View details
                           </DropdownMenuItem>
 
-                          {(resource === "animal-blueprints" || resource === "form-definitions" || resource === "event-definitions") && (
-                            <DropdownMenuItem onClick={() => setPreviewRecord(record)} className="gap-2 font-medium text-primary">
-                              <Sparkles className="size-4" />
-                              Preview flow
+                          {resource === "animal-blueprints" && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setIsCreateOpen(true);
+                              }}
+                              className="font-medium text-primary"
+                            >
+                              <Pencil className="size-4" />
+                              Studio editor
+                            </DropdownMenuItem>
+                          )}
+
+                          {(resource === "animal-blueprints" ||
+                            resource === "form-definitions" ||
+                            resource === "event-definitions") && (
+                            <DropdownMenuItem
+                              onClick={() => setPreviewRecord(record)}
+                              className="font-medium"
+                            >
+                              <Sparkles className="size-4 text-amber-500" />
+                              Preview schema
                             </DropdownMenuItem>
                           )}
 
                           {isDraft && (
-                            <DropdownMenuItem onClick={() => setPublishTarget(record)} className="gap-2 text-emerald-600">
+                            <DropdownMenuItem
+                              onClick={() => setPublishTarget(record)}
+                              className="text-emerald-600"
+                            >
                               <Send className="size-4" />
                               Publish definition
                             </DropdownMenuItem>
                           )}
 
-                          <DropdownMenuItem onClick={() => setCloneTarget(record)} className="gap-2">
+                          <DropdownMenuItem onClick={() => setCloneTarget(record)}>
                             <Copy className="size-4 text-muted-foreground" />
                             Clone new version
                           </DropdownMenuItem>
@@ -741,10 +971,10 @@ export function BlueprintResourceDashboard({
 
                           <DropdownMenuItem
                             onClick={() => setDeleteTarget(record)}
-                            className="gap-2 text-danger focus:text-danger"
+                            className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="size-4" />
-                            {isDraft ? "Delete draft" : "Retire version"}
+                            {isDraft ? "Delete draft" : "Retire definition"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -754,8 +984,11 @@ export function BlueprintResourceDashboard({
               })}
             </TableBody>
           </Table>
-        </Card>
-      )}
+        )}
+
+        {/* Standard Pagination Footer matching Reference Resource Dashboard */}
+        <RecordPagination from={from} to={to} total={filteredItems.length} page={currentPage} pageCount={totalPages} onPageChange={setPage} />
+      </TablePanel>
 
       {/* View Details Dialog */}
       {selectedRecord && (
@@ -766,7 +999,7 @@ export function BlueprintResourceDashboard({
           description={`Full configuration schema and metadata for ${selectedRecord.code || "record"}.`}
         >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <DetailItem label="Code">{selectedRecord.code}</DetailItem>
               <DetailItem label="Version">{getRecordVersion(selectedRecord)}</DetailItem>
               <DetailItem label="Status">{selectedRecord.status}</DetailItem>
@@ -783,7 +1016,7 @@ export function BlueprintResourceDashboard({
                   Immutable Snapshot
                 </Badge>
               </div>
-              <pre className="max-h-60 overflow-y-auto rounded-lg bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+              <pre className="max-h-60 overflow-auto rounded-lg bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
                 {JSON.stringify(
                   "schema_json" in selectedRecord
                     ? selectedRecord.schema_json
@@ -851,265 +1084,228 @@ export function BlueprintResourceDashboard({
         }}
       />
 
-      {/* Create Resource Modal */}
-      <FormDialog
-        open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
-        title={config.createLabel}
-        description={`Add a new ${config.singular.toLowerCase()} to the Blueprint Engine.`}
-        onSubmit={handleCreateSubmit}
-        submitLabel="Create definition"
-      >
-        <div className="space-y-4 py-2">
-          {resource === "animal-blueprints" && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Blueprint Code</label>
-                <Input
-                  value={createFormCode}
-                  onChange={(e) => setCreateFormCode(e.target.value)}
-                  placeholder="e.g. cattle.standard or swine.commercial"
-                  required
-                  className="h-9 text-xs"
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Lowercase snake_case or dotted format (e.g. cattle.dairy.v1)
-                </p>
-              </div>
+      {/* Bulk Delete / Retire Confirmation Dialog */}
+      <ConfirmationAlertDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={`Delete or Retire ${selected.size} ${selected.size === 1 ? config.singular : config.title.toLowerCase()}?`}
+        description="Drafts will be deleted permanently. Published definitions will be retired to preserve historical integrity."
+        confirmLabel="Confirm Bulk Action"
+        destructive={true}
+        onConfirm={handleBulkDelete}
+      />
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Dynamic Species</label>
-                <Select value={createSpeciesUuid} onValueChange={setCreateSpeciesUuid}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select species..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(initialOptions?.species ?? [
-                      { uuid: "sp-1", name: "Cattle (Ng'ombe)", code: "cattle" },
-                      { uuid: "sp-2", name: "Swine (Nguruwe)", code: "swine" },
-                      { uuid: "sp-3", name: "Goat (Mbuzi)", code: "goat" },
-                    ]).map((s) => (
-                      <SelectItem key={s.uuid} value={s.uuid}>
-                        {s.name} ({s.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* Create Resource Modal or Studio */}
+      {resource === "animal-blueprints" ? (
+        <BlueprintStudioDialog
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          options={initialOptions}
+          onSuccess={refreshItems}
+        />
+      ) : (
+        <FormDialog
+          open={isCreateOpen}
+          onOpenChange={setIsCreateOpen}
+          title={config.createLabel}
+          description={`Add a new ${config.singular.toLowerCase()} to the Blueprint Engine.`}
+          onSubmit={handleCreateSubmit}
+          submitLabel="Create definition"
+        >
+          <div className="form-row-grid py-2">
+            {resource === "event-definitions" && (
+              <>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-semibold">Event Name</label>
+                  <Input
+                    value={createFormName}
+                    onChange={(e) => setCreateFormName(e.target.value)}
+                    placeholder="e.g. Routine Weight Recording"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Registration Form</label>
-                <Select value={createRegFormUuid} onValueChange={setCreateRegFormUuid}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select published form schema..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(initialOptions?.registration_forms ?? [
-                      { uuid: "rf-1", code: "reg_cattle_standard_v1", version: 1, status: "published" },
-                      { uuid: "rf-2", code: "reg_swine_standard_v1", version: 1, status: "published" },
-                    ]).map((f) => (
-                      <SelectItem key={f.uuid} value={f.uuid}>
-                        {f.code} (v{f.version})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Event Code</label>
+                  <Input
+                    value={createFormCode}
+                    onChange={(e) => setCreateFormCode(e.target.value)}
+                    placeholder="e.g. record_weight"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-          {resource === "event-definitions" && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Event Name</label>
-                <Input
-                  value={createFormName}
-                  onChange={(e) => setCreateFormName(e.target.value)}
-                  placeholder="e.g. Routine Weight Recording"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-semibold">Target Blueprint</label>
+                  <Select value={createBlueprintUuid} onValueChange={setCreateBlueprintUuid}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select blueprint..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(initialOptions?.blueprints ?? [
+                        { uuid: "bp-1", code: "cattle.standard", version: 1, status: "published" },
+                        { uuid: "bp-2", code: "swine.standard", version: 1, status: "published" },
+                      ]).map((bp) => (
+                        <SelectItem key={bp.uuid} value={bp.uuid}>
+                          {bp.code} (v{bp.version})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Event Code</label>
-                <Input
-                  value={createFormCode}
-                  onChange={(e) => setCreateFormCode(e.target.value)}
-                  placeholder="e.g. record_weight"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Event Family</label>
+                  <Select value={createFamily} onValueChange={setCreateFamily}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="health">Health & Vet</SelectItem>
+                      <SelectItem value="reproduction">Breeding & Reproduction</SelectItem>
+                      <SelectItem value="production">Production & Yield</SelectItem>
+                      <SelectItem value="inventory">Inventory & Weight</SelectItem>
+                      <SelectItem value="feeding">Feeding & Nutrition</SelectItem>
+                      <SelectItem value="lifecycle">Lifecycle & Movement</SelectItem>
+                      <SelectItem value="other">General Husbandry</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Target Blueprint</label>
-                <Select value={createBlueprintUuid} onValueChange={setCreateBlueprintUuid}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select blueprint..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(initialOptions?.blueprints ?? [
-                      { uuid: "bp-1", code: "cattle.standard", version: 1, status: "published" },
-                      { uuid: "bp-2", code: "swine.standard", version: 1, status: "published" },
-                    ]).map((bp) => (
-                      <SelectItem key={bp.uuid} value={bp.uuid}>
-                        {bp.code} (v{bp.version})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-semibold">Event Form Schema</label>
+                  <Select value={createRegFormUuid} onValueChange={setCreateRegFormUuid}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select event form..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(initialOptions?.event_forms ?? [
+                        { uuid: "ef-1", code: "form_weight_v1", version: 1, status: "published" },
+                        { uuid: "ef-2", code: "form_feeding_v1", version: 1, status: "published" },
+                      ]).map((f) => (
+                        <SelectItem key={f.uuid} value={f.uuid}>
+                          {f.code} (v{f.version})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Event Family</label>
-                <Select value={createFamily} onValueChange={setCreateFamily}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="health">Health & Vet</SelectItem>
-                    <SelectItem value="reproduction">Breeding & Reproduction</SelectItem>
-                    <SelectItem value="production">Production & Yield</SelectItem>
-                    <SelectItem value="inventory">Inventory & Weight</SelectItem>
-                    <SelectItem value="feeding">Feeding & Nutrition</SelectItem>
-                    <SelectItem value="lifecycle">Lifecycle & Movement</SelectItem>
-                    <SelectItem value="other">General Husbandry</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {resource === "form-definitions" && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Form Code</label>
+                  <Input
+                    value={createFormCode}
+                    onChange={(e) => setCreateFormCode(e.target.value)}
+                    placeholder="e.g. form_vaccination_v1"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Event Form Schema</label>
-                <Select value={createRegFormUuid} onValueChange={setCreateRegFormUuid}>
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue placeholder="Select event form..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(initialOptions?.event_forms ?? [
-                      { uuid: "ef-1", code: "form_weight_v1", version: 1, status: "published" },
-                      { uuid: "ef-2", code: "form_feeding_v1", version: 1, status: "published" },
-                    ]).map((f) => (
-                      <SelectItem key={f.uuid} value={f.uuid}>
-                        {f.code} (v{f.version})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Form Purpose</label>
+                  <Select
+                    value={createPurpose}
+                    onValueChange={(val) => setCreatePurpose(val as "registration" | "event")}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="registration">Animal Registration (Intake)</SelectItem>
+                      <SelectItem value="event">Operational Event Record</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
-          {resource === "form-definitions" && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Form Code</label>
-                <Input
-                  value={createFormCode}
-                  onChange={(e) => setCreateFormCode(e.target.value)}
-                  placeholder="e.g. form_vaccination_v1"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
+            {resource === "lookup-sets" && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Lookup Name</label>
+                  <Input
+                    value={createFormName}
+                    onChange={(e) => setCreateFormName(e.target.value)}
+                    placeholder="e.g. Disposal Reasons"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Form Purpose</label>
-                <Select
-                  value={createPurpose}
-                  onValueChange={(val) => setCreatePurpose(val as "registration" | "event")}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="registration">Animal Registration (Intake)</SelectItem>
-                    <SelectItem value="event">Operational Event Record</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Lookup Code</label>
+                  <Input
+                    value={createFormCode}
+                    onChange={(e) => setCreateFormCode(e.target.value)}
+                    placeholder="e.g. disposal_reasons"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </>
+            )}
 
-          {resource === "lookup-sets" && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Lookup Name</label>
-                <Input
-                  value={createFormName}
-                  onChange={(e) => setCreateFormName(e.target.value)}
-                  placeholder="e.g. Disposal Reasons"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
+            {resource === "dynamic-species" && (
+              <>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-semibold">Species Name</label>
+                  <Input
+                    value={createFormName}
+                    onChange={(e) => setCreateFormName(e.target.value)}
+                    placeholder="e.g. Dairy Cattle (Ng'ombe wa Maziwa)"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Lookup Code</label>
-                <Input
-                  value={createFormCode}
-                  onChange={(e) => setCreateFormCode(e.target.value)}
-                  placeholder="e.g. disposal_reasons"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
-            </>
-          )}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Species Code</label>
+                  <Input
+                    value={createFormCode}
+                    onChange={(e) => setCreateFormCode(e.target.value)}
+                    placeholder="e.g. dairy_cattle"
+                    required
+                    className="h-9 text-xs"
+                  />
+                </div>
 
-          {resource === "dynamic-species" && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Species Name</label>
-                <Input
-                  value={createFormName}
-                  onChange={(e) => setCreateFormName(e.target.value)}
-                  placeholder="e.g. Dairy Cattle (Ng'ombe wa Maziwa)"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Default Subject Mode</label>
+                  <Select
+                    value={createSubjectMode}
+                    onValueChange={(val) => setCreateSubjectMode(val as "individual" | "group")}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual Animals</SelectItem>
+                      <SelectItem value="group">Group / Population (Flock, Pen)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Species Code</label>
-                <Input
-                  value={createFormCode}
-                  onChange={(e) => setCreateFormCode(e.target.value)}
-                  placeholder="e.g. dairy_cattle"
-                  required
-                  className="h-9 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Default Subject Mode</label>
-                <Select
-                  value={createSubjectMode}
-                  onValueChange={(val) => setCreateSubjectMode(val as "individual" | "group")}
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="individual">Individual Animals</SelectItem>
-                    <SelectItem value="group">Group / Population (Flock, Pen)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold">Group Display Label (optional)</label>
-                <Input
-                  value={createGroupLabel}
-                  onChange={(e) => setCreateGroupLabel(e.target.value)}
-                  placeholder="e.g. Herd, Flock, Pond, Pen"
-                  className="h-9 text-xs"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      </FormDialog>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold">Group Display Label (optional)</label>
+                  <Input
+                    value={createGroupLabel}
+                    onChange={(e) => setCreateGroupLabel(e.target.value)}
+                    placeholder="e.g. Herd, Flock, Pond, Pen"
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </FormDialog>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { withCreatedColumn } from "@/lib/resource-table";
 import type {
   AnimalOption,
   AnimalResource,
@@ -482,7 +483,61 @@ export const animalResourceConfigs: Record<
       },
     ],
   },
+  stages: {
+    resource: "stages",
+    title: "Livestock Stages",
+    singular: "stage",
+    description:
+      "Manage development stages, animal type assignments, and tag requirement policies.",
+    createLabel: "Add stage",
+    searchPlaceholder: "Search stages by name, livestock type...",
+    columns: [
+      { key: "name", label: "Stage Name", primary: true },
+      { key: "livestockTypeName", label: "Livestock Type", type: "badge" },
+      { key: "isTagApplicable", label: "Tagging Requirement", type: "badge" },
+      { key: "animalsCount", label: "Animals", type: "count" },
+      { key: "createdAt", label: "Created At", type: "date" },
+    ],
+    sections: [
+      {
+        title: "Stage Details",
+        description: "Specify the developmental stage name and target livestock type.",
+        fields: [
+          {
+            name: "name",
+            label: "Stage Name",
+            required: true,
+            full: true,
+            placeholder: "e.g. Calf, Heifer, Kid, Grower",
+          },
+          {
+            name: "livestockTypeId",
+            label: "Livestock Type",
+            type: "select",
+            required: true,
+            optionsKey: "livestockTypes",
+          },
+          {
+            name: "is_tag_applicable",
+            label: "Tagging Policy",
+            type: "select",
+            required: true,
+            options: [
+              { value: "1", label: "Tag Required (Mandatory on intake)" },
+              { value: "0", label: "Tag Deferred (Untagged young / neonate)" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 };
+
+
+// Shared resource-table convention: creation date is the final data column.
+Object.values(animalResourceConfigs).forEach((config) => {
+  config.columns = withCreatedColumn(config.columns, { key: "createdAt", label: "Created at", type: "date" });
+});
 
 export function getAnimalResourceConfig(
   resource: AnimalResource,

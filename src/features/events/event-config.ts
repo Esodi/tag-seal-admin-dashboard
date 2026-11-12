@@ -1,3 +1,4 @@
+import { withCreatedColumn } from "@/lib/resource-table";
 import {
   eventTypes,
   getEventType,
@@ -208,7 +209,7 @@ export function buildDynamicEventConfig(
         ? "Farms with identification events"
         : "Voided records",
     },
-    columns,
+    columns: withCreatedColumn(columns, { key: "createdAt", label: "Created at" }),
     formSections,
   };
 }

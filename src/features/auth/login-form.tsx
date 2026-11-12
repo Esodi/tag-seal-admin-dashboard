@@ -24,8 +24,12 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const method = "password";
   const [pending, setPending] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ login?: string; password?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    login?: string;
+    password?: string;
+  }>({});
 
   const expiredParam = searchParams.get("expired");
   const returnToParam = searchParams.get("returnTo");
@@ -34,13 +38,15 @@ export function LoginForm() {
   useEffect(() => {
     if (expiredParam === "idle") {
       toast.warning("Signed out due to inactivity", {
-        description: "For your account security, your session was closed. Sign in again to resume your work.",
+        description:
+          "For your account security, your session was closed. Sign in again to resume your work.",
         id: "idle-timeout-toast",
         duration: 6000,
       });
     } else if (expiredParam === "1") {
       toast.error("Session expired", {
-        description: "Your administrator session has ended. Please sign in again to continue.",
+        description:
+          "Your administrator session has ended. Please sign in again to continue.",
         id: "session-expired-toast",
         duration: 6000,
       });
@@ -63,11 +69,18 @@ export function LoginForm() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login, password, remember: values.get("remember") === "on" }),
+        body: JSON.stringify({
+          login,
+          password,
+          method,
+          remember: values.get("remember") === "on",
+        }),
       });
       const result = await response.json();
       if (!response.ok) {
-        toast.error(result.message || "Unable to sign in.", { id: "login-error" });
+        toast.error(result.message || "Unable to sign in.", {
+          id: "login-error",
+        });
         return;
       }
       window.sessionStorage.setItem("tagseal:login-success", "1");
@@ -75,14 +88,19 @@ export function LoginForm() {
 
       const savedReturnTo = consumeReturnTo();
       const rawTarget = savedReturnTo || returnToParam || "/dashboard";
-      const target = rawTarget.startsWith("/dashboard") ? rawTarget : "/dashboard";
+      const target = rawTarget.startsWith("/dashboard")
+        ? rawTarget
+        : "/dashboard";
 
       router.replace(target);
       router.refresh();
     } catch {
-      toast.error("The authentication service is unavailable. Please try again shortly.", {
-        id: "login-error",
-      });
+      toast.error(
+        "The authentication service is unavailable. Please try again shortly.",
+        {
+          id: "login-error",
+        },
+      );
     } finally {
       setPending(false);
     }
@@ -125,10 +143,17 @@ export function LoginForm() {
                 required
                 autoFocus
                 autoComplete="username"
+                inputMode="text"
                 aria-invalid={Boolean(fieldErrors.login)}
-                aria-describedby={fieldErrors.login ? "login-field-error" : undefined}
+                aria-describedby={
+                  fieldErrors.login ? "login-field-error" : undefined
+                }
                 onChange={() =>
-                  fieldErrors.login && setFieldErrors((current) => ({ ...current, login: undefined }))
+                  fieldErrors.login &&
+                  setFieldErrors((current) => ({
+                    ...current,
+                    login: undefined,
+                  }))
                 }
                 className="pl-10"
                 placeholder="Enter username or email"
@@ -148,15 +173,22 @@ export function LoginForm() {
                 name="password"
                 required
                 type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
+                autoComplete={"current-password"}
+                inputMode={"text"}
+                maxLength={undefined}
                 aria-invalid={Boolean(fieldErrors.password)}
-                aria-describedby={fieldErrors.password ? "password-field-error" : undefined}
+                aria-describedby={
+                  fieldErrors.password ? "password-field-error" : undefined
+                }
                 onChange={() =>
                   fieldErrors.password &&
-                  setFieldErrors((current) => ({ ...current, password: undefined }))
+                  setFieldErrors((current) => ({
+                    ...current,
+                    password: undefined,
+                  }))
                 }
                 className="pl-10 pr-11"
-                placeholder="Enter your password"
+                placeholder={"Enter your password"}
               />
               <button
                 type="button"
@@ -164,10 +196,16 @@ export function LoginForm() {
                 className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                {showPassword ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
               </button>
             </div>
-            <FieldError id="password-field-error">{fieldErrors.password}</FieldError>
+            <FieldError id="password-field-error">
+              {fieldErrors.password}
+            </FieldError>
           </Field>
 
           {/* Remember me & Forgot password link */}
