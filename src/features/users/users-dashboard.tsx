@@ -2,7 +2,10 @@
 
 import { RecordPagination } from "@/components/ui/record-pagination";
 import { DashboardStatCard } from "@/components/ui/dashboard";
-import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
+import { TablePanel, TableTabSection, TableToolbar } from "@/components/ui/table-layout";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDuplicatePhones } from "@/features/users/duplicate-phones-api";
+import { DuplicatePhonesPanel } from "@/features/users/duplicate-phones-panel";
 import {
   useCallback,
   useEffect,
@@ -139,6 +142,8 @@ export function UsersDashboard({
   const [viewing, setViewing] = useState<UserAccount | null>(null);
   const [deleting, setDeleting] = useState<UserAccount | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [tab, setTab] = useState<"all" | "duplicates">("all");
+  const duplicates = useDuplicatePhones();
   const firstRequest = useRef(true);
 
   const load = useCallback(async () => {
@@ -184,6 +189,17 @@ export function UsersDashboard({
 
   const refreshAfterMutation = async () => {
     await load();
+  };
+
+  const viewAccount = async (userId: number) => {
+    try {
+      const response = await authenticatedFetch(`/api/admin/users/${userId}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? "The account could not be loaded.");
+      setViewing(payload.data as UserAccount);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "The account could not be loaded.");
+    }
   };
 
   const toggleStatus = async (user: UserAccount) => {
@@ -343,6 +359,47 @@ export function UsersDashboard({
       </div>
 
       <TablePanel className="mt-4">
+        <TableTabSection>
+          <Tabs
+            value={tab}
+            onValueChange={(value) => {
+              setTab(value as typeof tab);
+              setPage(1);
+              setSelected(new Set());
+            }}
+          >
+            <TabsList variant="resource">
+              <TabsTrigger value="all">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="duplicates">
+                Duplicate phones
+                {(duplicates.groups?.length ?? 0) > 0 ? (
+                  <Badge
+                    variant="secondary"
+                    className="ml-1.5 h-4 px-1.5 text-[10px] tabular-nums"
+                  >
+                    {duplicates.groups?.length}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </TableTabSection>
+
+        {tab === "duplicates" ? (
+          <DuplicatePhonesPanel
+            groups={duplicates.groups}
+            error={duplicates.error}
+            onReload={() => void duplicates.load()}
+            onChanged={(groups) => {
+              duplicates.setGroups(groups);
+              void load();
+            }}
+            onView={(userId) => void viewAccount(userId)}
+          />
+        ) : (
+        <>
         <TableToolbar>
           <div className="relative min-w-0 flex-1 lg:max-w-sm">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -502,6 +559,8 @@ export function UsersDashboard({
         {result && !loadError ? (
           <RecordPagination from={result.meta.from} to={result.meta.to} total={result.meta.total} page={result.meta.currentPage} pageCount={result.meta.lastPage} onPageChange={setPage} disabled={loading} />
         ) : null}
+        </>
+        )}
       </TablePanel>
 
       {initialOptions ? (
