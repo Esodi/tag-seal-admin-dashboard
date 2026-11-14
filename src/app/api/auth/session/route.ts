@@ -1,4 +1,5 @@
 import { SESSION_SETTINGS } from "@/lib/constant_values";
+import { adminCookieOptions } from "@/lib/auth/cookie-options";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -74,13 +75,6 @@ export async function POST() {
   const newExpiresAt = Date.now() + extensionSeconds * 1000;
   const response = NextResponse.json({ success: true, expiresAt: newExpiresAt });
 
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-  };
-
-  response.cookies.set("tagseal_admin_expires_at", String(newExpiresAt), options);
+  response.cookies.set("tagseal_admin_expires_at", String(newExpiresAt), adminCookieOptions());
   return response;
 }

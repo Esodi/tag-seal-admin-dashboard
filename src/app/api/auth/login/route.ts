@@ -1,4 +1,5 @@
 import { SESSION_SETTINGS } from "@/lib/constant_values";
+import { adminCookieOptions } from "@/lib/auth/cookie-options";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -79,13 +80,7 @@ export async function POST(request: Request) {
       },
       expiresAt,
     });
-    const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax" as const,
-      path: "/",
-      ...(parsed.data.remember ? { maxAge: sessionSeconds } : {}),
-    };
+    const options = adminCookieOptions(parsed.data.remember ? sessionSeconds : undefined);
     response.cookies.set("tagseal_admin_token", token, options);
     response.cookies.set(
       "tagseal_admin_user",

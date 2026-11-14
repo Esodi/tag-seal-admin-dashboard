@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { adminCookieOptions } from "@/lib/auth/cookie-options";
 import { proxyAdminRequest } from "@/lib/auth/admin-proxy";
 
 export async function GET(request: Request) {
@@ -17,7 +18,7 @@ export async function PATCH(request: Request) {
     const store = await cookies();
     const expiresAt = Number(store.get("tagseal_admin_expires_at")?.value);
     response.cookies.set("tagseal_admin_user", Buffer.from(JSON.stringify(user)).toString("base64url"), {
-      httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/",
+      ...adminCookieOptions(),
       ...(Number.isFinite(expiresAt) && expiresAt > Date.now() ? { expires: new Date(expiresAt) } : {}),
     });
   }
