@@ -1,23 +1,31 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { Activity, ArrowRight, Baby, Beef, Briefcase, Building2, CalendarDays, Milk, RefreshCw, Syringe, UserCheck, Users } from "lucide-react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { Activity, ArrowRight, Baby, Beef, Briefcase, Building2, CalendarDays, ClipboardCheck, Milk, RefreshCw, ServerCog, Syringe, TriangleAlert, UserCheck, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DashboardPage, DashboardStatCard, DashboardStatsGrid } from "@/components/ui/dashboard";
+import { DashboardPage, DashboardStatCard } from "@/components/ui/dashboard";
 import { Button } from "@/components/ui/button";
 import { ChartTooltip } from "@/components/ui/chart-tooltip";
 import { toast } from "@/components/ui/toast";
 import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { AnalyticsCard, AnalyticsEmpty, AttentionList } from "@/features/analytics/components/analytics-ui";
 import type { DashboardOverview } from "@/lib/dashboard";
-import { ApprovalQueueChart, ModuleActivityChart, ModuleStats, RevenueChart } from "./module-overview";
+import { ApprovalQueueChart, ModuleActivityChart, ModuleStatCard, RevenueChart } from "./module-overview";
 
 const statIcons = { animals: Beef, farms: Building2, farmers: Users, users: UserCheck, milking: Milk, vaccinations: Syringe, births: Baby, jobs: Briefcase, career: Briefcase } as const;
 const speciesColors = ["#234e38", "#688c53", "#b38936", "#5b7c91", "#936d83", "#9aa89d"];
 const familyColors = { health: "#b4534b", production: "#3f7c54", reproduction: "#a8782a", movement: "#4f718a", growth: "#76628a", other: "#8a928c" };
 
 function number(value: number) { return value.toLocaleString("en-TZ"); }
+const noSubscription = () => () => {};
+/** Read in the browser only: the current time cannot be part of a prerendered page. */
+function formatToday() { return new Intl.DateTimeFormat("en-TZ", { weekday: "long", day: "numeric", month: "long" }).format(new Date()); }
+
+/** One-line description, so every key figure card has the same height. */
+function line(text?: string) { return text ? <span className="block truncate" title={text}>{text}</span> : undefined; }
+
 export function Overview({ data, error }: { data: DashboardOverview | null; error?: string }) {
   const router = useRouter();
   const { session } = useAuthSession();
@@ -25,6 +33,14 @@ export function Overview({ data, error }: { data: DashboardOverview | null; erro
   const species = useMemo(() => (data?.species ?? []).map((item, index) => ({ ...item, fill: speciesColors[index % speciesColors.length] })), [data]);
   const registryStats = data?.stats.filter((stat) => stat.category === "registry") ?? [];
   const eventStats = data?.stats.filter((stat) => stat.category !== "registry") ?? [];
+  const today = useSyncExternalStore(noSubscription, formatToday, () => "");
+  const systemStat = data?.stats.find((stat) => stat.category === "system");
+  const waiting = (data?.approvalQueue ?? []).filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
+  const approvalTotal = waiting.reduce((total, item) => total + item.value, 0);
+  const approvalHref = waiting[0]?.href ?? "/dashboard/vet/vets";
+  const severity = { danger: 0, warning: 1, info: 2, success: 3 } as const;
+  const issues = (data?.attention ?? []).filter((item) => item.severity !== "success" && item.key !== "module-approvals" && item.value > 0)
+    .sort((a, b) => severity[a.severity] - severity[b.severity]);
 
   useEffect(() => {
     if (window.sessionStorage.getItem("tagseal:login-success") === "1") {
@@ -37,17 +53,30 @@ export function Overview({ data, error }: { data: DashboardOverview | null; erro
 
   return <DashboardPage>
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div><p className="text-supporting font-medium text-success">{new Intl.DateTimeFormat("en-TZ", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Good day, {name}</h1><p className="mt-1 text-supporting text-muted-foreground">Live operational information from the Tag & Seal ledger.</p></div>
+      <div><p className="min-h-5 text-supporting font-medium text-success">{today}</p><h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Good day, {name}</h1><p className="mt-1 text-supporting text-muted-foreground">Live operational information from the Tag & Seal ledger.</p></div>
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><CalendarDays className="size-4" />Updated {new Intl.DateTimeFormat("en-TZ", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.generatedAt))}</p>
     </div>
 
-    <DashboardStatsGrid>{registryStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const note = stat.periodValue === undefined ? stat.note : `- ${number(stat.periodValue)} ${stat.periodLabel ?? "this month"}`; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={note} icon={Icon} />; })}</DashboardStatsGrid>
-
-    <DashboardStatsGrid>{eventStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const system = stat.category === "system"; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={stat.note} icon={system ? undefined : Icon} />; })}</DashboardStatsGrid>
+    <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {registryStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const note = stat.periodValue === undefined ? stat.note : `- ${number(stat.periodValue)} ${stat.periodLabel ?? "this month"}`; return <DashboardStatCard key={stat.key} className="h-full" label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={line(note)} icon={Icon} />; })}
+      {(data.modules ?? []).map((card) => <ModuleStatCard key={card.key} card={card} />)}
+      {eventStats.filter((stat) => stat.category !== "system").map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; return <DashboardStatCard key={stat.key} className="h-full" label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={line(stat.note)} icon={Icon} />; })}
+      <Link href={approvalHref} className="rounded-xl outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring">
+        <DashboardStatCard className="h-full" label="Waiting for approval" value={number(approvalTotal)} icon={ClipboardCheck}
+          note={line(approvalTotal ? waiting.map((item) => `${item.value} ${item.name.toLowerCase()}`).join(" · ") : "No registrations waiting")} />
+      </Link>
+      <Link href={issues[0]?.href ?? "/dashboard/analytics"} className="rounded-xl outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring">
+        <DashboardStatCard className="h-full" label="Issues to review" icon={TriangleAlert}
+          value={<span className={issues.length ? "text-warning" : undefined}>{number(issues.reduce((total, item) => total + item.value, 0))}</span>}
+          note={line(issues.length ? issues.map((item) => item.title).join(" · ") : "Nothing needs attention")} />
+      </Link>
+      {systemStat && <DashboardStatCard className="h-full " label={systemStat.label}
+        value={<span className={systemStat.direction === "down" ? "text-danger" : "text-success"}>{systemStat.displayValue}</span>}
+        note={line(systemStat.note)} icon={ServerCog} />}
+    </section>
 
     {data.modules && <>
       <div><h2 className="text-base font-semibold">Platform modules</h2><p className="mt-1 text-supporting text-muted-foreground">Marketplace, auctions, veterinary, dairy and careers over the last 30 days.</p></div>
-      <ModuleStats modules={data.modules} />
       <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
         <ModuleActivityChart trend={data.moduleTrend ?? []} />
         <ApprovalQueueChart queue={data.approvalQueue ?? []} />
