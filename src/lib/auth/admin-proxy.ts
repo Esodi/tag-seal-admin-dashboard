@@ -13,7 +13,9 @@ export async function proxyAdminRequest(request: Request, path: string) {
 
   const sourceUrl = new URL(request.url);
   const target = `${apiUrl}/api/v1/admin${path}${sourceUrl.search}`;
-  const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.text();
+  // Raw bytes keep multipart uploads intact; text decoding would corrupt files.
+  const raw = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
+  const body = raw && raw.byteLength > 0 ? raw : undefined;
 
   try {
     const upstream = await fetch(target, {
@@ -23,7 +25,7 @@ export async function proxyAdminRequest(request: Request, path: string) {
         Accept: "application/json",
         ...(body ? { "Content-Type": request.headers.get("content-type") ?? "application/json" } : {}),
       },
-      body: body || undefined,
+      body,
       cache: "no-store",
     });
 

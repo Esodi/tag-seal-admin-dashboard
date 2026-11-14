@@ -28,6 +28,7 @@ export type MarketplaceListingRecord = {
   share_health_records: boolean;
   approved_health_categories?: string[] | null;
   photos?: string[] | null;
+  photo_urls?: string[] | null;
   description?: string | null;
   expires_at?: string | null;
   published_at?: string | null;
@@ -71,6 +72,7 @@ export type PurchaseOrderRecord = {
   reserved_until?: string | null;
   payment_evidence_submitted_at?: string | null;
   payment_evidence_ref?: string | null;
+  payment_evidence_receipt?: string | null;
   cancellation_reason?: string | null;
   dispute_reason?: string | null;
   seller?: CommercePerson;

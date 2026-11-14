@@ -1,5 +1,6 @@
 "use client";
 
+import { todayInEat } from "@/lib/report-print";
 import { RecordPagination } from "@/components/ui/record-pagination";
 import { DashboardStatCard } from "@/components/ui/dashboard";
 import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
@@ -13,6 +14,8 @@ import {
 } from "react";
 import { Eye, FileText, LoaderCircle, MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { MediaPreviewDialog } from "@/components/media/media-preview";
+import type { MediaSource } from "@/components/media/media-source";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -57,6 +60,7 @@ import {
   at,
   careerConfig,
   dateText,
+  isCareerCreatable,
   label,
   PAGE_SIZE_OPTIONS,
   reviewStatuses,
@@ -65,6 +69,7 @@ import {
   type CareerColumn,
   type SortOrder,
 } from "./resource-config";
+import { CareerCreateForm } from "./career-create-forms";
 import type {
   CareerOptions,
   CareerRecord,
@@ -512,7 +517,7 @@ export function CareerResourceDashboard({
                   <TableHead key={col.key}>{col.label}</TableHead>
                 ))}
                 <TableHead className="w-24 text-right">
-                  Actions
+                  <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -663,7 +668,17 @@ export function CareerResourceDashboard({
       </CustomViewDetailsDialog>
 
       {/* Edit / Create Form Dialog */}
-      {editing && resource === "workers" ? (
+      {editing === "new" && isCareerCreatable(resource) ? (
+        <CareerCreateForm
+          resource={resource}
+          options={options}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            setEditing(null);
+            await refresh();
+          }}
+        />
+      ) : editing && resource === "workers" ? (
         <PendingWorkerForm
           options={options}
           onClose={() => setEditing(null)}
@@ -848,40 +863,11 @@ function AttachmentCard({
 }) {
   const fileName = text(document.fileName ?? document.title);
   const encoded = document.fileData ?? document.data;
-  const supported = /\.(pdf|png|jpe?g|webp|docx?)$/i.test(fileName);
-  const available =
-    typeof encoded === "string" && encoded.length > 0 && supported;
-  const [opening, setOpening] = useState(false);
-
-  function openFile() {
-    if (!available || typeof encoded !== "string") return;
-    setOpening(true);
-    try {
-      const bytes = Uint8Array.from(
-        atob(encoded.replace(/^data:[^;]+;base64,/, "")),
-        (char) => char.charCodeAt(0),
-      );
-      const extension = fileName.split(".").pop()?.toLowerCase();
-      const mime =
-        extension === "pdf"
-          ? "application/pdf"
-          : ["png", "jpg", "jpeg", "webp"].includes(extension ?? "")
-            ? `image/${extension === "jpg" ? "jpeg" : extension}`
-            : "application/octet-stream";
-      const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
-      const anchor = window.document.createElement("a");
-      anchor.href = url;
-      anchor.target = "_blank";
-      anchor.rel = "noopener";
-      if (mime === "application/octet-stream") anchor.download = fileName;
-      anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch {
-      toast.error("The stored document could not be opened.");
-    } finally {
-      setOpening(false);
-    }
-  }
+  const key = typeof document.fileKey === "string" && document.fileKey ? document.fileKey : null;
+  const base64 = typeof encoded === "string" && encoded.length > 0 ? encoded : null;
+  const available = Boolean(key || base64);
+  const [open, setOpen] = useState(false);
+  const source: MediaSource = { name: fileName, mediaKey: key, base64: key ? null : base64 };
 
   return (
     <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
@@ -898,11 +884,12 @@ function AttachmentCard({
       <Button
         variant="outline"
         size="sm"
-        disabled={!available || opening}
-        onClick={openFile}
+        disabled={!available}
+        onClick={() => setOpen(true)}
       >
-        Open
+        Preview
       </Button>
+      <MediaPreviewDialog source={source} open={open} onOpenChange={setOpen} />
     </div>
   );
 }
@@ -922,11 +909,12 @@ function ProfileDetails({
           (item.id && item.id === doc.id) ||
           (item.type === "cv" &&
             doc.type === "cv" &&
-            item.fileData &&
-            item.fileData === doc.fileData),
+            ((item.fileData && item.fileData === doc.fileData) ||
+              (item.fileKey && item.fileKey === doc.fileKey))),
       );
       if (existing) {
         if (!existing.fileData && doc.fileData) existing.fileData = doc.fileData;
+        if (!existing.fileKey && doc.fileKey) existing.fileKey = doc.fileKey;
         return;
       }
       documents.push(doc);
@@ -940,6 +928,7 @@ function ProfileDetails({
       title: "CV / Resume Document",
       fileName: profile.resumeFileName,
       fileData: profile.resumeData,
+      fileKey: profile.resumeKey,
     });
   }
 
@@ -955,6 +944,7 @@ function ProfileDetails({
         title: qualification.field || "Qualification Certificate",
         fileName: qualification.certificateFile,
         fileData: qualification.certificateData,
+        fileKey: qualification.certificateKey,
       });
     }
   }
@@ -1613,7 +1603,7 @@ function PendingWorkerForm({
   onSaved: () => Promise<void>;
 }) {
   const [requestUuid] = useState(() => crypto.randomUUID());
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInEat();
   const [values, setValues] = useState<Record<string, string>>({
     farmUuid: "",
     name: "",

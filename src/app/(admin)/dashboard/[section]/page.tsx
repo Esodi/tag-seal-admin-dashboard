@@ -17,6 +17,7 @@ import {
   FileText,
   Globe,
   Layers,
+  PawPrint,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -31,6 +32,7 @@ import { AnalyticsSkeleton } from "@/features/analytics/analytics-skeleton";
 export const instant = false;
 
 const featureIconMap: Record<string, React.ElementType> = {
+  "animal-types-events": PawPrint,
   "animal-blueprints": Sparkles,
   "event-definitions": Activity,
   "form-definitions": FileCode,
@@ -86,7 +88,7 @@ export default async function SectionPage({
         description={group.description}
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {group.features.map((feature) => {
+        {group.features.filter((feature) => !feature.hidden).map((feature) => {
           const FeatureIcon = featureIconMap[feature.slug] ?? FileStack;
           return (
             <Link

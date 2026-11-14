@@ -328,7 +328,7 @@ export function FeatureWorkspace({
                       <TableHead key={column}>{column}</TableHead>
                     ))}
                     <TableHead className="w-12">
-                      Actions
+                      <span className="sr-only">Actions</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>

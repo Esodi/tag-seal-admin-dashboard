@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Package, RefreshCw } from "lucide-react";
+import { MediaPreviewButton, MediaPreviewList } from "@/components/media/media-preview";
+import { mediaSourceFrom } from "@/components/media/media-source";
 import { Button } from "@/components/ui/button";
 import { CustomViewDetailsDialog, DetailItem, DetailSection } from "@/components/ui/custom-view-details-dialog";
 import { EmptyCard } from "@/components/ui/empty-card";
@@ -38,6 +40,9 @@ export function CommerceDetailsContent({ record }: { record: CommerceRecord }) {
         <DetailItem label="Seller">{personName(record.seller)}</DetailItem><DetailItem label="Email">{record.seller?.email || "—"}</DetailItem>
         <DetailItem label="Farm">{record.farm?.name || "—"}</DetailItem><DetailItem label="Location">{record.location_name || "—"}</DetailItem>
       </DetailSection>
+      <section className="space-y-3"><h3 className="text-[14px] font-semibold">Photos <span className="ml-1 text-muted-foreground">({record.photo_urls?.length ?? 0})</span></h3>
+        <MediaPreviewList variant="gallery" emptyText="The seller added no photos." items={(record.photo_urls ?? []).map((href, index) => ({ name: `Photo ${index + 1}.jpg`, href }))} />
+      </section>
       {record.description && <DetailSection title="Listing description"><DetailItem label="Description" className="sm:col-span-2">{record.description}</DetailItem></DetailSection>}
       <Items items={record.items} currency={record.currency} order={false} />
       <DetailSection title="Publication & record information">
@@ -53,6 +58,8 @@ export function CommerceDetailsContent({ record }: { record: CommerceRecord }) {
       <DetailSection title="Payment & settlement">
         <DetailItem label="Order amount">{commerceMoney(record.total_amount, record.currency)}</DetailItem><DetailItem label="Settlement method">{commerceLabel(record.settlement_method)}</DetailItem>
         <DetailItem label="Payment reference">{record.payment_evidence_ref || "—"}</DetailItem><DetailItem label="Settlement verified (EAT)">{commerceDateTime(record.settlement_verified_at)}</DetailItem>
+        <DetailItem label="Payment receipt">{(() => { const source = mediaSourceFrom(record.payment_evidence_receipt, "Payment receipt"); return source ? <MediaPreviewButton source={source} /> : "Not attached"; })()}</DetailItem>
+        <DetailItem label="Evidence submitted (EAT)">{commerceDateTime(record.payment_evidence_submitted_at)}</DetailItem>
       </DetailSection>
       <DetailSection title="Handover & ownership">
         <DetailItem label="Reserved until (EAT)">{commerceDateTime(record.reserved_until)}</DetailItem><DetailItem label="Handover verified (EAT)">{commerceDateTime(record.handover_verified_at)}</DetailItem>

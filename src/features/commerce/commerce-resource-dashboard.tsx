@@ -46,14 +46,14 @@ export function CommerceResourceDashboard({ resource, initialData, initialError 
 
   useEffect(() => { setSelected(new Set()); }, [data, query, status, sort, pageSize, records.page]);
 
-  function exportRows(selectedOnly = false) {
-    const exported = selectedOnly ? rows.filter((row) => selected.has(row.uuid)) : rows;
+  function exportSelected() {
+    const exported = rows.filter((row) => selected.has(row.uuid));
     if (!exported.length) return;
     const content = commerceCsv([["Reference", ...columns.map((column) => column.label)], ...exported.map((row) => [row.uuid, ...columns.map((column) => column.value(row))])]);
     const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8;" }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `commerce-${resource}-${selectedOnly ? "selected" : `page-${data?.current_page ?? 1}`}.csv`;
+    anchor.download = `commerce-${resource}-selected.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -81,7 +81,7 @@ export function CommerceResourceDashboard({ resource, initialData, initialError 
 
   return <div className="mx-auto max-w-7xl">
     <DashboardHeader parent="Livestock Commerce" parentHref="/dashboard/commerce" title={config.title} description={config.description}
-      actions={<div className="flex items-center gap-2"><Button variant="outline" disabled={loading || Boolean(error) || !rows.length} onClick={() => exportRows()}><Download />Export page</Button><Button onClick={() => setCreating(true)}><Plus />{commerceAddLabel[resource]}</Button></div>} />
+      actions={<Button onClick={() => setCreating(true)}><Plus />{commerceAddLabel[resource]}</Button>} />
 
     <div className="mt-6 grid gap-3 sm:grid-cols-3">
       {config.stats.map((stat) => <DashboardStatCard key={stat.key} label={stat.label} note={stat.note} loading={loading && !data}
@@ -96,7 +96,7 @@ export function CommerceResourceDashboard({ resource, initialData, initialError 
           {query && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" onClick={() => records.setQuery("")}><X className="size-3.5" /></button>}
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-          {selected.size > 0 && !loading && <Button variant="outline" size="sm" onClick={() => exportRows(true)}><Download />Export selected ({selected.size})</Button>}
+          {selected.size > 0 && !loading && <Button variant="outline" size="sm" onClick={exportSelected}><Download />Export selected ({selected.size})</Button>}
           <Select value={status} onValueChange={records.setStatus}><SelectTrigger aria-label="Filter by status" size="sm" className="h-8 w-auto min-w-36 font-normal"><SelectValue /></SelectTrigger><SelectContent align="end"><SelectItem value="all">All statuses</SelectItem>{config.statuses.map((value) => <SelectItem key={value} value={value}>{commerceLabel(value)}</SelectItem>)}</SelectContent></Select>
           <Select value={sort} onValueChange={records.setSort}><SelectTrigger aria-label="Sort records" size="sm" className="h-8 w-auto min-w-36 font-normal">{sort === "desc" ? <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" /> : <ArrowUpNarrowWide className="size-3.5 text-muted-foreground" />}<SelectValue /></SelectTrigger><SelectContent align="end"><SelectItem value="desc">Newest first</SelectItem><SelectItem value="asc">Oldest first</SelectItem></SelectContent></Select>
           <Select value={String(pageSize)} onValueChange={(value) => records.setPageSize(Number(value))}><SelectTrigger aria-label="Rows per page" size="sm" className="h-8 w-auto min-w-24 font-normal"><span className="text-muted-foreground">Show</span><SelectValue /></SelectTrigger><SelectContent align="end">{[10, 15, 30, 50, 100].map((size) => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}</SelectContent></Select>

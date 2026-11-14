@@ -4,6 +4,10 @@ import { FeatureWorkspace } from "@/features/admin/feature-workspace";
 import { ProfileDashboard } from "@/features/account/profile-dashboard";
 import { AnimalResourcePage } from "@/features/animals/animal-resource-page";
 import { animalResources, type AnimalResource } from "@/features/animals/types";
+import { AuctionResourcePage } from "@/features/auction/auction-resource-page";
+import { auctionResources, type AuctionResource } from "@/features/auction/types";
+import { VetResourcePage } from "@/features/vet/vet-resource-page";
+import { vetResources, type VetResource } from "@/features/vet/types";
 import { CareerResourcePage } from "@/features/career/career-resource-page";
 import { careerResources, type CareerResource } from "@/features/career/types";
 import { CommerceResourcePage } from "@/features/commerce/commerce-resource-page";
@@ -35,6 +39,8 @@ import {
   referenceResources,
   type ReferenceResource,
 } from "@/features/reference/types";
+import { AnimalTypesPage } from "@/features/animal-setup/animal-types-page";
+import { EventOptionsPage } from "@/features/event-options/event-options-page";
 import { BlueprintResourcePage } from "@/features/blueprints/blueprint-resource-page";
 import {
   blueprintResources,
@@ -155,6 +161,21 @@ export default async function FeaturePage({
       </Suspense>
     );
   if (
+    section === "auction" &&
+    auctionResources.includes(feature as AuctionResource)
+  )
+    return (
+      <Suspense fallback={<UsersDashboardSkeleton />}>
+        <AuctionResourcePage resource={feature as AuctionResource} />
+      </Suspense>
+    );
+  if (section === "vet" && vetResources.includes(feature as VetResource))
+    return (
+      <Suspense fallback={<UsersDashboardSkeleton />}>
+        <VetResourcePage resource={feature as VetResource} />
+      </Suspense>
+    );
+  if (
     section === "career" &&
     careerResources.includes(feature as CareerResource)
   )
@@ -174,6 +195,8 @@ export default async function FeaturePage({
         <DairyResourcePage resource={feature as DairyResource} />
       </Suspense>
     );
+  if (section === "blueprints" && feature === "animal-types-events") return <AnimalTypesPage />;
+  if (section === "blueprints" && feature === "lookup-sets") return <EventOptionsPage />;
   if (
     section === "blueprints" &&
     blueprintResources.includes(feature as BlueprintResource)

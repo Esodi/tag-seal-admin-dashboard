@@ -1,5 +1,6 @@
 "use client";
 
+import { SESSION_SETTINGS } from "@/lib/constant_values";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { markSessionExpired, markSessionRestored } from "@/lib/auth/session";
@@ -101,7 +102,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
   // Periodic background check & re-check on tab focus
   useEffect(() => {
-    const timer = window.setInterval(() => void refresh(), 60_000);
+    const timer = window.setInterval(() => void refresh(), SESSION_SETTINGS.sessionCheckIntervalSeconds * 1000);
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => {

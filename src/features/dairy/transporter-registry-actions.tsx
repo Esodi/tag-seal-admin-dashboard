@@ -4,7 +4,9 @@ import { useState, type FormEvent } from "react";
 import { Check, Eye, MoreVertical, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
-import { CustomViewDetailsDialog, DetailItem } from "@/components/ui/custom-view-details-dialog";
+import { MediaPreviewList } from "@/components/media/media-preview";
+import { mediaSourcesFrom } from "@/components/media/media-source";
+import { CustomViewDetailsDialog, DetailItem, DetailSection } from "@/components/ui/custom-view-details-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { FormDialog } from "@/components/ui/form-dialog";
@@ -101,7 +103,8 @@ export function TransporterRegistryActions({ row, onChanged }: { row: Transporte
       </DropdownMenuContent>
     </DropdownMenu>
 
-    <CustomViewDetailsDialog open={viewing} onOpenChange={setViewing} title={row.name} description="Transporter company" size="lg">
+    <CustomViewDetailsDialog open={viewing} onOpenChange={setViewing} title={row.name} description="Transporter company" size="lg"
+      actions={!archived && pending ? <Button onClick={() => { setViewing(false); setApproving(true); }}><Check />Approve</Button> : undefined}>
       <div className="grid gap-3 sm:grid-cols-2">
         <DetailItem label="Approval">{row.approval_status === "approved" ? <Badge>Approved</Badge> : <StatusBadge status={row.approval_status} />}</DetailItem>
         <DetailItem label="Union (MCU)">{row.mcu_name || "—"}</DetailItem>
@@ -115,6 +118,9 @@ export function TransporterRegistryActions({ row, onChanged }: { row: Transporte
         <DetailItem label="Fleet">{row.vehicles_count} vehicles · {row.drivers_count} drivers</DetailItem>
         {row.approval_remarks && <DetailItem label="Remarks">{row.approval_remarks}</DetailItem>}
       </div>
+      <DetailSection title="Documents" description="Business licence, carrier permit and insurance documents on file.">
+        <MediaPreviewList items={mediaSourcesFrom(row.document_urls)} emptyText="No documents on file." />
+      </DetailSection>
     </CustomViewDetailsDialog>
 
     {editing && <FormDialog open={editing} onOpenChange={setEditing} fieldsClassName="sm:grid-cols-2" title={`Edit ${row.name}`} onSubmit={saveEdit} submitLabel="Save changes">

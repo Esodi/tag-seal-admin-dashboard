@@ -12,7 +12,8 @@ import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangePicker } from "@/features/analytics/components/date-range-picker";
-import { formatNumber, humanize } from "@/features/analytics/analytics-format";
+import { formatNumber, formatReportValue, humanize, todayInEat } from "@/features/analytics/analytics-format";
+import { commerceCsv } from "@/features/commerce/commerce-config";
 import type { AnalyticsFarmOption, AnalyticsOption, AnalyticsPreset, AnalyticsReport, AnalyticsStat, AttentionItem } from "@/features/analytics/types";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,19 @@ function ScopeSelect({ label, value, options, allLabel, onChange }: { label: str
   </Field>;
 }
 
+/** Safari and Firefox cancel the download if the object URL is revoked in the same tick or the link is detached. */
+function downloadBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function ChartDownloadButton({ targetId, fileName }: { targetId: string; fileName: string }) {
   const download = () => {
     const chart = document.getElementById(targetId)?.querySelector("svg");
@@ -96,12 +110,7 @@ export function ChartDownloadButton({ targetId, fileName }: { targetId: string; 
     background.setAttribute("fill", window.getComputedStyle(document.documentElement).getPropertyValue("--card").trim() || "#ffffff");
     copy.insertBefore(background, copy.firstChild);
     const source = new XMLSerializer().serializeToString(copy);
-    const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml;charset=utf-8" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${fileName}.svg`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(new Blob([source], { type: "image/svg+xml;charset=utf-8" }), `${fileName}.svg`);
   };
 
   return <Button type="button" size="sm" variant="outline" onClick={download}><Download />Download SVG</Button>;
@@ -165,13 +174,8 @@ export function AnalyticsReportTable({ report, labels, query, page, pageSize, on
   const end = Math.min(safePage * pageSize, filtered.length);
 
   const exportCsv = () => {
-    const csv = [report.columns.map((column) => labels[column] ?? humanize(column)), ...filtered.map((row) => report.columns.map((column) => String(row[column] ?? "")))].map((line) => line.map(csvCell).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `tag-seal-${title.toLowerCase().replaceAll(" ", "-")}.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const csv = commerceCsv([report.columns.map((column) => labels[column] ?? humanize(column)), ...filtered.map((row) => report.columns.map((column) => formatReportValue(column, row[column], { forExport: true })))]);
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `tag-seal-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${todayInEat()}.csv`);
   };
 
   return <section className="card overflow-hidden">
@@ -182,16 +186,5 @@ export function AnalyticsReportTable({ report, labels, query, page, pageSize, on
 }
 
 function formatCell(key: string, value: string | number | null) {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "number" && (key.toLowerCase().includes("amount") || key.toLowerCase().includes("cost"))) return `TZS ${formatNumber(value)}`;
-  if (typeof value === "number") return formatNumber(value);
-  if (key.toLowerCase().includes("date") || key.toLowerCase().includes("activity") || key.toLowerCase().includes("occurred")) {
-    const date = new Date(value);
-    if (!Number.isNaN(date.getTime())) return reportDate(value, true);
-  }
-  return humanize(value);
-}
-
-function csvCell(value: string) {
-  return /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  return formatReportValue(key, value);
 }

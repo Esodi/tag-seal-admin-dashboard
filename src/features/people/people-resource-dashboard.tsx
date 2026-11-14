@@ -859,7 +859,7 @@ function PeopleTable({
               <TableHead key={column.key}>{column.label}</TableHead>
             ))}
             <TableHead className="w-12">
-              Actions
+              <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
         </TableHeader>

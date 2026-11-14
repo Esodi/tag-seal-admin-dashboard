@@ -5,6 +5,8 @@ import { Eye, MoreVertical, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
+import { MediaPreviewButton } from "@/components/media/media-preview";
+import { mediaSourceFrom } from "@/components/media/media-source";
 import { CustomViewDetailsDialog, DetailItem } from "@/components/ui/custom-view-details-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -56,6 +58,7 @@ export function TransporterFleetActions({ kind, row, onChanged }: { kind: FleetK
           <DetailItem label="Colour"><VehicleColor code={row.color} /></DetailItem>
           <DetailItem label="Capacity">{row.tanker_capacity_liters ? `${Number(row.tanker_capacity_liters).toLocaleString("en-TZ")} L` : "—"}</DetailItem>
           <DetailItem label="Tare weight">{row.tare_weight_kg ? `${Number(row.tare_weight_kg).toLocaleString("en-TZ")} kg` : "—"}</DetailItem>
+          <DetailItem label="Calibration certificate">{(() => { const source = mediaSourceFrom(row.calibration_certificate_url, "Calibration certificate"); return source ? <MediaPreviewButton source={source} /> : "—"; })()}</DetailItem>
           <DetailItem label="Driver">{[row.driver_first_name, row.driver_middle_name, row.driver_last_name].filter(Boolean).join(" ") || "Unassigned"}</DetailItem>
         </> : <>
           <DetailItem label="Phone">{row.phone || "—"}</DetailItem>

@@ -5,18 +5,18 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Activity, BarChart3, Beef, Bell, Briefcase, ChevronDown, CircleHelp,
-  FileStack, Landmark, LayoutDashboard, MapPinned, Menu, Warehouse, Search, Settings,
-  Settings2, ShieldCheck, ShoppingBag, Users, X,
+  Gavel, Landmark, LayoutDashboard, MapPinned, Menu, PawPrint, Warehouse, Search, Settings,
+  Settings2, ShieldCheck, ShoppingBag, Stethoscope, Users, X,
 } from "lucide-react";
 import { featureGroups } from "@/lib/features";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { Logo } from "@/components/ui/logo";
 
-const groupIcons = { people: Users, events: Activity, animals: Beef, career: Briefcase, commerce: ShoppingBag, dairy: Warehouse, blueprints: FileStack, finance: Landmark, reference: Settings2, locations: MapPinned, security: ShieldCheck } as const;
-const managementSlugs = ["people", "events", "animals", "career", "commerce", "dairy", "blueprints", "finance", "reference", "locations", "security"];
+const groupIcons = { people: Users, events: Activity, animals: Beef, career: Briefcase, commerce: ShoppingBag, auction: Gavel, vet: Stethoscope, dairy: Warehouse, blueprints: PawPrint, finance: Landmark, reference: Settings2, locations: MapPinned, security: ShieldCheck } as const;
+const managementSlugs = ["people", "events", "animals", "career", "commerce", "auction", "vet", "dairy", "blueprints", "finance", "reference", "locations", "security"];
 const groupLabels: Record<string, string> = {
   people: "People", events: "Events", animals: "Animals", career: "Careers",
-  commerce: "Commerce", dairy: "Cooperatives", blueprints: "Blueprints",
+  commerce: "Commerce", auction: "Auctions", vet: "Veterinary", dairy: "Cooperatives", blueprints: "Animal Setup",
   finance: "Finance", reference: "Reference Data", locations: "Locations",
 };
 const featureLabels: Record<string, string> = {
@@ -58,7 +58,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
 
   const accordion = (slug: string) => {
     const group = featureGroups.find((item) => item.slug === slug)!;
-    const visibleFeatures = group.features;
+    const visibleFeatures = group.features.filter((item) => !item.hidden);
     const GroupIcon = groupIcons[group.slug as keyof typeof groupIcons];
     const open = Boolean(openGroups[group.slug]);
     const groupActive = activeGroup === group.slug;

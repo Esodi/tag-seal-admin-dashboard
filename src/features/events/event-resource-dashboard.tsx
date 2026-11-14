@@ -1,5 +1,6 @@
 "use client";
 
+import { todayInEat } from "@/lib/report-print";
 import { RecordPagination } from "@/components/ui/record-pagination";
 import { DashboardStatCard } from "@/components/ui/dashboard";
 import { TableTabSection, TablePanel, TableToolbar } from "@/components/ui/table-layout";
@@ -283,7 +284,7 @@ export function EventResourceDashboard({
     void ensureOptions();
     setEditing(null);
     setFieldErrors({});
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInEat();
     setFormValues({
       occurredAt: today,
       eventDate: today,

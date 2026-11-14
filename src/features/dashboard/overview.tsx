@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { AnalyticsCard, AnalyticsEmpty, AttentionList } from "@/features/analytics/components/analytics-ui";
 import type { DashboardOverview } from "@/lib/dashboard";
+import { ApprovalQueueChart, ModuleActivityChart, ModuleStats, RevenueChart } from "./module-overview";
 
 const statIcons = { animals: Beef, farms: Building2, farmers: Users, users: UserCheck, milking: Milk, vaccinations: Syringe, births: Baby, jobs: Briefcase, career: Briefcase } as const;
 const speciesColors = ["#234e38", "#688c53", "#b38936", "#5b7c91", "#936d83", "#9aa89d"];
@@ -44,11 +45,21 @@ export function Overview({ data, error }: { data: DashboardOverview | null; erro
 
     <DashboardStatsGrid>{eventStats.map((stat) => { const Icon = statIcons[stat.key as keyof typeof statIcons] ?? Activity; const system = stat.category === "system"; return <DashboardStatCard key={stat.key} label={stat.label} value={stat.displayValue ?? `${number(stat.value)}${stat.unit ? ` ${stat.unit}` : ""}`} note={stat.note} icon={system ? undefined : Icon} />; })}</DashboardStatsGrid>
 
+    {data.modules && <>
+      <div><h2 className="text-base font-semibold">Platform modules</h2><p className="mt-1 text-supporting text-muted-foreground">Marketplace, auctions, veterinary, dairy and careers over the last 30 days.</p></div>
+      <ModuleStats modules={data.modules} />
+      <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
+        <ModuleActivityChart trend={data.moduleTrend ?? []} />
+        <ApprovalQueueChart queue={data.approvalQueue ?? []} />
+      </div>
+      <RevenueChart trend={data.moduleTrend ?? []} />
+    </>}
+
     <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
       <AnalyticsCard title="Operational activity" description="Last 30 days of ledger activity grouped by event family." action={<Button variant="ghost" size="sm" onClick={() => router.push("/dashboard/analytics")}>Explore analytics <ArrowRight /></Button>}>
         {data.activityTrend.some((point) => point.total > 0) ? (
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <BarChart data={data.activityTrend} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} minTickGap={18} />
@@ -71,7 +82,7 @@ export function Overview({ data, error }: { data: DashboardOverview | null; erro
       <AnalyticsCard title="Livestock composition" description="Current registered head count by species.">
         {species.length ? (
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <BarChart data={species.slice(0, 8)} layout="vertical" margin={{ top: 4, right: 16, left: 18, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} />
@@ -94,7 +105,7 @@ export function Overview({ data, error }: { data: DashboardOverview | null; erro
       <AnalyticsCard title="Production pulse" description="Last 30 days of recorded production quantity.">
         {data.productionTrend.some((point) => point.quantity > 0) ? (
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
               <AreaChart data={data.productionTrend} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="dashboard-production" x1="0" y1="0" x2="0" y2="1">

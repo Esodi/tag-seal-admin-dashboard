@@ -3,6 +3,7 @@ export type OrganisationType = Exclude<RegistryType, "centres">;
 
 export type RegistryRow = {
   created_at?: string | null;
+  document_urls?: string | Record<string, string> | string[] | null;
   uuid: string;
   name: string;
   mcu_code?: string;

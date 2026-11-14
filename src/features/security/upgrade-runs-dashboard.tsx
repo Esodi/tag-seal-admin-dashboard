@@ -241,7 +241,7 @@ export function UpgradeRunsDashboard() {
                 <TableHead>Started At</TableHead>
                 <TableHead>Completed At</TableHead>
                 <TableHead className="w-24 text-right">
-                  Actions
+                  <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>

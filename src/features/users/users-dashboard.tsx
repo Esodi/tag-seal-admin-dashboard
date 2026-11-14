@@ -700,7 +700,7 @@ function UsersTable({
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12">
-              Actions
+              <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
         </TableHeader>

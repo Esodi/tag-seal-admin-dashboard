@@ -1,6 +1,6 @@
 "use client";
 
-import { printReport, reportDate } from "@/lib/report-print";
+import { printReport, reportDate, todayInEat } from "@/lib/report-print";
 
 import { BulkRecordAction } from "@/components/ui/bulk-record-action";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -231,7 +231,7 @@ export function FinanceResourceDashboard({
     void ensureOptions();
     setEditing(null);
     setFieldErrors({});
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInEat();
     setFormValues({
       quantity: 1,
       status: resource === "income" ? "received" : "pending",

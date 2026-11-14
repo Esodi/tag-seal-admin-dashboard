@@ -15,6 +15,11 @@ export function reportDate(value?: string | null, time = false) {
   const day = `${part("day").padStart(2, "0")} ${months[Number(part("month")) - 1]} ${part("year")}`;
   return day + (showTime ? `, ${part("hour").padStart(2, "0")}:${part("minute").padStart(2, "0")} EAT` : "");
 }
+/** Today's calendar date in East Africa Time as `YYYY-MM-DD`, independent of the browser's time zone. */
+export function todayInEat(offsetDays = 0) {
+  const date = new Date(Date.now() + offsetDays * 86_400_000);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Dar_es_Salaam", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
 export const escapeReportText = (value: unknown) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 export type PrintSection = { title: string; columns: string[]; rows: unknown[][] };
 export function reportHtml(title: string, description: string, sections: PrintSection[]) {

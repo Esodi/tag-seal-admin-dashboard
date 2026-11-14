@@ -16,23 +16,21 @@ import {
 import { toast } from "@/components/ui/toast";
 import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { markSessionExpired } from "@/lib/auth/session";
-import {
-  INACTIVITY_TIMEOUT_MINUTES,
-  INACTIVITY_WARNING_COUNTDOWN_SECONDS,
-} from "@/lib/constant_values";
+import { SESSION_SETTINGS } from "@/lib/constant_values";
 
-const IDLE_TIME_LIMIT_MS = INACTIVITY_TIMEOUT_MINUTES * 60 * 1000;
+const { idleTimeoutEnabled, idleTimeoutMinutes, showCountdown, countdownSeconds, autoLogout } = SESSION_SETTINGS;
+const IDLE_TIME_LIMIT_MS = idleTimeoutMinutes * 60 * 1000;
 
 export function IdleTimeoutDialog() {
   const [open, setOpen] = useState(false);
-  const [secondsRemaining, setSecondsRemaining] = useState(INACTIVITY_WARNING_COUNTDOWN_SECONDS);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(countdownSeconds);
   const [refreshing, setRefreshing] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
   const { status, refreshSessionKeepAlive, signOut } = useAuthSession();
 
-  const isProtected = Boolean(pathname?.startsWith("/dashboard"));
+  const isProtected = idleTimeoutEnabled && Boolean(pathname?.startsWith("/dashboard"));
   const lastActivityRef = useRef<number>(0);
   const openRef = useRef(open);
   openRef.current = open;
@@ -83,31 +81,35 @@ export function IdleTimeoutDialog() {
       return;
     }
 
+    let remaining: number = countdownSeconds;
+    const expire = () => {
+      clearInterval(interval);
+      setOpen(false);
+      markSessionExpired();
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      void signOut().then(() => {
+        router.push(`/login?expired=idle&returnTo=${encodeURIComponent(returnTo)}`);
+      });
+    };
+
     const interval = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - lastActivityRef.current;
+      const elapsed = Date.now() - lastActivityRef.current;
 
       if (!openRef.current) {
-        if (elapsed >= IDLE_TIME_LIMIT_MS) {
-          setSecondsRemaining(INACTIVITY_WARNING_COUNTDOWN_SECONDS);
-          setOpen(true);
+        if (elapsed < IDLE_TIME_LIMIT_MS) return;
+        if (!showCountdown && autoLogout) {
+          expire();
+          return;
         }
-      } else {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            // Time expired
-            clearInterval(interval);
-            setOpen(false);
-            markSessionExpired();
-            const returnTo = `${window.location.pathname}${window.location.search}`;
-            void signOut().then(() => {
-              router.push(`/login?expired=idle&returnTo=${encodeURIComponent(returnTo)}`);
-            });
-            return 0;
-          }
-          return prev - 1;
-        });
+        remaining = countdownSeconds;
+        setSecondsRemaining(remaining);
+        setOpen(true);
+        return;
       }
+      if (!showCountdown || remaining <= 0) return;
+      remaining -= 1;
+      setSecondsRemaining(remaining);
+      if (remaining === 0 && autoLogout) expire();
     }, 1000);
 
     return () => clearInterval(interval);
@@ -148,11 +150,16 @@ export function IdleTimeoutDialog() {
             Are you still working?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            You have been inactive for {INACTIVITY_TIMEOUT_MINUTES} {INACTIVITY_TIMEOUT_MINUTES === 1 ? "minute" : "minutes"}. For security reasons, your dashboard session will close automatically.
+            You have been inactive for {idleTimeoutMinutes} {idleTimeoutMinutes === 1 ? "minute" : "minutes"}.{" "}
+            {autoLogout ? "For security reasons, your dashboard session will close automatically." : "Confirm you are still here to keep working."}
           </AlertDialogDescription>
-          <p className="text-supporting tabular-nums text-muted-foreground" aria-live="polite">
-            Session closes in {secondsRemaining} sec.
-          </p>
+          {showCountdown && (
+            <p className="text-supporting tabular-nums text-muted-foreground" aria-live="polite">
+              {secondsRemaining > 0
+                ? `${autoLogout ? "Session closes" : "Reminder closes"} in ${secondsRemaining} sec.`
+                : "Your session is still active. Choose an option to continue."}
+            </p>
+          )}
         </AlertDialogHeader>
 
         <AlertDialogFooter className="mt-2 flex-col-reverse gap-2 sm:flex-row">

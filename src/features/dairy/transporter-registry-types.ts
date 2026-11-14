@@ -24,6 +24,7 @@ export type TransporterRow = {
   vehicles_count: number;
   drivers_count: number;
   created_at: string | null;
+  document_urls?: string | Record<string, string> | string[] | null;
 };
 
 export type PageMeta = {
@@ -53,6 +54,7 @@ export type TransportVehicleRow = {
   color: string | null;
   tanker_capacity_liters: number | string | null;
   tare_weight_kg: number | string | null;
+  calibration_certificate_url?: string | null;
   is_active: boolean | number;
   company_name: string;
   driver_first_name: string | null;

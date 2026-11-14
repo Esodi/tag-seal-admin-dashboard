@@ -1,6 +1,7 @@
 export type AnalyticsPreset = "today" | "7" | "30" | "month" | "custom";
 export type AnalyticsView = "analytics" | "reports";
-export type AnalyticsTab = "overview" | "livestock" | "events" | "geography" | "production";
+export type ModuleKey = "commerce" | "auction" | "vet" | "dairy" | "career";
+export type AnalyticsTab = "overview" | "livestock" | "events" | "geography" | "production" | ModuleKey;
 export type AnalyticsReportKey = string;
 
 export type AnalyticsOption = { value: string; label: string; parent?: string; description?: string | null };
@@ -53,6 +54,24 @@ export type AttentionItem = {
 export type TopFarm = { farmUuid?: string; farmName: string; country: string; region: string; animals: number; events: number; lastActivity?: string | null };
 export type AnalyticsReport = { columns: string[]; rows: Array<Record<string, string | number | null>> };
 
+export type ModuleKpi = { key: string; label: string; value: number; unit: string | null };
+export type HypothesisGroup = { name: string; value: number; sample: number };
+export type Hypothesis = {
+  key: string;
+  question: string;
+  hypothesis: string;
+  metric: string;
+  result: "supported" | "not_supported" | "insufficient";
+  evidence: string;
+  groups: HypothesisGroup[];
+  unit: string;
+};
+export type ModuleAnalysis = {
+  kpis: ModuleKpi[];
+  charts: Record<string, Array<{ name: string } & Record<string, string | number>>>;
+  hypotheses: Hypothesis[];
+};
+
 export type AnalyticsResponse = {
   range: { from: string; to: string; previousFrom: string; previousTo: string; days: number };
   filters: { countries: AnalyticsOption[]; regions: AnalyticsOption[]; farms: AnalyticsFarmOption[] };
@@ -70,6 +89,7 @@ export type AnalyticsResponse = {
   productionRecords: AnalyticsReport;
   healthSummary: AnalyticsReport;
   reports: Record<AnalyticsReportKey, AnalyticsReport>;
+  modules?: Partial<Record<ModuleKey, ModuleAnalysis>>;
   generatedAt: string;
 };
 

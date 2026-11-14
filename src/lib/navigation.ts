@@ -51,7 +51,7 @@ export const navigation: NavGroup[] = [
     label: "Configuration",
     items: [
       {
-        label: "Blueprint studio",
+        label: "Animal setup",
         href: "/dashboard/blueprints",
         icon: FileStack,
       },
@@ -118,9 +118,9 @@ export const sectionMeta: Record<
       "Farm recruitment portal, agricultural job listings, candidate profiles and applications.",
   },
   blueprints: {
-    title: "Blueprint studio",
+    title: "Animal setup",
     description:
-      "Design animal types, dynamic forms, events and publishing workflows.",
+      "The events farmers record for each animal type.",
   },
   reference: {
     title: "Reference data",

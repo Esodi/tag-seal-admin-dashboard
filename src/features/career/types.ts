@@ -51,6 +51,12 @@ export type CareerOptions = {
   groups: string[];
   features: string[];
   applicationStatuses: string[];
+  employers?: Array<{ value: string; label: string }>;
+  jobTypes?: Array<{ value: number | string; label: string }>;
+  openJobs?: Array<{ value: string; label: string }>;
+  seekers?: Array<{ value: string; label: string }>;
+  openApplications?: Array<{ value: string; label: string; ownerId: number }>;
+  membershipFeatures?: string[];
 };
 export type CareerOverview = {
   stats: Array<{ label: string; value: number; href: CareerResource }>;

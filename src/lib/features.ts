@@ -9,6 +9,8 @@ export type FeatureDefinition = {
   columns: string[];
   status?: FeatureStatus;
   primaryAction?: string;
+  /** Still reachable by URL, but left out of the sidebar and section overview. */
+  hidden?: boolean;
 };
 
 export type FeatureGroup = {
@@ -23,7 +25,7 @@ const feature = (
   label: string,
   description: string,
   columns: string[],
-  options: Pick<FeatureDefinition, "status" | "primaryAction"> = {},
+  options: Pick<FeatureDefinition, "status" | "primaryAction" | "hidden"> = {},
 ): FeatureDefinition => ({
   slug,
   label,
@@ -159,7 +161,7 @@ export const featureGroups: FeatureGroup[] = [
         "Species",
         "Legacy species catalogue and type mappings.",
         ["Species", "Animal type", "Breeds", "Animals", "Status"],
-        { primaryAction: "Add species" },
+        { primaryAction: "Add species", hidden: true },
       ),
       feature(
         "breeds",
@@ -279,43 +281,51 @@ export const featureGroups: FeatureGroup[] = [
   },
   {
     slug: "blueprints",
-    label: "Blueprint Engine",
-    description: "Dynamic platform configuration, forms and publishing.",
+    label: "Animal Setup",
+    description: "The events farmers record for each animal type, and the options they choose from.",
     features: [
+      feature(
+        "animal-types-events",
+        "Animal Type & Event Blueprints",
+        "Choose the events farmers record for each animal type and the details each event asks for.",
+        ["Animal type", "Events", "Version", "Status"],
+        { status: "new", primaryAction: "Set up animal type" },
+      ),
+      feature(
+        "lookup-sets",
+        "Event Field Options",
+        "Approved answers for choice fields, such as diseases, medicines, birth types and animal stages.",
+        ["Option list", "Code", "Options", "Depends on", "Status"],
+        { primaryAction: "Create option list" },
+      ),
+      // Internal building blocks managed through Animal Type & Event Blueprints.
       feature(
         "animal-blueprints",
         "Animal Blueprints",
         "Versioned animal workflows, identity and capability settings.",
         ["Blueprint", "Species", "Version", "Events", "Status"],
-        { status: "new", primaryAction: "Create blueprint" },
+        { hidden: true },
       ),
       feature(
         "event-definitions",
         "Event Definitions",
         "Map event forms to behaviors, eligibility and subject modes.",
         ["Event", "Behavior", "Form", "Version", "Status"],
-        { status: "new", primaryAction: "Create event" },
+        { hidden: true },
       ),
       feature(
         "form-definitions",
         "Form Definitions",
         "Reusable registration and event form schemas.",
         ["Form", "Purpose", "Version", "Fields", "Status"],
-        { status: "new", primaryAction: "Build form" },
-      ),
-      feature(
-        "lookup-sets",
-        "Lookup Sets",
-        "Reusable flat and hierarchical option catalogues.",
-        ["Lookup", "Code", "Options", "Hierarchy", "Status"],
-        { status: "new", primaryAction: "Create lookup" },
+        { hidden: true },
       ),
       feature(
         "dynamic-species",
         "Dynamic Species",
         "Species enabled for blueprint-driven registration.",
         ["Species", "Code", "Blueprints", "Published version", "Status"],
-        { status: "new", primaryAction: "Add species" },
+        { hidden: true },
       ),
     ],
   },
@@ -380,6 +390,57 @@ export const featureGroups: FeatureGroup[] = [
         "Negotiated orders, settlement and physical tag handover.",
         ["Order Code", "Seller", "Buyer", "Amount", "Status"],
         { status: "new", primaryAction: "View orders" },
+      ),
+    ],
+  },
+  {
+    slug: "auction",
+    label: "Livestock Auctions",
+    description:
+      "Auction centres and their people, officer approvals, and scheduled, live and past auctions.",
+    features: [
+      feature(
+        "centres",
+        "Auction Centres",
+        "Livestock markets where auctions are held, and their members.",
+        ["Centre", "Location", "Members", "Auctions", "Status"],
+        { status: "new", primaryAction: "Add centre" },
+      ),
+      feature(
+        "officers",
+        "Auction Officers",
+        "Auctioneer applications to approve, and officers added here.",
+        ["Officer", "Phone", "Requested Centre", "Approval", "Status"],
+        { status: "new", primaryAction: "Add officer" },
+      ),
+      feature(
+        "sessions",
+        "Auction Sessions",
+        "Scheduled, live and past auctions with their lots.",
+        ["Auction", "Centre", "Officer", "Scheduled", "Status"],
+        { status: "new", primaryAction: "View auctions" },
+      ),
+    ],
+  },
+  {
+    slug: "vet",
+    label: "Veterinary Services",
+    description:
+      "Veterinarian approvals and the service requests farmers send them.",
+    features: [
+      feature(
+        "vets",
+        "Veterinarians",
+        "Vet applications to approve, and vets added here.",
+        ["Vet", "Phone", "Licence", "Approval", "Status"],
+        { status: "new", primaryAction: "Add vet" },
+      ),
+      feature(
+        "requests",
+        "Service Requests",
+        "Visits farmers request from vets, and their progress.",
+        ["Reference", "Farmer", "Vet", "Service", "Status"],
+        { status: "new", primaryAction: "View requests" },
       ),
     ],
   },

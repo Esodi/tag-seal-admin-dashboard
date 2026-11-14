@@ -1,3 +1,4 @@
+import { SESSION_SETTINGS } from "@/lib/constant_values";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -63,8 +64,8 @@ export async function POST(request: Request) {
     }
 
     const sessionSeconds = parsed.data.remember
-      ? 60 * 60 * 24 * 30
-      : 60 * 60 * 20;
+      ? SESSION_SETTINGS.rememberMeDays * 24 * 60 * 60
+      : SESSION_SETTINGS.signInHours * 60 * 60;
     const expiresAt = Date.now() + sessionSeconds * 1000;
     const response = NextResponse.json({
       user: {

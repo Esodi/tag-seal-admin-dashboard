@@ -47,6 +47,12 @@ export type ResourceConfig = {
   deletable: boolean;
 };
 
+/** Registries whose Create button opens the portal create form. */
+export const careerCreatable = ["jobs", "applications", "job-seekers", "employers", "memberships", "onboardings"] as const;
+export type CareerCreatable = (typeof careerCreatable)[number];
+export const isCareerCreatable = (resource: CareerResource): resource is CareerCreatable =>
+  (careerCreatable as readonly string[]).includes(resource);
+
 const statusCol: CareerColumn = {
   key: "status",
   label: "Status",
@@ -85,6 +91,7 @@ const catalogStatusOptions: StatusOption[] = [
 
 export const careerConfig: Record<CareerResource, ResourceConfig> = {
   jobs: {
+    create: "Post vacancy",
     title: "Job Postings",
     singular: "Vacancy",
     description:
@@ -118,6 +125,7 @@ export const careerConfig: Record<CareerResource, ResourceConfig> = {
     ],
   },
   applications: {
+    create: "Submit application",
     title: "Job Applications",
     singular: "Application",
     description:
@@ -170,6 +178,7 @@ export const careerConfig: Record<CareerResource, ResourceConfig> = {
     ],
   },
   "job-seekers": {
+    create: "Register job seeker",
     title: "Job Seekers",
     singular: "Job seeker",
     description:
@@ -195,6 +204,7 @@ export const careerConfig: Record<CareerResource, ResourceConfig> = {
     ],
   },
   employers: {
+    create: "Register employer",
     title: "Farm Employers",
     singular: "Employer",
     description:
@@ -218,6 +228,7 @@ export const careerConfig: Record<CareerResource, ResourceConfig> = {
     ],
   },
   memberships: {
+    create: "Add membership",
     title: "Feature Memberships",
     singular: "Membership",
     description:
@@ -246,6 +257,7 @@ export const careerConfig: Record<CareerResource, ResourceConfig> = {
     ],
   },
   onboardings: {
+    create: "Send joining details",
     title: "Joining & Onboarding",
     singular: "Joining record",
     description:

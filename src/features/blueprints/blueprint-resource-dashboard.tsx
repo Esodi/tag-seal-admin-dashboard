@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { reportDate } from "@/lib/report-print";
 import { RecordPagination } from "@/components/ui/record-pagination";
 import { DashboardStatCard } from "@/components/ui/dashboard";
 import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
@@ -36,7 +38,6 @@ import {
 import { toast } from "@/components/ui/toast";
 import { blueprintResourceConfigs } from "./blueprint-config";
 import { BlueprintPreviewModal } from "./blueprint-preview-modal";
-import { BlueprintStudioDialog } from "./blueprint-studio-dialog";
 import type {
   AnimalBlueprintRecord,
   BlueprintOptionsResponse,
@@ -413,23 +414,23 @@ export function BlueprintResourceDashboard({
         description={config.description}
 
         actions={
-          <Button
-            size="sm"
-            onClick={() => setIsCreateOpen(true)}
-            className="gap-1.5 font-semibold"
-          >
-            {resource === "animal-blueprints" ? (
-              <>
+          resource === "animal-blueprints" ? (
+            <Button size="sm" asChild className="gap-1.5 font-semibold">
+              <Link href="/dashboard/blueprints/animal-types-events">
                 <Sparkles className="size-4" />
-                Open Blueprint Studio
-              </>
-            ) : (
-              <>
-                <Plus className="size-4" />
-                {config.createLabel}
-              </>
-            )}
-          </Button>
+                Open Animal Type & Event Blueprints
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => setIsCreateOpen(true)}
+              className="gap-1.5 font-semibold"
+            >
+              <Plus className="size-4" />
+              {config.createLabel}
+            </Button>
+          )
         }
       />
 
@@ -667,7 +668,7 @@ export function BlueprintResourceDashboard({
                   <TableHead key={col.key}>{col.label}</TableHead>
                 ))}
                 <TableHead className="w-24 text-right">
-                  Actions
+                  <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -1004,8 +1005,8 @@ export function BlueprintResourceDashboard({
               <DetailItem label="Version">{getRecordVersion(selectedRecord)}</DetailItem>
               <DetailItem label="Status">{selectedRecord.status}</DetailItem>
               <DetailItem label="UUID">{selectedRecord.uuid}</DetailItem>
-              <DetailItem label="Created At">{selectedRecord.created_at}</DetailItem>
-              <DetailItem label="Updated At">{selectedRecord.updated_at ?? "—"}</DetailItem>
+              <DetailItem label="Created (EAT)">{reportDate(selectedRecord.created_at, true)}</DetailItem>
+              <DetailItem label="Updated (EAT)">{reportDate(selectedRecord.updated_at, true)}</DetailItem>
             </div>
 
             {/* JSON Inspector for configuration schemas */}
@@ -1095,15 +1096,7 @@ export function BlueprintResourceDashboard({
         onConfirm={handleBulkDelete}
       />
 
-      {/* Create Resource Modal or Studio */}
-      {resource === "animal-blueprints" ? (
-        <BlueprintStudioDialog
-          isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
-          options={initialOptions}
-          onSuccess={refreshItems}
-        />
-      ) : (
+      {resource !== "animal-blueprints" && (
         <FormDialog
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}

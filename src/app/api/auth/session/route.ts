@@ -1,3 +1,4 @@
+import { SESSION_SETTINGS } from "@/lib/constant_values";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -69,8 +70,7 @@ export async function POST() {
     return unauthorized();
   }
 
-  // Extend session by 20 hours
-  const extensionSeconds = 60 * 60 * 20;
+  const extensionSeconds = SESSION_SETTINGS.keepAliveHours * 60 * 60;
   const newExpiresAt = Date.now() + extensionSeconds * 1000;
   const response = NextResponse.json({ success: true, expiresAt: newExpiresAt });
 
