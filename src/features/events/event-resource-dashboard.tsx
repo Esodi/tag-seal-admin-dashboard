@@ -264,21 +264,43 @@ export function EventResourceDashboard({
   }, [loadRecords, page, perPage, debouncedSearch, statusFilter, sortOrder, activeTab,
       loading, formOpen, viewing, deleting, restoring, bulkDeleteOpen, bulkPermanentDeleteOpen, selected.size]);
 
+  const loadOptions = useCallback(
+    async (farmUuid?: string | null) => {
+      try {
+        const query =
+          farmUuid && String(farmUuid).trim() !== ""
+            ? `?farm_uuid=${encodeURIComponent(String(farmUuid).trim())}`
+            : "";
+        const response = await authenticatedFetch(
+          `/api/admin/events/${resource}/options${query}`,
+          { cache: "no-store" },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.data) return;
+
+        setOptions((previous) => {
+          const next = payload.data as EventOptions;
+          // Keep farms list when loading farm-scoped animals.
+          if (farmUuid && previous.farms?.length) {
+            return {
+              ...previous,
+              ...next,
+              farms: previous.farms,
+            };
+          }
+          return next;
+        });
+      } catch {
+        // ignore
+      }
+    },
+    [resource],
+  );
+
   const ensureOptions = useCallback(async () => {
     if (Object.keys(options).length > 0) return;
-    try {
-      const response = await authenticatedFetch(
-        `/api/admin/events/${resource}/options`,
-        { cache: "no-store" },
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.data) {
-        setOptions(payload.data);
-      }
-    } catch {
-      // ignore
-    }
-  }, [options, resource]);
+    await loadOptions();
+  }, [loadOptions, options]);
 
   const openCreate = () => {
     void ensureOptions();
@@ -295,6 +317,11 @@ export function EventResourceDashboard({
 
   const openEdit = (record: EventRecordItem) => {
     void ensureOptions();
+    const farmUuid =
+      typeof record.farmUuid === "string" ? record.farmUuid : null;
+    if (farmUuid) {
+      void loadOptions(farmUuid);
+    }
     setEditing(record);
     setFieldErrors({});
     const nextValues: Record<string, unknown> = { ...record };
@@ -551,9 +578,32 @@ export function EventResourceDashboard({
       const errorText = fieldErrors[field.name];
 
       if (field.type === "select") {
-        const list = field.optionsKey
+        const parentRaw = field.dependsOn
+          ? formValues[field.dependsOn]
+          : undefined;
+        const parentValue =
+          parentRaw === null || parentRaw === undefined
+            ? ""
+            : String(parentRaw);
+        const parentBlocked = Boolean(field.dependsOn && !parentValue);
+
+        let list = field.optionsKey
           ? (options[field.optionsKey] ?? [])
           : (field.staticOptions ?? []);
+
+        if (field.filterByFarmField) {
+          const farmRaw = formValues[field.filterByFarmField];
+          const farmValue =
+            farmRaw === null || farmRaw === undefined ? "" : String(farmRaw);
+          if (farmValue) {
+            list = list.filter(
+              (opt) => !opt.farmUuid || opt.farmUuid === farmValue,
+            );
+          } else {
+            list = [];
+          }
+        }
+
         const resolvedKey = EVENT_RESOLVED_NAME_FIELD_MAP[field.name];
         const fallbackLabel =
           editing && resolvedKey
@@ -574,35 +624,71 @@ export function EventResourceDashboard({
             : opt.label,
         }));
 
+        const isLargeList =
+          field.optionsKey === "farms" ||
+          field.optionsKey === "subjects" ||
+          field.optionsKey === "livestock" ||
+          formattedOptions.length > 5;
+
+        const helperText = parentBlocked
+          ? `Select ${field.dependsOn === "farmUuid" ? "a farm" : "the parent field"} first.`
+          : field.description;
+
         return (
           <Field key={field.name}>
             <FieldLabel required={field.required}>{field.label}</FieldLabel>
             <FormSelect
-              value={stringValue}
+              value={parentBlocked ? "" : stringValue}
+              disabled={parentBlocked}
               onValueChange={(next) => {
-                setFormValues((prev) => ({ ...prev, [field.name]: next }));
+                setFormValues((prev) => {
+                  const updated: Record<string, unknown> = {
+                    ...prev,
+                    [field.name]: next,
+                  };
+                  // Changing farm clears dependent animal / livestock picks.
+                  if (field.name === "farmUuid") {
+                    updated.subjectUuid = "";
+                    updated.livestockUuid = "";
+                  }
+                  return updated;
+                });
+                if (field.name === "farmUuid" && next) {
+                  void loadOptions(next);
+                }
                 if (errorText) {
                   setFieldErrors((prev) => {
                     const copy = { ...prev };
                     delete copy[field.name];
+                    if (field.name === "farmUuid") {
+                      delete copy.subjectUuid;
+                      delete copy.livestockUuid;
+                    }
                     return copy;
                   });
                 }
               }}
               options={formattedOptions}
               placeholder={
-                field.placeholder ?? `Select ${field.label.toLowerCase()}`
+                parentBlocked
+                  ? "Select farm first"
+                  : (field.placeholder ??
+                    `Select ${field.label.toLowerCase()}`)
               }
-              searchable={
-                field.optionsKey === "farms" ||
-                field.optionsKey === "subjects" ||
-                field.optionsKey === "livestock" ||
-                formattedOptions.length > 5
+              searchable={isLargeList}
+              searchPlaceholder={
+                field.optionsKey === "farms"
+                  ? "Search farms…"
+                  : field.optionsKey === "subjects"
+                    ? "Search animals…"
+                    : field.optionsKey === "livestock"
+                      ? "Search livestock…"
+                      : "Search options…"
               }
               invalid={Boolean(errorText)}
             />
-            {field.description ? (
-              <FieldDescription>{field.description}</FieldDescription>
+            {helperText ? (
+              <FieldDescription>{helperText}</FieldDescription>
             ) : null}
             <FieldError>{errorText}</FieldError>
           </Field>
@@ -659,7 +745,7 @@ export function EventResourceDashboard({
         </Field>
       );
     },
-    [editing, fieldErrors, formValues, options],
+    [editing, fieldErrors, formValues, loadOptions, options],
   );
 
   const steps: FormStep[] = useMemo(

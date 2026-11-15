@@ -9,6 +9,8 @@ export type EventTypeField = {
   badge?: "success" | "danger" | "info" | "warning" | "default";
   optionsKey?: "farms" | "subjects" | "livestock" | "eventCodes";
   staticOptions?: { value: string; label: string }[];
+  dependsOn?: string;
+  filterByFarmField?: string;
 };
 
 export type EventTypeDefinition = {

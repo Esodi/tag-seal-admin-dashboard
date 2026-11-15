@@ -29,6 +29,7 @@ export type EventOption = {
   value: string;
   label: string;
   description?: string | null;
+  farmUuid?: string | null;
 };
 
 export type EventOptions = {
@@ -75,6 +76,10 @@ export type EventFormField = {
   description?: string;
   optionsKey?: keyof EventOptions;
   staticOptions?: EventOption[];
+  /** When set, this select stays disabled until the named parent field has a value. */
+  dependsOn?: string;
+  /** Client-side filter: keep options whose farmUuid matches the named form field. */
+  filterByFarmField?: string;
 };
 
 export type EventFormSection = {

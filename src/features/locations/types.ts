@@ -93,7 +93,10 @@ export type LocationFormField = {
   helper?: string;
   placeholder?: string;
   optionsKey?: keyof LocationOptions;
+  /** Filter options where option.parent === values[parentField]. */
   parentField?: string;
+  /** When false, field is UI-only cascade helper and is not submitted. Default true. */
+  persist?: boolean;
 };
 
 export type LocationColumnType = "text" | "badge" | "count" | "date";

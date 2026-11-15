@@ -47,7 +47,8 @@ const commonSubjectFields: EventFormField[] = [
     type: "select",
     required: true,
     optionsKey: "farms",
-    placeholder: "Select farm",
+    placeholder: "Search and select farm",
+    description: "Search by farm name, reference, or farmer. Animals load after you pick a farm.",
   },
   {
     name: "subjectUuid",
@@ -55,7 +56,10 @@ const commonSubjectFields: EventFormField[] = [
     type: "select",
     required: true,
     optionsKey: "subjects",
-    placeholder: "Select animal or group",
+    placeholder: "Select farm first",
+    description: "Only animals and groups registered on the selected farm.",
+    dependsOn: "farmUuid",
+    filterByFarmField: "farmUuid",
   },
   {
     name: "occurredAt",
@@ -113,21 +117,25 @@ export function buildDynamicEventConfig(
           { key: "status", label: "Status" },
         ];
 
+  const mapTypeField = (f: (typeof eventType.fields)[number]): EventFormField => ({
+    name: f.key,
+    label: f.label,
+    type: f.type,
+    required: f.required,
+    placeholder: f.placeholder,
+    description: f.description,
+    optionsKey: f.optionsKey,
+    staticOptions: f.staticOptions,
+    dependsOn: f.dependsOn,
+    filterByFarmField: f.filterByFarmField,
+  });
+
   const formSections: EventFormSection[] = isIdentification
     ? [
         {
           title: "Identification Event Details",
-          description: "Select the farm, livestock record and identification number.",
-          fields: eventType.fields.map((f) => ({
-            name: f.key,
-            label: f.label,
-            type: f.type,
-            required: f.required,
-            placeholder: f.placeholder,
-            description: f.description,
-            optionsKey: f.optionsKey,
-            staticOptions: f.staticOptions,
-          })),
+          description: "Select the farm first, then livestock and identification details.",
+          fields: eventType.fields.map(mapTypeField),
         },
       ]
     : isAllEvents
@@ -137,14 +145,7 @@ export function buildDynamicEventConfig(
             description: "Select the event type, farm and animal subject.",
             fields: [
               eventType.fields[0]
-                ? {
-                    name: eventType.fields[0].key,
-                    label: eventType.fields[0].label,
-                    type: eventType.fields[0].type,
-                    required: eventType.fields[0].required,
-                    optionsKey: eventType.fields[0].optionsKey,
-                    placeholder: eventType.fields[0].placeholder,
-                  }
+                ? mapTypeField(eventType.fields[0])
                 : commonSubjectFields[0],
               ...commonSubjectFields,
             ],
@@ -152,35 +153,19 @@ export function buildDynamicEventConfig(
           {
             title: "Event Notes & Summary",
             description: "Provide clinical or operational notes for this event.",
-            fields: eventType.fields.slice(1).map((f) => ({
-              name: f.key,
-              label: f.label,
-              type: f.type,
-              required: f.required,
-              placeholder: f.placeholder,
-              description: f.description,
-            })),
+            fields: eventType.fields.slice(1).map(mapTypeField),
           },
         ]
       : [
           {
             title: "Subject & Farm Context",
-            description: "Select the farm, animal subject and event occurrence timestamp.",
+            description: "Select the farm first, then the animal or group on that farm.",
             fields: commonSubjectFields,
           },
           {
             title: `${eventType.name} Details`,
             description: `Record payload values for ${eventType.name.toLowerCase()}.`,
-            fields: eventType.fields.map((f) => ({
-              name: f.key,
-              label: f.label,
-              type: f.type,
-              required: f.required,
-              placeholder: f.placeholder,
-              description: f.description,
-              optionsKey: f.optionsKey,
-              staticOptions: f.staticOptions,
-            })),
+            fields: eventType.fields.map(mapTypeField),
           },
         ];
 

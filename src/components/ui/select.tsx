@@ -263,7 +263,7 @@ function SelectTrigger({
       data-size={size}
       data-placeholder={!value ? "" : undefined}
       className={cn(
-        "group/select flex w-fit items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        "group/select flex w-fit min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[placeholder]:text-muted-foreground data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className,
       )}
       {...props}
@@ -311,14 +311,14 @@ function SelectContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "relative z-50 max-h-80 min-w-[max(10rem,var(--radix-dropdown-menu-trigger-width))] overflow-x-hidden overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+          "relative z-50 max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height,18rem))] w-[var(--radix-dropdown-menu-trigger-width)] min-w-[max(10rem,var(--radix-dropdown-menu-trigger-width))] max-w-[min(100vw-1.5rem,var(--radix-dropdown-menu-trigger-width))] overflow-x-hidden overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
           className,
         )}
         {...props}
       >
         {isSearchable ? (
           <div
-            className="sticky -top-1 z-10 -mx-1 -mt-1 mb-1 border-b bg-popover p-2"
+            className="sticky top-0 z-10 -mx-1 -mt-1 mb-1 border-b bg-popover p-2"
             onPointerDown={(event) => event.stopPropagation()}
           >
             <div className="relative flex items-center">
@@ -355,12 +355,14 @@ function SelectContent({
           </div>
         ) : null}
 
-        <div data-slot="select-items-list">
+        <div data-slot="select-items-list" className="min-w-0">
           {visibleChildren.length > 0 ? (
             visibleChildren
           ) : (
             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-              No matching options found.
+              {isSearchable && searchQuery.trim()
+                ? "No matching options found."
+                : "No options available."}
             </div>
           )}
         </div>

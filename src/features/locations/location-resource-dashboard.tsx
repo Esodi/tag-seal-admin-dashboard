@@ -718,9 +718,28 @@ function LocationFormDialog({
 
   const handleFieldChange = useCallback(
     (fieldName: string, nextValue: string) => {
-      setValues((previous) => ({ ...previous, [fieldName]: nextValue }));
+      setValues((previous) => {
+        const next = { ...previous, [fieldName]: nextValue };
+        // Clear dependent cascade fields when a parent changes.
+        const clearDescendants = (parent: string) => {
+          for (const field of config.fields) {
+            if (field.parentField === parent) {
+              next[field.name] = "";
+              clearDescendants(field.name);
+            }
+          }
+        };
+        clearDescendants(fieldName);
+        return next;
+      });
+      setErrors((previous) => {
+        if (!previous[fieldName]) return previous;
+        const copy = { ...previous };
+        delete copy[fieldName];
+        return copy;
+      });
     },
-    [],
+    [config.fields],
   );
 
   const submit = async () => {
@@ -740,6 +759,7 @@ function LocationFormDialog({
 
     const payload: Record<string, unknown> = {};
     for (const field of config.fields) {
+      if (field.persist === false) continue;
       const value = String(values[field.name] ?? "").trim();
       payload[field.name] =
         value === "" ? null : field.type === "select" ? Number(value) : value;
@@ -826,10 +846,18 @@ function LocationField({
   const id = `location-${field.name}-${record?.id ?? "new"}`;
   const required = Boolean(field.required);
   const current = values[field.name] ?? "";
-  const choices = useMemo(
-    () => (field.optionsKey ? (options[field.optionsKey] ?? []) : []),
-    [field.optionsKey, options],
-  );
+  const parentValue = field.parentField
+    ? String(values[field.parentField] ?? "")
+    : "";
+  const parentBlocked = Boolean(field.parentField && !parentValue);
+
+  const choices = useMemo(() => {
+    const raw = field.optionsKey ? (options[field.optionsKey] ?? []) : [];
+    if (!field.parentField) return raw;
+    if (!parentValue) return [];
+    return raw.filter((choice) => choice.parent === parentValue);
+  }, [field.optionsKey, field.parentField, options, parentValue]);
+
   const resolvedNameKey = LOCATION_RESOLVED_NAME_FIELD_MAP[field.name];
   const fallbackLabel =
     resolvedNameKey && record?.[resolvedNameKey]
@@ -843,7 +871,10 @@ function LocationField({
     ...(!required
       ? [{ value: "", label: `Select ${field.label.toLowerCase()}` }]
       : []),
-    ...(current !== "" && !hasCurrentInChoices && fallbackLabel
+    ...(current !== "" &&
+    !parentBlocked &&
+    !hasCurrentInChoices &&
+    fallbackLabel
       ? [{ value: current, label: fallbackLabel }]
       : []),
     ...choices.map((choice) => ({
@@ -854,6 +885,10 @@ function LocationField({
     })),
   ];
 
+  const helperText = parentBlocked
+    ? `Select ${field.parentField?.replace(/Id$/, "").replace(/([A-Z])/g, " $1").trim().toLowerCase() ?? "parent"} first.`
+    : field.helper;
+
   return (
     <Field className={field.full ? "sm:col-span-2" : undefined}>
       <FieldLabel htmlFor={id} required={required}>
@@ -862,10 +897,17 @@ function LocationField({
       {field.type === "select" ? (
         <FormSelect
           id={id}
-          value={current}
+          value={parentBlocked ? "" : current}
+          disabled={parentBlocked}
           onValueChange={(value) => onChange(field.name, value)}
           options={selectOptions}
-          placeholder={`Select ${field.label.toLowerCase()}`}
+          placeholder={
+            parentBlocked
+              ? "Select parent first"
+              : `Search and select ${field.label.toLowerCase()}`
+          }
+          searchable={selectOptions.length > 5 || Boolean(field.parentField)}
+          searchPlaceholder={`Search ${field.label.toLowerCase()}…`}
           invalid={Boolean(error)}
         />
       ) : (
@@ -879,7 +921,7 @@ function LocationField({
           aria-invalid={Boolean(error)}
         />
       )}
-      {field.helper ? <FieldDescription>{field.helper}</FieldDescription> : null}
+      {helperText ? <FieldDescription>{helperText}</FieldDescription> : null}
       <FieldError>{error}</FieldError>
     </Field>
   );
