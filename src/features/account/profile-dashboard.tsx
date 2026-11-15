@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { EmptyCard } from "@/components/ui/empty-card";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ export function ProfileEditor({ initialProfile }: { initialProfile: AccountProfi
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [checking, setChecking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -190,8 +192,29 @@ export function ProfileEditor({ initialProfile }: { initialProfile: AccountProfi
 
     <Card className="overflow-hidden border-border/60 pb-0 shadow-xs">
       <CardHeader><h2 className="text-lg font-semibold tracking-tight">Current session</h2><CardDescription>Signed in to the Tag & Seal administration dashboard.</CardDescription></CardHeader>
-      <CardFooter className={footerClass}><p className="text-xs text-muted-foreground">Sign out when you finish using this device.</p><Button variant="outline" size="sm" disabled={busy} className="w-full sm:w-auto" onClick={async () => { setSigningOut(true); try { await signOut(); } catch { toast.error("Could not sign out. Please try again."); setSigningOut(false); } }}><LogOut />{signingOut ? "Signing out…" : "Sign out"}</Button></CardFooter>
+      <CardFooter className={footerClass}><p className="text-xs text-muted-foreground">Sign out when you finish using this device.</p><Button variant="outline" size="sm" disabled={busy} className="w-full sm:w-auto" onClick={() => setConfirmSignOut(true)}><LogOut />{signingOut ? "Signing out…" : "Sign out"}</Button></CardFooter>
     </Card>
+
+    <ConfirmationAlertDialog
+      open={confirmSignOut}
+      onOpenChange={(open) => { if (!signingOut) setConfirmSignOut(open); }}
+      icon={<LogOut />}
+      destructive
+      title="Sign out?"
+      description="You will need to sign in again to use the Tag & Seal administration dashboard."
+      confirmLabel={signingOut ? "Signing out…" : "Sign out"}
+      cancelLabel="Cancel"
+      onConfirm={async () => {
+        setSigningOut(true);
+        try {
+          await signOut();
+        } catch {
+          toast.error("Could not sign out. Please try again.");
+          setSigningOut(false);
+          setConfirmSignOut(false);
+        }
+      }}
+    />
 
     <Card className="overflow-hidden border-danger/30 bg-danger/5 pb-0 shadow-xs">
       <CardHeader><h2 className="text-lg font-semibold tracking-tight text-danger">Delete account</h2><CardDescription>Permanently remove your sign-in account and revoke all its sessions. Linked operational records must be reviewed before deletion.</CardDescription>{deleteError && !deleteOpen && <p role="alert" className="text-sm text-danger">{deleteError}</p>}</CardHeader>
