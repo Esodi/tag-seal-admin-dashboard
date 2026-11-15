@@ -14,6 +14,8 @@ import { Logo } from "@/components/ui/logo";
 
 const groupIcons = { people: Users, events: Activity, animals: Beef, career: Briefcase, commerce: ShoppingBag, auction: Gavel, vet: Stethoscope, dairy: Warehouse, blueprints: PawPrint, finance: Landmark, reference: Settings2, locations: MapPinned, security: ShieldCheck } as const;
 const managementSlugs = ["people", "events", "animals", "career", "commerce", "auction", "vet", "dairy", "blueprints", "finance", "reference", "locations", "security"];
+/** Sections that show per-item count badges in the sidebar. */
+const badgedSections = new Set(["people", "events", "animals", "career", "commerce", "auction", "vet", "dairy"]);
 const groupLabels: Record<string, string> = {
   people: "People", events: "Events", animals: "Animals", career: "Careers",
   commerce: "Commerce", auction: "Auctions", vet: "Veterinary", dairy: "Cooperatives", blueprints: "Animal Setup",
@@ -34,6 +36,14 @@ const featureLabels: Record<string, string> = {
   "reference/teeth-clipping-methods": "Teeth Clipping",
 };
 
+type NavCounts = Record<string, Record<string, number>>;
+
+function formatBadge(count: number | undefined): string | null {
+  if (count == null || count <= 0) return null;
+  if (count > 999) return "999+";
+  return String(count);
+}
+
 function Brand() {
   return (
     <Link href="/dashboard" className="flex items-center gap-3 font-semibold tracking-tight">
@@ -51,9 +61,22 @@ function NavLink({ href, label, icon: Icon, pathname, onClick }: { href: string;
 export function AdminShell({ children, user }: { children: React.ReactNode; user?: { username?: string; email?: string; firstname?: string; surname?: string } }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [navCounts, setNavCounts] = useState<NavCounts>({});
   const activeGroup = featureGroups.find((group) => pathname === `/dashboard/${group.slug}` || pathname.startsWith(`/dashboard/${group.slug}/`))?.slug;
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({ people: true, ...(activeGroup ? { [activeGroup]: true } : {}) }));
   useEffect(() => { if (activeGroup) setOpenGroups((current) => ({ ...current, [activeGroup]: true })); }, [activeGroup]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/dashboard/nav-counts", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled && payload?.data && typeof payload.data === "object") {
+          setNavCounts(payload.data as NavCounts);
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
   const close = () => setMobileOpen(false);
 
   const accordion = (slug: string) => {
@@ -62,12 +85,24 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
     const GroupIcon = groupIcons[group.slug as keyof typeof groupIcons];
     const open = Boolean(openGroups[group.slug]);
     const groupActive = activeGroup === group.slug;
+    const showBadges = badgedSections.has(group.slug);
     return <div key={group.slug}>
       <button type="button" onClick={() => setOpenGroups((current) => ({ ...current, [group.slug]: !current[group.slug] }))} aria-expanded={open} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${groupActive ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
         <GroupIcon className="size-[18px]" strokeWidth={groupActive ? 2.2 : 1.8} /><span className="min-w-0 flex-1 truncate">{groupLabels[group.slug] ?? group.label}</span><span className="text-[10px] tabular-nums text-muted-foreground">{visibleFeatures.length}</span><ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       <div className={`grid transition-[grid-template-rows] duration-200 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}><div className="overflow-hidden"><div className="ml-5 space-y-1 border-l py-1 pl-3">
-        {visibleFeatures.map((item) => { const href = `/dashboard/${group.slug}/${item.slug}`; const active = pathname === href; return <Link key={item.slug} href={href} onClick={close} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${active ? "bg-accent font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><span className={`size-1.5 shrink-0 rounded-full ${active ? "bg-primary" : "bg-border"}`} /><span className="min-w-0 flex-1">{featureLabels[`${group.slug}/${item.slug}`] ?? item.label}</span></Link>; })}
+        {visibleFeatures.map((item) => {
+          const href = `/dashboard/${group.slug}/${item.slug}`;
+          const active = pathname === href;
+          const badge = showBadges ? formatBadge(navCounts[group.slug]?.[item.slug]) : null;
+          return (
+            <Link key={item.slug} href={href} onClick={close} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${active ? "bg-accent font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+              <span className={`size-1.5 shrink-0 rounded-full ${active ? "bg-primary" : "bg-border"}`} />
+              <span className="min-w-0 flex-1 truncate">{featureLabels[`${group.slug}/${item.slug}`] ?? item.label}</span>
+              {badge ? <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>{badge}</span> : null}
+            </Link>
+          );
+        })}
       </div></div></div>
     </div>;
   };

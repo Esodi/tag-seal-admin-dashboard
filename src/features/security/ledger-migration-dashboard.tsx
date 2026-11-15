@@ -32,19 +32,23 @@ type FamilyMigrationRecord = {
   legacyCount: number;
   ledgerCount: number;
   reconciled: boolean;
+  reconcilePassed?: boolean | null;
+  latestRunUuid?: string | null;
+  canAdvanceToLedger?: boolean;
 };
 
 const AUTHORITY_DESCRIPTIONS: Record<string, string> = {
-  legacy: "Legacy screens record to legacy database tables directly. No event ledger entries created.",
-  ledger_shadow: "Mobile and API write to the event ledger and shadow-copy records back to legacy tables.",
-  ledger: "Event forms are primary. Legacy screens replaced with configured dynamic blueprint forms.",
-  retired: "Legacy tables are read-only / archived. Entire platform runs strictly on dynamic event ledger.",
+  legacy: "App still uses legacy screens; server bridges every save into event_records.",
+  ledger_shadow: "Manifest signals dual-path readiness while reconcile stays green under load.",
+  ledger: "Dynamic forms are primary; ledger writes and mirrors to legacy until retirement.",
+  retired: "Legacy writes blocked. Portal and app run on the ledger only; archive before drop.",
 };
 
+/** Slow Portal→App pass: no retired flip from the UI (Gate E is later). */
 const AUTHORITY_NEXT_STATES: Record<string, string[]> = {
   legacy: ["ledger_shadow"],
   ledger_shadow: ["ledger", "legacy"],
-  ledger: ["retired", "ledger_shadow"],
+  ledger: ["ledger_shadow"],
   retired: ["ledger"],
 };
 
@@ -213,12 +217,12 @@ export function LedgerMigrationDashboard() {
                       <Badge
                         variant="outline"
                         className={
-                          fam.reconciled
+                          fam.reconcilePassed
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                             : "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                         }
                       >
-                        {fam.reconciled ? "Reconciled" : "Reconciliation Needed"}
+                        {fam.reconcilePassed ? "Reconcile PASS" : fam.latestRunUuid ? "Reconcile FAIL" : "Never reconciled"}
                       </Badge>
                     </TableCell>
 
@@ -282,6 +286,12 @@ export function LedgerMigrationDashboard() {
               {nextAuthority && (
                 <p className="text-xs text-primary mt-1">
                   {AUTHORITY_DESCRIPTIONS[nextAuthority]}
+                </p>
+              )}
+              {(nextAuthority === "ledger" || nextAuthority === "retired") && !transitionTarget.canAdvanceToLedger && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                  Blocked until reconcile PASS. On the server run:{" "}
+                  <code className="font-mono">php artisan tag-and-seal:ledger reconcile {transitionTarget.family} --repair</code>
                 </p>
               )}
             </div>
