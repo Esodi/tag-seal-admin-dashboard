@@ -12,6 +12,7 @@ import {
   LockKeyhole,
   UserRound,
 } from "lucide-react";
+import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { consumeReturnTo, markSessionRestored } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,6 +24,7 @@ import { toast } from "@/components/ui/toast";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { status } = useAuthSession();
   const [showPassword, setShowPassword] = useState(false);
   const method = "password";
   const [pending, setPending] = useState(false);
@@ -33,6 +35,14 @@ export function LoginForm() {
 
   const expiredParam = searchParams.get("expired");
   const returnToParam = searchParams.get("returnTo");
+
+  // Already signed in → go to dashboard (Fresh Shop pattern)
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (expiredParam === "idle" || expiredParam === "1") return;
+    const next = returnToParam?.startsWith("/") ? returnToParam : consumeReturnTo() ?? "/dashboard";
+    router.replace(next);
+  }, [status, expiredParam, returnToParam, router]);
 
   // Show session expiry / inactivity notification via Toast rather than in-card banners
   useEffect(() => {

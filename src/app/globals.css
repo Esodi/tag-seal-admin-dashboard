@@ -4,6 +4,7 @@
 
 @theme inline {
   --font-sans: "Poppins", sans-serif;
+  --font-display: "Libre Baskerville", Georgia, "Times New Roman", serif;
   --text-xs: var(--type-xs);
   --text-sm: var(--type-sm);
   --text-base: var(--type-base);

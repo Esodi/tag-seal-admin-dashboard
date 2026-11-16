@@ -1,0 +1,78 @@
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-fade-up {
+  animation: landing-fade-up 0.7s ease-out both;
+}
+
+.landing-rise {
+  animation: landing-rise 0.9s ease-out 0.15s both;
+}
+
+@keyframes landing-ken-burns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+.landing-ken-burns {
+  animation: landing-ken-burns 6.5s ease-out forwards;
+}
+
+.landing-solutions-gallery {
+  --gallery-fade: 12%;
+  mask-image:
+    linear-gradient(to right, transparent 0%, #000 var(--gallery-fade), #000 calc(100% - var(--gallery-fade)), transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 10%, #000 90%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, #000 var(--gallery-fade), #000 calc(100% - var(--gallery-fade)), transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 10%, #000 90%, transparent 100%);
+  -webkit-mask-composite: source-in;
+}
+
+@media (min-width: 768px) {
+  .landing-solutions-gallery {
+    --gallery-fade: 6%;
+  }
+}
+
+@media (min-width: 1280px) {
+  .landing-solutions-gallery {
+    --gallery-fade: 2%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-fade-up,
+  .landing-rise,
+  .landing-ken-burns {
+    animation: none;
+  }
+
+  .landing-solutions-gallery img {
+    transition: none !important;
+  }
+}

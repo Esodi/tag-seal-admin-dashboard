@@ -15,12 +15,36 @@ export type VetRecord = {
 
 export type VetServiceRequestRecord = {
   id: number; uuid: string; status: string; problemCategory?: string | null; description?: string | null; urgency?: string | null;
-  symptoms?: string[]; locationAddress?: string | null; contactPhone?: string | null; offersCount?: number | null;
-  livestock?: { identificationNumber?: string | null; name?: string | null; species?: string | null } | null;
+  symptoms?: string[]; latitude?: number | null; longitude?: number | null; locationAddress?: string | null; contactPhone?: string | null; offersCount?: number | null;
+  livestock?: { identificationNumber?: string | null; name?: string | null; species?: string | null; speciesName?: string | null } | null;
   vet?: { fullName?: string | null; phoneNumber?: string | null; clinicName?: string | null } | null;
   farmer?: { name?: string | null; phone?: string | null } | null;
   timeline?: Record<string, string | null>;
   cancelReason?: string | null; treatmentSummary?: string | null; farmerRating?: number | null; farmerReview?: string | null;
 };
+
+/** Prefer human address; fall back to GPS so portal never looks empty when the app sent coords. */
+export function requestLocationLabel(row: Pick<VetServiceRequestRecord, "locationAddress" | "latitude" | "longitude">) {
+  const address = row.locationAddress?.trim();
+  if (address) return address;
+  return requestCoordinatesLabel(row) ?? "—";
+}
+
+/** Formatted lat, long when both coordinates are present. */
+export function requestCoordinatesLabel(row: Pick<VetServiceRequestRecord, "latitude" | "longitude">) {
+  if (row.latitude == null || row.longitude == null) return null;
+  if (!Number.isFinite(row.latitude) || !Number.isFinite(row.longitude)) return null;
+  return `${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}`;
+}
+
+/** Google Maps pin URL for a service-request location. */
+export function requestMapsHref(row: Pick<VetServiceRequestRecord, "latitude" | "longitude">) {
+  const coords = requestCoordinatesLabel(row);
+  if (!coords || row.latitude == null || row.longitude == null) return null;
+  return `https://www.google.com/maps?q=${row.latitude},${row.longitude}`;
+}
+
+export const requestCancellable = (status?: string | null) =>
+  status === "pending" || status === "accepted" || status === "travelling";
 
 export type VetAnyRecord = VetRecord | VetServiceRequestRecord;

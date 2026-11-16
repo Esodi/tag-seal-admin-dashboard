@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Check, Eye, MoreVertical, RotateCcw, UserX, X } from "lucide-react";
+import { Check, Eye, MapPin, MoreVertical, RefreshCw, RotateCcw, UserX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { CustomViewDetailsDialog, DetailItem } from "@/components/ui/custom-view-details-dialog";
@@ -16,7 +16,7 @@ import { formatRecordDate } from "@/lib/resource-table";
 import { animalLabel } from "./vet-columns";
 import { missingVetDocuments } from "./vet-document-rules";
 import { VetDocumentsSection } from "./vet-documents";
-import type { VetRecord, VetServiceRequestRecord } from "./types";
+import { requestCancellable, requestCoordinatesLabel, requestLocationLabel, requestMapsHref, type VetRecord, type VetServiceRequestRecord } from "./types";
 
 type ActionProps<T> = { row: T; onChanged: () => void };
 
@@ -93,25 +93,85 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
 
 const timelineSteps: Array<[string, string]> = [["createdAt", "Requested"], ["acceptedAt", "Accepted"], ["travellingAt", "Travelling"], ["arrivedAt", "Arrived"], ["startedAt", "Treatment started"], ["completedAt", "Completed"], ["cancelledAt", "Cancelled"]];
 
-export function RequestActions({ row }: ActionProps<VetServiceRequestRecord>) {
+export function RequestActions({ row, onChanged }: ActionProps<VetServiceRequestRecord>) {
   const [viewing, setViewing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const path = `/api/admin/vet/requests/${row.uuid}`;
+  const canCancel = requestCancellable(row.status);
+  const canRedispatch = row.status === "pending";
+  const mapsHref = requestMapsHref(row);
+  const coords = requestCoordinatesLabel(row);
+
+  async function cancel(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const reason = String(new FormData(event.currentTarget).get("reason") ?? "").trim();
+    const ok = await registryRun(() => registrySend(`${path}/cancel`, "POST", { reason: reason || null }), "Service request cancelled.", onChanged);
+    if (ok) setCancelling(false);
+    return ok;
+  }
+
   return <>
-    <Button variant="ghost" size="icon-sm" aria-label={`View request ${row.uuid}`} onClick={() => setViewing(true)}><Eye /></Button>
-    <CustomViewDetailsDialog open={viewing} onOpenChange={setViewing} title={commerceLabel(row.problemCategory)} description={`Service request · ${row.uuid.slice(0, 8).toUpperCase()}`} size="lg">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`Actions for request ${row.uuid.slice(0, 8)}`}>
+          <MoreVertical />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => setViewing(true)}><Eye />View details</DropdownMenuItem>
+        {mapsHref && (
+          <DropdownMenuItem onSelect={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
+            <MapPin />Open in maps
+          </DropdownMenuItem>
+        )}
+        {canRedispatch && (
+          <DropdownMenuItem onSelect={() => void registryRun(() => registrySend(`${path}/redispatch`, "POST"), "Dispatch widened.", onChanged)}>
+            <RefreshCw />Widen dispatch
+          </DropdownMenuItem>
+        )}
+        {canCancel && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem destructive onSelect={() => setCancelling(true)}><X />Cancel request</DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+
+    <CustomViewDetailsDialog open={viewing} onOpenChange={setViewing} title={commerceLabel(row.problemCategory)} description={`Service request · ${row.uuid.slice(0, 8).toUpperCase()}`} size="lg"
+      actions={canCancel ? <Button variant="destructive" onClick={() => { setViewing(false); setCancelling(true); }}><X />Cancel</Button> : undefined}>
       <div className="grid gap-3 sm:grid-cols-2">
         <DetailItem label="Status"><RegistryStatus status={row.status} /></DetailItem>
         <DetailItem label="Urgency">{commerceLabel(row.urgency)}</DetailItem>
         <DetailItem label="Farmer">{[row.farmer?.name, row.contactPhone].filter(Boolean).join(" · ") || "—"}</DetailItem>
         <DetailItem label="Animal">{animalLabel(row)}</DetailItem>
         <DetailItem label="Vet">{row.vet ? [row.vet.fullName, row.vet.phoneNumber].filter(Boolean).join(" · ") : "Not assigned"}</DetailItem>
-        <DetailItem label="Location">{row.locationAddress || "—"}</DetailItem>
+        <DetailItem label="Location" className="sm:col-span-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="tabular-nums">{coords ?? requestLocationLabel(row)}</span>
+            {mapsHref ? (
+              <Button variant="outline" size="xs" asChild>
+                <a href={mapsHref} target="_blank" rel="noopener noreferrer">
+                  <MapPin />Open map
+                </a>
+              </Button>
+            ) : null}
+          </div>
+          {row.locationAddress?.trim() && coords && row.locationAddress.trim() !== coords ? (
+            <p className="mt-1 text-xs text-muted-foreground">{row.locationAddress.trim()}</p>
+          ) : null}
+        </DetailItem>
         {row.description && <DetailItem label="Description" className="sm:col-span-2">{row.description}</DetailItem>}
         {row.symptoms && row.symptoms.length > 0 && <DetailItem label="Symptoms" className="sm:col-span-2">{row.symptoms.map(commerceLabel).join(", ")}</DetailItem>}
         {timelineSteps.filter(([key]) => row.timeline?.[key]).map(([key, label]) => <DetailItem key={key} label={`${label} (EAT)`}>{commerceDateTime(row.timeline?.[key])}</DetailItem>)}
         {row.cancelReason && <DetailItem label="Cancel reason" className="sm:col-span-2">{row.cancelReason}</DetailItem>}
-        {row.treatmentSummary && <DetailItem label="Treatment" className="sm:col-span-2">{row.treatmentSummary}</DetailItem>}
+        {row.treatmentSummary && <DetailItem label="Treatment" className="sm:col-span-2">{typeof row.treatmentSummary === "string" ? row.treatmentSummary : JSON.stringify(row.treatmentSummary)}</DetailItem>}
         {row.farmerRating && <DetailItem label="Farmer rating" className="sm:col-span-2">{row.farmerRating} / 5{row.farmerReview ? ` · ${row.farmerReview}` : ""}</DetailItem>}
       </div>
     </CustomViewDetailsDialog>
+
+    {cancelling && <FormDialog open={cancelling} onOpenChange={setCancelling} title="Cancel this service request?" description="The farmer and assigned vet (if any) will see the visit as cancelled." onSubmit={cancel} submitLabel="Cancel request">
+      <Field><FieldLabel htmlFor="req-cancel-reason">Reason</FieldLabel><Textarea id="req-cancel-reason" name="reason" maxLength={500} /></Field>
+    </FormDialog>}
   </>;
 }

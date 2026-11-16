@@ -1,13 +1,16 @@
+import { MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { commerceLabel } from "@/features/commerce/commerce-config";
 import { RegistryStatus } from "@/features/registry/registry-status";
 import { registryColumn, type RegistryColumn } from "@/features/registry/types";
 import { formatRecordDate } from "@/lib/resource-table";
 import type { VetRecord, VetServiceRequestRecord } from "./types";
+import { requestCoordinatesLabel, requestLocationLabel, requestMapsHref } from "./types";
 import { missingVetDocuments, requiredVetDocuments } from "./vet-document-rules";
 
 const twoLine = (title: string, note?: string | null) => <div className="min-w-44 max-w-64 whitespace-normal"><p className="font-medium leading-5 [overflow-wrap:anywhere]">{title}</p>{note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}</div>;
 
-export const animalLabel = (row: VetServiceRequestRecord) => [row.livestock?.identificationNumber, row.livestock?.name].filter(Boolean).join(" · ") || "—";
+export const animalLabel = (row: VetServiceRequestRecord) => [row.livestock?.identificationNumber, row.livestock?.name, row.livestock?.speciesName ?? row.livestock?.species].filter(Boolean).join(" · ") || "—";
 
 export const vetColumns: RegistryColumn<VetRecord>[] = [
   registryColumn("vet", "Vet", (r) => r.fullName, (r) => twoLine(r.fullName, r.clinicName || r.referenceNo)),
@@ -28,7 +31,28 @@ export const requestColumns: RegistryColumn<VetServiceRequestRecord>[] = [
   registryColumn("farmer", "Farmer", (r) => r.farmer?.name || "—"),
   registryColumn("animal", "Animal", animalLabel),
   registryColumn("vet", "Vet", (r) => r.vet?.fullName || "Not assigned"),
-  registryColumn("location", "Location", (r) => r.locationAddress || "—", (r) => <span className="block max-w-56 whitespace-normal">{r.locationAddress || "—"}</span>),
+  registryColumn("location", "Location", (r) => requestLocationLabel(r), (r) => {
+    const coords = requestCoordinatesLabel(r);
+    const mapsHref = requestMapsHref(r);
+    const address = r.locationAddress?.trim();
+    const showAddress = Boolean(address && address !== coords);
+    if (!coords && !address) return <span className="text-muted-foreground">—</span>;
+    return (
+      <div className="flex max-w-64 items-start gap-1.5">
+        <div className="min-w-0 whitespace-normal">
+          <p className="font-medium tabular-nums leading-5 [overflow-wrap:anywhere]">{coords ?? address}</p>
+          {showAddress && coords ? <p className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{address}</p> : null}
+        </div>
+        {mapsHref ? (
+          <Button variant="outline" size="icon-xs" className="mt-0.5 shrink-0" asChild>
+            <a href={mapsHref} target="_blank" rel="noopener noreferrer" aria-label={`Open map at ${coords}`}>
+              <MapPin />
+            </a>
+          </Button>
+        ) : null}
+      </div>
+    );
+  }),
   registryColumn("status", "Status", (r) => commerceLabel(r.status), (r) => <RegistryStatus status={r.status} />),
   registryColumn("created", "Created at", (r) => formatRecordDate(r.timeline?.createdAt ?? undefined), undefined, "text-muted-foreground"),
 ];

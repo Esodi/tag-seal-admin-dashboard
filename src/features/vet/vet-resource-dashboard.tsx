@@ -5,6 +5,7 @@ import { Stethoscope } from "lucide-react";
 import { RegistryDashboard } from "@/features/registry/registry-dashboard";
 import type { RegistryResponse } from "@/features/registry/types";
 import { useRegistryRecords } from "@/features/registry/use-registry-records";
+import { RequestForm } from "./request-form";
 import { RequestActions, VetActions } from "./vet-actions";
 import { requestColumns, vetColumns } from "./vet-columns";
 import { vetConfig, vetEndpoint } from "./vet-config";
@@ -27,8 +28,14 @@ function Vets({ initialData, initialError }: Props<VetRecord>) {
 
 function Requests({ initialData, initialError }: Props<VetServiceRequestRecord>) {
   const records = useRegistryRecords(vetEndpoint("requests"), initialData, initialError);
-  return <RegistryDashboard {...shared} config={vetConfig.requests} records={records} columns={requestColumns} exportName="vet-service-requests"
-    rowKey={(row) => row.uuid} rowTitle={(row) => row.problemCategory ?? "request"} rowActions={(row) => <RequestActions row={row} onChanged={records.reload} />} />;
+  const [adding, setAdding] = useState(false);
+  return <>
+    <RegistryDashboard {...shared} config={vetConfig.requests} records={records} columns={requestColumns} exportName="vet-service-requests"
+      rowKey={(row) => row.uuid} rowTitle={(row) => row.problemCategory ?? "request"}
+      rowActions={(row) => <RequestActions row={row} onChanged={records.reload} />}
+      addLabel="Add service request" onAdd={() => setAdding(true)} />
+    {adding && <RequestForm open={adding} onOpenChange={setAdding} onSaved={records.reload} />}
+  </>;
 }
 
 export function VetResourceDashboard({ resource, initialData, initialError }: Props<VetAnyRecord> & { resource: VetResource }) {

@@ -12,6 +12,7 @@ export async function GET(request: Request, { params }: Context) {
 
 export async function POST(request: Request, { params }: Context) {
   const { resource } = await params;
-  if (resource !== "vets") return unsupported();
-  return proxyAdminRequest(request, "/vet/vets");
+  if (resource === "vets") return proxyAdminRequest(request, "/vet/vets");
+  if (resource === "requests") return proxyAdminRequest(request, "/vet/requests");
+  return unsupported();
 }
