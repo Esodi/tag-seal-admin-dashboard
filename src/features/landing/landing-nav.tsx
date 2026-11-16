@@ -24,12 +24,27 @@ export function LandingNav() {
       setOverHero(false);
       return;
     }
-    const onScroll = () => {
-      setOverHero(window.scrollY < window.innerHeight * 0.72);
+
+    /** Solid nav as soon as the header meets the hero badge / “Tag & Seal” copy. */
+    const update = () => {
+      const copy = document.getElementById("landing-hero-copy");
+      const navHeight = 64; // matches h-16 header
+      if (!copy) {
+        setOverHero(window.scrollY < navHeight);
+        return;
+      }
+      const copyTop = copy.getBoundingClientRect().top;
+      // Keep transparent while there is clear space between nav bottom and copy top.
+      setOverHero(copyTop > navHeight + 4);
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
   }, [isHome]);
 
   const transparent = isHome && overHero;

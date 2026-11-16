@@ -19,9 +19,9 @@ const slides = [
     label: "Herds",
   },
   {
-    src: "/images/landing/goats-flock.jpg",
-    alt: "Large herd of goats filling a mountain road",
-    label: "Goat herd",
+    src: "/images/landing/sheep-flock.jpg",
+    alt: "Sheep flock in a farm pen",
+    label: "Sheep",
   },
   {
     src: "/images/landing/goats-grazing.jpg",
@@ -124,7 +124,10 @@ export function LandingHero() {
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col px-5 pb-10 pr-12 pt-28 sm:px-8 sm:pr-16 sm:pt-32 lg:px-10 lg:pr-20">
-        <div className="landing-fade-up mx-auto flex max-w-3xl flex-1 flex-col items-center justify-center text-center">
+        <div
+          id="landing-hero-copy"
+          className="landing-fade-up mx-auto flex max-w-3xl flex-1 flex-col items-center justify-center text-center"
+        >
           <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/90 backdrop-blur-sm">
             Livestock management
           </p>
