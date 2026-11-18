@@ -21,6 +21,7 @@ function Vets({ initialData, initialError }: Props<VetRecord>) {
   return <>
     <RegistryDashboard {...shared} config={vetConfig.vets} records={records} columns={vetColumns} exportName="veterinarians"
       rowKey={(row) => String(row.id)} rowTitle={(row) => row.fullName} rowActions={(row) => <VetActions row={row} onChanged={records.reload} />}
+      deleteEndpoint={(id) => `/api/admin/vet/vets/${encodeURIComponent(id)}`}
       addLabel="Add vet" onAdd={() => setAdding(true)} />
     {adding && <VetForm open={adding} onOpenChange={setAdding} onSaved={records.reload} />}
   </>;
@@ -33,6 +34,7 @@ function Requests({ initialData, initialError }: Props<VetServiceRequestRecord>)
     <RegistryDashboard {...shared} config={vetConfig.requests} records={records} columns={requestColumns} exportName="vet-service-requests"
       rowKey={(row) => row.uuid} rowTitle={(row) => row.problemCategory ?? "request"}
       rowActions={(row) => <RequestActions row={row} onChanged={records.reload} />}
+      deleteEndpoint={(uuid) => `/api/admin/vet/requests/${encodeURIComponent(uuid)}`}
       addLabel="Add service request" onAdd={() => setAdding(true)} />
     {adding && <RequestForm open={adding} onOpenChange={setAdding} onSaved={records.reload} />}
   </>;

@@ -259,7 +259,12 @@ export function IncomeExpenditureDashboard({
                   )}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {isBills ? row.officer : row.reference}
+                  {isBills ? (
+                    <span>
+                      {row.officer}
+                      {row.issuerType === "vet" ? " (Vet)" : ""}
+                    </span>
+                  ) : row.reference}
                 </TableCell>
                 <TableCell className="font-medium">{row.farm}</TableCell>
                 <TableCell>{row.farmer}</TableCell>

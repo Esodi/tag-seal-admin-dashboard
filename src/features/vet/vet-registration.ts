@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authenticatedFetch } from "@/lib/auth/session";
+import type { VetRecord } from "./types";
 import { requiredVetDocuments, vetDocumentLabel } from "./vet-document-rules";
 
 /** Mirrors the app's "I am a veterinarian" form: same fields, same rules. */
@@ -22,6 +23,42 @@ export const emptyRegistration = (): VetRegistration => ({
   countryId: "", regionId: "", districtId: "", serviceRadiusKm: "30", address: "", latitude: "", longitude: "",
   schoolLevelId: "", documents: {}, otherDocuments: [],
 });
+
+/** Pre-fills the vet registration form from an existing [VetRecord] for editing. */
+export function registrationFromVet(vet: VetRecord): VetRegistration {
+  const parts = (vet.fullName ?? "").trim().split(/\s+/).filter(Boolean);
+  const firstName = parts[0] ?? "";
+  const middleName = parts.length > 2 ? parts.slice(1, -1).join(" ") : "";
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : "";
+  return {
+    firstName,
+    middleName,
+    lastName,
+    dateOfBirth: vet.dateOfBirth ? vet.dateOfBirth.slice(0, 10) : "",
+    gender: vet.gender ?? "",
+    phoneNumber: vet.phoneNumber ?? "",
+    email: vet.email ?? "",
+    identityCardTypeId: vet.identityCardTypeId != null ? String(vet.identityCardTypeId) : "",
+    identityNo: vet.identityNo ?? "",
+    medicalLicenseNo: vet.medicalLicenseNo ?? "",
+    licenseAuthority: vet.licenseAuthority ?? "",
+    licenseExpiryDate: vet.licenseExpiryDate ? vet.licenseExpiryDate.slice(0, 10) : "",
+    specializations: Array.isArray(vet.specializations) ? [...vet.specializations] : [],
+    yearsOfExperience: vet.yearsOfExperience != null ? String(vet.yearsOfExperience) : "",
+    clinicName: vet.clinicName ?? "",
+    bio: vet.bio ?? "",
+    countryId: vet.countryId != null ? String(vet.countryId) : "",
+    regionId: vet.regionId != null ? String(vet.regionId) : "",
+    districtId: vet.districtId != null ? String(vet.districtId) : "",
+    serviceRadiusKm: vet.serviceRadiusKm != null ? String(vet.serviceRadiusKm) : "30",
+    address: vet.address ?? "",
+    latitude: vet.latitude != null ? String(vet.latitude) : "",
+    longitude: vet.longitude != null ? String(vet.longitude) : "",
+    schoolLevelId: vet.schoolLevelId != null ? String(vet.schoolLevelId) : "",
+    documents: {},
+    otherDocuments: [],
+  };
+}
 
 export const specializationLabels: Record<string, string> = {
   cattle: "Cattle", goats_sheep: "Goats & sheep", poultry: "Poultry", pigs: "Pigs", dairy: "Dairy", reproduction: "Reproduction",
@@ -98,33 +135,39 @@ export type VetStepId = keyof typeof stepFields;
 const required = (label: string) => `${label} is required`;
 
 /** Field errors for one step, keyed like the server's validation errors. */
-export function validateStep(step: VetStepId, v: VetRegistration): Record<string, string> {
+export function validateStep(step: VetStepId, v: VetRegistration, existing?: VetRecord): Record<string, string> {
   const e: Record<string, string> = {};
   if (step === "identity") {
     if (!v.firstName.trim()) e.firstName = required("First name");
     if (!v.lastName.trim()) e.lastName = required("Surname");
-    if (!v.dateOfBirth) e.dateOfBirth = required("Date of birth");
-    else if (v.dateOfBirth > adultBirthLimit()) e.dateOfBirth = "The vet must be at least 18 years old";
-    if (!v.gender) e.gender = required("Sex");
+    if (!v.dateOfBirth && !existing) e.dateOfBirth = required("Date of birth");
+    else if (v.dateOfBirth && v.dateOfBirth > adultBirthLimit()) e.dateOfBirth = "The vet must be at least 18 years old";
+    if (!v.gender && !existing) e.gender = required("Sex");
     if (!v.phoneNumber.trim()) e.phoneNumber = required("Phone number");
     if (v.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email.trim())) e.email = "Enter a valid email address";
     if (v.identityCardTypeId && !v.identityNo.trim()) e.identityNo = required("Identity card number");
     if (v.identityNo.trim() && !v.identityCardTypeId) e.identityCardTypeId = required("Identity card type");
   }
   if (step === "practice") {
-    if (!v.medicalLicenseNo.trim()) e.medicalLicenseNo = required("Licence number");
-    if (!v.licenseExpiryDate) e.licenseExpiryDate = required("Licence expiry date");
-    else if (v.licenseExpiryDate <= today()) e.licenseExpiryDate = "The licence must not have expired";
-    if (v.specializations.length === 0) e.specializations = "Select at least one specialisation";
+    if (!v.medicalLicenseNo.trim() && !existing) e.medicalLicenseNo = required("Licence number");
+    if (!v.licenseExpiryDate && !existing) e.licenseExpiryDate = required("Licence expiry date");
+    else if (
+      v.licenseExpiryDate &&
+      v.licenseExpiryDate <= today() &&
+      (!existing || v.licenseExpiryDate !== existing.licenseExpiryDate?.slice(0, 10))
+    ) {
+      e.licenseExpiryDate = "The licence must not have expired";
+    }
+    if (v.specializations.length === 0 && !existing) e.specializations = "Select at least one specialisation";
     const years = v.yearsOfExperience.trim();
     if (years && !(Number.isInteger(Number(years)) && Number(years) >= 0 && Number(years) <= 60)) e.yearsOfExperience = "Enter a whole number from 0 to 60";
   }
   if (step === "documents") {
-    if (!v.schoolLevelId) e.schoolLevelId = required("Secondary education level");
+    if (!v.schoolLevelId && !existing) e.schoolLevelId = required("Secondary education level");
     for (const type of requiredVetDocuments) {
       const file = v.documents[type];
-      if (!file) e[`documents.${type}`] = required(vetDocumentLabel(type));
-      else if (file.size > MAX_DOCUMENT_BYTES) e[`documents.${type}`] = `The file must be ${MAX_DOCUMENT_MB} MB or smaller`;
+      if (!file && !existing) e[`documents.${type}`] = required(vetDocumentLabel(type));
+      else if (file && file.size > MAX_DOCUMENT_BYTES) e[`documents.${type}`] = `The file must be ${MAX_DOCUMENT_MB} MB or smaller`;
     }
     if (v.otherDocuments.length > 5) e["documents.other"] = "Attach at most 5 supporting documents";
     else if (v.otherDocuments.some((f) => f.size > MAX_DOCUMENT_BYTES)) e["documents.other"] = `Each file must be ${MAX_DOCUMENT_MB} MB or smaller`;
@@ -144,15 +187,18 @@ export function validateStep(step: VetStepId, v: VetRegistration): Record<string
   return e;
 }
 
-/** JSON body for POST /api/admin/vet/vets once credentials have been uploaded to object storage. */
+/** JSON body for POST /api/admin/vet/vets or PUT /api/admin/vet/vets/{id}. */
 export function registrationPayload(
   v: VetRegistration,
   documentKeys: Record<string, string>,
   otherDocumentKeys: string[],
+  isEdit = false,
 ): Record<string, unknown> {
-  const str = (val: string) => (val.trim() ? val.trim() : undefined);
-  const num = (val: string) => (val.trim() && !Number.isNaN(Number(val)) ? Number(val) : undefined);
-  return {
+  const str = (val: string) => (val.trim() ? val.trim() : isEdit ? null : undefined);
+  const num = (val: string) => (val.trim() && !Number.isNaN(Number(val)) ? Number(val) : isEdit ? null : undefined);
+  const fullName = [v.firstName, v.middleName, v.lastName].map((s) => s.trim()).filter(Boolean).join(" ");
+  const payload: Record<string, unknown> = {
+    fullName: fullName || undefined,
     firstName: str(v.firstName),
     middleName: str(v.middleName),
     lastName: str(v.lastName),
@@ -177,10 +223,19 @@ export function registrationPayload(
     latitude: num(v.latitude),
     longitude: num(v.longitude),
     schoolLevelId: num(v.schoolLevelId),
-    documentKeys,
-    otherDocumentKeys,
-    verificationStatus: "verified",
   };
+
+  if (!isEdit || Object.keys(documentKeys).length > 0) {
+    payload.documentKeys = documentKeys;
+  }
+  if (!isEdit || otherDocumentKeys.length > 0) {
+    payload.otherDocumentKeys = otherDocumentKeys;
+  }
+  if (!isEdit) {
+    payload.verificationStatus = "verified";
+  }
+
+  return payload;
 }
 
 /** Multipart fallback body for POST /vet/vets; the vet is approved straight away. */

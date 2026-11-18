@@ -22,6 +22,12 @@ export type FinanceRecordItem = {
   farmerName?: string | null;
   extensionOfficerId?: number | string | null;
   extensionOfficerName?: string | null;
+  vetId?: number | string | null;
+  vetName?: string | null;
+  vetServiceRequestUuid?: string | null;
+  issuerType?: string | null;
+  issuerName?: string | null;
+  scope?: string | null;
   subjectType?: string | null;
   quantity?: number | null;
   amount?: number | null;
@@ -30,6 +36,9 @@ export type FinanceRecordItem = {
   unitCost?: number | null;
   totalCost?: number | null;
   status?: string | null;
+  paidAt?: string | null;
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
   incomeDate?: string | null;
   expenseDate?: string | null;
   notes?: string | null;
@@ -47,6 +56,7 @@ export type FinanceOptions = {
   farms?: FinanceOption[];
   farmers?: FinanceOption[];
   extensionOfficers?: FinanceOption[];
+  vets?: FinanceOption[];
 };
 
 export type FinanceResponse = {
@@ -77,6 +87,10 @@ export type FinanceReportRow = {
   farm: string;
   farmer: string;
   officer?: string;
+  issuerType?: string;
+  vetServiceRequestUuid?: string | null;
+  paymentMethod?: string | null;
+  paidAt?: string | null;
   subject: string;
   quantity: number;
   amount: number;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Check, Eye, MapPin, MoreVertical, RefreshCw, RotateCcw, UserX, X } from "lucide-react";
+import { Check, Eye, MapPin, MoreVertical, Pencil, RefreshCw, RotateCcw, Trash2, UserX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { CustomViewDetailsDialog, DetailItem } from "@/components/ui/custom-view-details-dialog";
@@ -13,22 +13,28 @@ import { commerceDateTime, commerceLabel } from "@/features/commerce/commerce-co
 import { RegistryStatus } from "@/features/registry/registry-status";
 import { registryRun, registrySend } from "@/features/registry/registry-api";
 import { formatRecordDate } from "@/lib/resource-table";
+import { RequestForm } from "./request-form";
 import { animalLabel } from "./vet-columns";
 import { missingVetDocuments } from "./vet-document-rules";
 import { VetDocumentsSection } from "./vet-documents";
+import { VetForm } from "./vet-form";
 import { requestCancellable, requestCoordinatesLabel, requestLocationLabel, requestMapsHref, type VetRecord, type VetServiceRequestRecord } from "./types";
 
 type ActionProps<T> = { row: T; onChanged: () => void };
 
 export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
   const [viewing, setViewing] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const path = `/api/admin/vet/vets/${row.id}`;
   const pending = row.verificationStatus === "pending";
   const complete = missingVetDocuments(row).length === 0;
   const location = [row.address, row.district?.name, row.region?.name].filter(Boolean).join(", ");
+  const mapsHref = requestMapsHref(row);
+  const coords = requestCoordinatesLabel(row);
 
   async function reject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,6 +49,12 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon-sm" aria-label={`Actions for ${row.fullName}`}><MoreVertical /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => setViewing(true)}><Eye />View details</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setEditing(true)}><Pencil />Edit</DropdownMenuItem>
+        {mapsHref && (
+          <DropdownMenuItem onSelect={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
+            <MapPin />Open in maps
+          </DropdownMenuItem>
+        )}
         {pending && <>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={!complete} onSelect={() => setApproving(true)}><Check />{complete ? "Approve" : "Approve (documents missing)"}</DropdownMenuItem>
@@ -52,6 +64,7 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
         {row.status === "active"
           ? <DropdownMenuItem destructive onSelect={() => setDeactivating(true)}><UserX />Deactivate</DropdownMenuItem>
           : <DropdownMenuItem onSelect={() => void registryRun(() => registrySend(path, "PUT", { status: "active" }), `${row.fullName} activated.`, onChanged)}><RotateCcw />Activate</DropdownMenuItem>}
+        <DropdownMenuItem destructive onSelect={() => setDeleting(true)}><Trash2 />Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
 
@@ -71,7 +84,20 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
         <DetailItem label="Secondary education">{row.schoolLevel || "—"}</DetailItem>
         <DetailItem label="Location">{location || "—"}</DetailItem>
         {row.serviceRadiusKm != null && <DetailItem label="Service radius">{row.serviceRadiusKm} km</DetailItem>}
-        {row.latitude != null && row.longitude != null && <DetailItem label="Base GPS">{`${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}`}</DetailItem>}
+        {coords && (
+          <DetailItem label="Base GPS">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="tabular-nums">{coords}</span>
+              {mapsHref ? (
+                <Button variant="outline" size="xs" asChild>
+                  <a href={mapsHref} target="_blank" rel="noopener noreferrer">
+                    <MapPin />Open map
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </DetailItem>
+        )}
         <DetailItem label="Experience">{row.yearsOfExperience ? `${row.yearsOfExperience} years` : "—"}</DetailItem>
         <DetailItem label="Visits done">{row.completedRequestsCount ?? 0}</DetailItem>
         <DetailItem label="Rating">{row.ratingCount ? `${Number(row.ratingAverage ?? 0).toFixed(1)} from ${row.ratingCount} reviews` : "No reviews yet"}</DetailItem>
@@ -81,6 +107,8 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
       </div>
       <VetDocumentsSection row={row} path={path} />
     </CustomViewDetailsDialog>
+
+    {editing && <VetForm key={row.id} vet={row} open={editing} onOpenChange={setEditing} onSaved={onChanged} />}
 
     {rejecting && <FormDialog open={rejecting} onOpenChange={setRejecting} title={`Reject ${row.fullName}?`} description="The vet sees this reason in the app and can update their details and apply again." onSubmit={reject} submitLabel="Reject">
       <Field><FieldLabel htmlFor="vet-remarks" required>Reason</FieldLabel><Textarea id="vet-remarks" name="remarks" required maxLength={1000} /></Field>
@@ -92,6 +120,9 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
     <ConfirmationAlertDialog open={deactivating} onOpenChange={setDeactivating} title={`Deactivate ${row.fullName}?`}
       description="Farmers can no longer request this vet. Past visits are kept and you can activate the vet again."
       confirmLabel="Deactivate" destructive onConfirm={async () => { await registryRun(() => registrySend(path, "PUT", { status: "notActive" }), `${row.fullName} deactivated.`, onChanged); }} />
+    <ConfirmationAlertDialog open={deleting} onOpenChange={setDeleting} title={`Delete ${row.fullName}?`}
+      description="This veterinarian profile and its uploaded credentials will be permanently removed."
+      confirmLabel="Delete" destructive onConfirm={async () => { await registryRun(() => registrySend(path, "DELETE"), `${row.fullName} deleted.`, onChanged); }} />
   </>;
 }
 
@@ -99,8 +130,10 @@ const timelineSteps: Array<[string, string]> = [["createdAt", "Requested"], ["ac
 
 export function RequestActions({ row, onChanged }: ActionProps<VetServiceRequestRecord>) {
   const [viewing, setViewing] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const path = `/api/admin/vet/requests/${row.uuid}`;
+  const [deleting, setDeleting] = useState(false);
+  const path = `/api/admin/vet/requests/${encodeURIComponent(row.uuid)}`;
   const canCancel = requestCancellable(row.status);
   const canRedispatch = row.status === "pending";
   const mapsHref = requestMapsHref(row);
@@ -123,6 +156,7 @@ export function RequestActions({ row, onChanged }: ActionProps<VetServiceRequest
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => setViewing(true)}><Eye />View details</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setEditing(true)}><Pencil />Edit</DropdownMenuItem>
         {mapsHref && (
           <DropdownMenuItem onSelect={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
             <MapPin />Open in maps
@@ -139,6 +173,8 @@ export function RequestActions({ row, onChanged }: ActionProps<VetServiceRequest
             <DropdownMenuItem destructive onSelect={() => setCancelling(true)}><X />Cancel request</DropdownMenuItem>
           </>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem destructive onSelect={() => setDeleting(true)}><Trash2 />Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
 
@@ -170,12 +206,36 @@ export function RequestActions({ row, onChanged }: ActionProps<VetServiceRequest
         {timelineSteps.filter(([key]) => row.timeline?.[key]).map(([key, label]) => <DetailItem key={key} label={`${label} (EAT)`}>{commerceDateTime(row.timeline?.[key])}</DetailItem>)}
         {row.cancelReason && <DetailItem label="Cancel reason" className="sm:col-span-2">{row.cancelReason}</DetailItem>}
         {row.treatmentSummary && <DetailItem label="Treatment" className="sm:col-span-2">{typeof row.treatmentSummary === "string" ? row.treatmentSummary : JSON.stringify(row.treatmentSummary)}</DetailItem>}
+        {row.bills && row.bills.length > 0 && (
+          <DetailItem label="Bills & Payments" className="sm:col-span-2">
+            <div className="space-y-1.5">
+              {row.bills.map((bill) => (
+                <div key={bill.uuid} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs">
+                  <span>
+                    <span className="font-mono font-semibold">{bill.billNo || bill.uuid.slice(0, 8)}</span>
+                    {bill.subjectType ? ` · ${bill.subjectType}` : ""}
+                  </span>
+                  <span className="font-semibold tabular-nums">
+                    TZS {Number(bill.amount || 0).toLocaleString("en-TZ")} · {bill.status.toUpperCase()}
+                    {bill.paymentMethod ? ` (${bill.paymentMethod})` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </DetailItem>
+        )}
         {row.farmerRating && <DetailItem label="Farmer rating" className="sm:col-span-2">{row.farmerRating} / 5{row.farmerReview ? ` · ${row.farmerReview}` : ""}</DetailItem>}
       </div>
     </CustomViewDetailsDialog>
 
+    {editing && <RequestForm key={row.uuid} request={row} open={editing} onOpenChange={setEditing} onSaved={onChanged} />}
+
     {cancelling && <FormDialog open={cancelling} onOpenChange={setCancelling} title="Cancel this service request?" description="The farmer and assigned vet (if any) will see the visit as cancelled." onSubmit={cancel} submitLabel="Cancel request">
       <Field><FieldLabel htmlFor="req-cancel-reason">Reason</FieldLabel><Textarea id="req-cancel-reason" name="reason" maxLength={500} /></Field>
     </FormDialog>}
+
+    <ConfirmationAlertDialog open={deleting} onOpenChange={setDeleting} title="Delete this service request?"
+      description="This service request and its dispatch history will be permanently removed."
+      confirmLabel="Delete" destructive onConfirm={async () => { await registryRun(() => registrySend(path, "DELETE"), "Service request deleted.", onChanged); }} />
   </>;
 }

@@ -5,9 +5,10 @@ export const auctionCentreRoles = ["manager", "auctioneer", "clerk"] as const;
 
 export type AuctionCentreRecord = {
   id: number; uuid: string; code: string; name: string; description?: string | null; address?: string | null;
-  regionId?: number | null; districtId?: number | null; latitude?: number | null; longitude?: number | null;
-  regionName?: string | null; districtName?: string | null; phone?: string | null; status: string;
+  regionId?: number | null; districtId?: number | null; wardId?: number | null; latitude?: number | null; longitude?: number | null;
+  regionName?: string | null; districtName?: string | null; wardName?: string | null; phone?: string | null; status: string;
   membersCount?: number; sessionsCount?: number; liveCount?: number; createdAt?: string | null;
+  members?: AuctionCentreMemberRecord[]; sessions?: AuctionSessionRecord[];
 };
 
 export type AuctionCentreMemberRecord = {

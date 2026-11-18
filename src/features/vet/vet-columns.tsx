@@ -70,6 +70,17 @@ export const requestColumns: RegistryColumn<VetServiceRequestRecord>[] = [
       </div>
     );
   }),
+  registryColumn(
+    "billing",
+    "Billing",
+    (r) => (r.billingSummary?.count ? `TZS ${Number(r.billingSummary.totalAmount).toLocaleString("en-TZ")}` : "—"),
+    (r) => {
+      const summary = r.billingSummary;
+      if (!summary || !summary.count) return <span className="text-muted-foreground">—</span>;
+      const status = summary.latestStatus ?? (summary.pendingAmount > 0 ? "pending" : "paid");
+      return twoLine(`TZS ${Number(summary.totalAmount).toLocaleString("en-TZ")}`, `${summary.count} bill(s) · ${status.toUpperCase()}`);
+    },
+  ),
   registryColumn("status", "Status", (r) => commerceLabel(r.status), (r) => <RegistryStatus status={r.status} />),
-  registryColumn("created", "Created at", (r) => formatRecordDate(r.timeline?.createdAt ?? undefined), undefined, "text-muted-foreground"),
+  registryColumn("created", "Created at", (r) => formatRecordDate(r.timeline?.createdAt ?? r.createdAt ?? undefined), undefined, "text-muted-foreground"),
 ];

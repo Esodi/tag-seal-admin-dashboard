@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Download, Plus, RefreshCw, Search, X, type LucideIcon } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
+import { BulkRecordAction } from "@/components/ui/bulk-record-action";
 import { DashboardStatCard } from "@/components/ui/dashboard";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,10 +21,10 @@ import type { RegistryColumn, RegistryConfig } from "./types";
 import type { RegistryRecords } from "./use-registry-records";
 
 /** The Commerce table layout for any paged admin list; each feature supplies its columns and row actions. */
-export function RegistryDashboard<T>({ parent, parentHref, config, records, columns, rowKey, rowTitle, rowActions, addLabel, onAdd, exportName, emptyIcon }: {
+export function RegistryDashboard<T>({ parent, parentHref, config, records, columns, rowKey, rowTitle, rowActions, addLabel, onAdd, deleteEndpoint, exportName, emptyIcon }: {
   parent: string; parentHref: string; config: RegistryConfig; records: RegistryRecords<T>; columns: RegistryColumn<T>[];
   rowKey: (row: T) => string; rowTitle: (row: T) => string; rowActions: (row: T) => ReactNode;
-  addLabel?: string; onAdd?: () => void; exportName: string; emptyIcon: LucideIcon;
+  addLabel?: string; onAdd?: () => void; deleteEndpoint?: (key: string) => string; exportName: string; emptyIcon: LucideIcon;
 }) {
   const { data, error, loading, query, status, sort, pageSize } = records;
   const rows = data?.data ?? [];
@@ -67,6 +68,18 @@ export function RegistryDashboard<T>({ parent, parentHref, config, records, colu
           {query && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" onClick={() => records.setQuery("")}><X className="size-3.5" /></button>}
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+          {deleteEndpoint && (
+            <BulkRecordAction
+              ids={[...selected]}
+              action="delete"
+              disabled={loading}
+              getRequest={(id) => ({ url: deleteEndpoint(String(id)), method: "DELETE" })}
+              onComplete={() => {
+                setSelected(new Set());
+                records.reload();
+              }}
+            />
+          )}
           {selected.size > 0 && !loading && <Button variant="outline" size="sm" onClick={exportSelected}><Download />Export selected ({selected.size})</Button>}
           <Select value={status} onValueChange={records.setStatus}><SelectTrigger aria-label="Filter by status" size="sm" className="h-8 w-auto min-w-36 font-normal"><SelectValue /></SelectTrigger><SelectContent align="end"><SelectItem value="all">All statuses</SelectItem>{config.statuses.map((value) => <SelectItem key={value} value={value}>{value === "notActive" ? "Not Active" : commerceLabel(value)}</SelectItem>)}</SelectContent></Select>
           <Select value={sort} onValueChange={records.setSort}><SelectTrigger aria-label="Sort records" size="sm" className="h-8 w-auto min-w-36 font-normal">{sort === "desc" ? <ArrowDownWideNarrow className="size-3.5 text-muted-foreground" /> : <ArrowUpNarrowWide className="size-3.5 text-muted-foreground" />}<SelectValue /></SelectTrigger><SelectContent align="end"><SelectItem value="desc">Newest first</SelectItem><SelectItem value="asc">Oldest first</SelectItem></SelectContent></Select>

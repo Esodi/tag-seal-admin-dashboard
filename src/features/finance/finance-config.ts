@@ -9,6 +9,7 @@ export const FINANCE_RESOLVED_NAME_FIELD_MAP: Record<string, string> = {
   farmUuid: "farmName",
   farmerId: "farmerName",
   extensionOfficerId: "extensionOfficerName",
+  vetId: "vetName",
 };
 
 export type FinanceResourceConfig = {
@@ -65,7 +66,7 @@ export const financeResourceConfigs: Record<
     columns: [
       { key: "billNo", label: "Bill No" },
       { key: "farm", label: "Farm" },
-      { key: "extensionOfficerName", label: "Extension Officer" },
+      { key: "issuerName", label: "Issued By" },
       { key: "subjectType", label: "Subject" },
       { key: "amount", label: "Amount" },
       { key: "status", label: "Status" },
@@ -74,7 +75,7 @@ export const financeResourceConfigs: Record<
     formSections: [
       {
         title: "Bill Context & Parties",
-        description: "Assign the farm, farmer and attending extension officer.",
+        description: "Assign the farm, farmer and attending vet or extension officer.",
         fields: [
           {
             name: "billNo",
@@ -104,6 +105,13 @@ export const financeResourceConfigs: Record<
             type: "select",
             optionsKey: "extensionOfficers",
             placeholder: "Select extension officer (optional)",
+          },
+          {
+            name: "vetId",
+            label: "Veterinarian",
+            type: "select",
+            optionsKey: "vets",
+            placeholder: "Select veterinarian (optional)",
           },
         ],
       },
@@ -320,7 +328,8 @@ export const financeResourceConfigs: Record<
     },
     columns: [
       { key: "sourceType", label: "Source" },
-      { key: "farm", label: "Farm" },
+      { key: "scope", label: "Ledger" },
+      { key: "farm", label: "Farm / Vet" },
       { key: "billNo", label: "Bill No" },
       { key: "subjectType", label: "Subject" },
       { key: "totalCost", label: "Total" },

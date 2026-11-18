@@ -28,10 +28,12 @@ const moduleSpecs: Record<ModuleKey, { goal: string; charts: ChartSpec[] }> = {
     ],
   },
   vet: {
-    goal: "Do farmers get a veterinarian quickly, and are visits completed?",
+    goal: "Do farmers get a veterinarian quickly, and are visits completed and billed properly?",
     charts: [
       { key: "responseByUrgency", title: "Time to accept by urgency", description: "Average minutes from request to a vet accepting it.", series: [{ key: "value", name: "Minutes", color: "#b4534b" }], unit: "min" },
       { key: "status", title: "Requests by status", description: "Current status of requests made in this period.", series: [{ key: "value", name: "Requests", color: "#5b7c91" }], layout: "vertical" },
+      { key: "billingSummary", title: "Vet billing vs practice expenses", description: "Collected bills, pending bills, and recorded vet practice expenses in this period.", series: [{ key: "value", name: "Amount (TZS)", color: "#234e38" }], unit: "TZS" },
+      { key: "paymentsByMethod", title: "Vet payments by method", description: "Settled vet bills grouped by payment method.", series: [{ key: "value", name: "Collected (TZS)", color: "#3f7c54" }], unit: "TZS", layout: "vertical" },
     ],
   },
   dairy: {
@@ -66,7 +68,7 @@ export function ModuleAnalyticsPanel({ module, analysis }: { module: ModuleKey; 
   const spec = moduleSpecs[module];
   return <>
     <div className="rounded-xl border bg-muted/20 p-4"><p className="text-supporting font-semibold">Business question</p><p className="mt-1 text-supporting text-muted-foreground">{spec.goal}</p></div>
-    <section aria-label="Key figures" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <section aria-label="Key figures" className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-3", analysis.kpis.length > 6 ? "xl:grid-cols-5" : "xl:grid-cols-6")}>
       {analysis.kpis.map((kpi) => <article key={kpi.key} className="rounded-xl border bg-card p-4"><p className="text-supporting font-medium text-muted-foreground">{kpi.label}</p><p className="mt-2 text-xl font-semibold tabular-nums">{kpiValue(kpi)}</p></article>)}
     </section>
     <section aria-label="Hypotheses" className="grid gap-4 lg:grid-cols-2">{analysis.hypotheses.map((item) => <HypothesisCard key={item.key} item={item} />)}</section>

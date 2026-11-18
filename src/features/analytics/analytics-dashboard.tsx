@@ -11,6 +11,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { formatNumber, formatReportRange, formatReportValue, humanize, todayInEat } from "@/features/analytics/analytics-format";
+import { FinanceReportAnalytics } from "@/features/analytics/finance-report-analytics";
 import { ModuleAnalyticsPanel } from "@/features/analytics/module-analytics";
 import { AnalyticsCard, AnalyticsEmpty, AnalyticsFilterBar, AnalyticsKpiCard, AnalyticsKpiGrid, AnalyticsReportTable, AttentionList, ChartActions, ChartDownloadButton } from "@/features/analytics/components/analytics-ui";
 import type { AnalyticsApiResponse, AnalyticsPreset, AnalyticsReportKey, AnalyticsResponse, AnalyticsTab, AnalyticsView, ModuleKey } from "@/features/analytics/types";
@@ -25,7 +26,8 @@ const reportLabels: Record<string, string> = {
   farmName: "Farm", country: "Country", region: "Region", animals: "Animals", lastActivity: "Last activity", farms: "Farms", regions: "Regions",
   productionDate: "Production date", productCode: "Product", unit: "Unit", quantity: "Quantity", damagedQuantity: "Damaged",
   farmerNo: "Farmer no.", farmerName: "Farmer", phone: "Phone", transactionType: "Type", reference: "Reference", source: "Source", amount: "Amount", transactionDate: "Date",
-  billNo: "Bill no.", subjectType: "Subject", billDate: "Bill date",
+  billNo: "Bill no.", issuerType: "Issued by role", issuerName: "Issued by", requestRef: "Request ref.", subjectType: "Subject", billDate: "Bill date",
+  paymentMethod: "Payment method", paymentReference: "Payment ref.", billedAmount: "Billed", billingStatus: "Billing status", totalCost: "Total cost", expenseDate: "Expense date",
   referenceNo: "Reference no.", ownerName: "Owner", size: "Size", sizeUnit: "Unit", legalStatus: "Legal status",
   fullName: "Full name", email: "Email", role: "Account role", roleTitle: "Farm role", gender: "Gender", createdAt: "Created",
   officerNo: "Officer no.", organization: "Organization", specialization: "Specialization", verified: "Verified", invites: "Invites",
@@ -156,6 +158,9 @@ export function AnalyticsDashboard({ initialData, initialError }: { initialData:
       <div className="card grid gap-3 p-4 sm:grid-cols-[minmax(0,22rem)_1fr] sm:items-end"><div><p className="mb-2 text-supporting font-semibold">Report type</p><FormSelect value={report} onValueChange={chooseReport} options={data.reportCatalog.map((item) => ({ value: item.value, label: `${item.group} · ${item.label}` }))} searchable searchPlaceholder="Search all reports..." triggerClassName="bg-background" /></div><p className="text-supporting text-muted-foreground">{data.reportCatalog.find((item) => item.value === report)?.description}</p></div>
       {report === "events" && data.eventTypes.length ? <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-supporting font-semibold">Event type</p><p className="mt-1 text-supporting text-muted-foreground">Choose the event records to include in the table and export.</p></div><FormSelect value={eventType} onValueChange={(value) => { setEventType(value); setQuery(""); setPage(1); }} options={data.eventTypes.map((item) => ({ value: item.value, label: `${item.label} (${formatNumber(item.count)})` }))} searchable={data.eventTypes.length > 5} searchPlaceholder="Search event types..." triggerClassName="w-full bg-background sm:w-72" /></div> : null}
       {report === "milkings" ? <MilkingReportAnalytics data={data} /> : null}
+      {(report === "finance" || report === "bills" || report === "vetBills" || report === "vetPracticeExpenses") && selectedReport ? (
+        <FinanceReportAnalytics reportKey={report} report={selectedReport} />
+      ) : null}
       {selectedReport && <AnalyticsReportTable report={selectedReport} labels={reportLabels} query={query} page={page} pageSize={pageSize} onQuery={setQuery} onPage={setPage} onPageSize={setPageSize} title={report === "events" ? data.eventTypes.find((item) => item.value === eventType)?.label ?? reportTitle : reportTitle} />}
     </> : null}
   </div>;

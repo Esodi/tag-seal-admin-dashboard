@@ -81,7 +81,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   }, []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+      if (event.key?.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setCommandOpen((open) => !open);
       }

@@ -13,33 +13,34 @@ import { RegionDistrictFields } from "@/features/auction/auction-location-fields
 import { useRegionDistrictOptions } from "@/features/auction/auction-hooks";
 import { RegistryApiError, registrySend } from "@/features/registry/registry-api";
 import { cn } from "@/lib/utils";
+import type { VetRecord } from "./types";
 import { requiredVetDocuments, vetDocumentLabel } from "./vet-document-rules";
 import {
   DOCUMENT_ACCEPT, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_MB, adultBirthLimit, emptyRegistration, formatDocumentSize,
-  genderOptions, registrationPayload, specializationLabels, stepFields, tomorrow, uploadVetDocument,
+  genderOptions, registrationFromVet, registrationPayload, specializationLabels, stepFields, tomorrow, uploadVetDocument,
   useVetFormOptions, validateStep, type VetRegistration, type VetStepId,
 } from "./vet-registration";
 
-type FormProps = { open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void };
+type FormProps = { vet?: VetRecord; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void };
 type Errors = Record<string, string>;
 
 /**
- * Adds an approved vet with the same steps, fields and upload-first object
- * storage flow as the app's "I am a veterinarian" form.
+ * Adds an approved vet or edits an existing vet with the same steps, fields
+ * and upload-first object storage flow as the app's "I am a veterinarian" form.
  */
 export function VetForm(props: FormProps) {
-  const [value, setValue] = useState<VetRegistration>(emptyRegistration);
+  const [value, setValue] = useState<VetRegistration>(() => (props.vet ? registrationFromVet(props.vet) : emptyRegistration()));
   const [errors, setErrors] = useState<Errors>({});
   const options = useVetFormOptions(props.open);
   const places = useRegionDistrictOptions(props.open);
 
   useEffect(() => {
     const countries = options.data.countries ?? [];
-    if (props.open && !value.countryId && countries.length > 0) {
+    if (!props.vet && props.open && !value.countryId && countries.length > 0) {
       const tz = countries.find((c) => c.name.toLowerCase().includes("tanzania")) ?? countries[0];
       if (tz) setValue((old) => (old.countryId ? old : { ...old, countryId: String(tz.id) }));
     }
-  }, [props.open, options.data.countries, value.countryId]);
+  }, [props.vet, props.open, options.data.countries, value.countryId]);
 
   function change(patch: Partial<VetRegistration>) {
     setValue((old) => ({ ...old, ...patch }));
@@ -54,7 +55,7 @@ export function VetForm(props: FormProps) {
   }
 
   function check(step: VetStepId) {
-    const found = validateStep(step, value);
+    const found = validateStep(step, value, props.vet);
     setErrors((old) => {
       const next = { ...old };
       for (const key of stepFields[step]) delete next[key];
@@ -67,7 +68,7 @@ export function VetForm(props: FormProps) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const order: VetStepId[] = ["identity", "practice", "documents", "coverage"];
-    if (!order.every((step) => Object.keys(validateStep(step, value)).length === 0)) {
+    if (!order.every((step) => Object.keys(validateStep(step, value, props.vet)).length === 0)) {
       order.forEach((step) => check(step));
       return false;
     }
@@ -76,6 +77,7 @@ export function VetForm(props: FormProps) {
     for (const type of requiredVetDocuments) {
       const file = value.documents[type];
       if (!file) {
+        if (props.vet) continue;
         const msg = `${vetDocumentLabel(type)} is required`;
         setErrors((old) => ({ ...old, [`documents.${type}`]: msg }));
         toast.error(msg);
@@ -103,8 +105,19 @@ export function VetForm(props: FormProps) {
       }
     }
 
-    const name = [value.firstName, value.lastName].map((s) => s.trim()).join(" ");
+    const name = [value.firstName, value.middleName, value.lastName].map((s) => s.trim()).filter(Boolean).join(" ");
     try {
+      if (props.vet) {
+        await registrySend(
+          `/api/admin/vet/vets/${props.vet.id}`,
+          "PUT",
+          registrationPayload(value, documentKeys, otherDocumentKeys, true),
+        );
+        toast.success("Changes saved.");
+        props.onSaved();
+        props.onOpenChange(false);
+        return true;
+      }
       await registrySend("/api/admin/vet/vets", "POST", registrationPayload(value, documentKeys, otherDocumentKeys));
       toast.success(`${name} added. They sign in to the app with their phone number.`);
       props.onSaved();
@@ -132,18 +145,20 @@ export function VetForm(props: FormProps) {
   const countries = options.data.countries ?? [];
   const selectedIdType = idTypes.find((t) => String(t.id) === value.identityCardTypeId);
   const selectedCountry = countries.find((c) => String(c.id) === value.countryId);
+  const existingDocs = props.vet?.documents ?? [];
+  const existingOthers = existingDocs.filter((d) => d.type === "other");
 
   const steps: FormStep[] = [
     { id: "identity", title: "Identity", description: "Who the vet is and how to reach them.", fieldNames: [...stepFields.identity], fieldCount: 9, content: <FieldGrid>
       {text("firstName", "First name", { required: true })}
       {text("middleName", "Middle name")}
       {text("lastName", "Surname", { required: true })}
-      <Field><FieldLabel htmlFor="vet-dateOfBirth" required>Date of birth</FieldLabel>
+      <Field><FieldLabel htmlFor="vet-dateOfBirth" required={!props.vet}>Date of birth</FieldLabel>
         <Input id="vet-dateOfBirth" type="date" value={value.dateOfBirth} max={adultBirthLimit()} min="1900-01-01" aria-invalid={field("dateOfBirth").invalid || undefined}
           onChange={(e) => change({ dateOfBirth: e.target.value })} />
         <FieldError>{errors.dateOfBirth}</FieldError>
       </Field>
-      <Field><FieldLabel htmlFor="vet-gender" required>Sex</FieldLabel>
+      <Field><FieldLabel htmlFor="vet-gender" required={!props.vet}>Sex</FieldLabel>
         <FormSelect id="vet-gender" value={value.gender} placeholder="Choose sex" options={genderOptions} invalid={field("gender").invalid}
           onValueChange={(gender) => change({ gender })} />
         <FieldError>{errors.gender}</FieldError>
@@ -162,16 +177,16 @@ export function VetForm(props: FormProps) {
       })}
     </FieldGrid> },
     { id: "practice", title: "Practice", description: "Licence, specialisations and clinic.", fieldNames: [...stepFields.practice], fieldCount: 7, content: <FieldGrid>
-      {text("medicalLicenseNo", "Licence number", { required: true, max: 100 })}
+      {text("medicalLicenseNo", "Licence number", { required: !props.vet, max: 100 })}
       {text("licenseAuthority", "Licensing authority", { hint: "For example, Veterinary Council of Tanzania." })}
-      <Field><FieldLabel htmlFor="vet-licenseExpiryDate" required>Licence expiry date</FieldLabel>
-        <Input id="vet-licenseExpiryDate" type="date" value={value.licenseExpiryDate} min={tomorrow()} aria-invalid={field("licenseExpiryDate").invalid || undefined}
+      <Field><FieldLabel htmlFor="vet-licenseExpiryDate" required={!props.vet}>Licence expiry date</FieldLabel>
+        <Input id="vet-licenseExpiryDate" type="date" value={value.licenseExpiryDate} min={props.vet ? undefined : tomorrow()} aria-invalid={field("licenseExpiryDate").invalid || undefined}
           onChange={(e) => change({ licenseExpiryDate: e.target.value })} />
         <FieldError>{errors.licenseExpiryDate}</FieldError>
       </Field>
       {text("yearsOfExperience", "Years of experience", { type: "number" })}
       <Field className="sm:col-span-2">
-        <FieldLabel required className={cn(errors.specializations && "text-danger")}>Specialisations</FieldLabel>
+        <FieldLabel required={!props.vet} className={cn(errors.specializations && "text-danger")}>Specialisations</FieldLabel>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Specialisations">
           {options.data.specializations.map((code) => {
             const on = value.specializations.includes(code);
@@ -190,19 +205,32 @@ export function VetForm(props: FormProps) {
         <Textarea id="vet-bio" rows={3} maxLength={1000} value={value.bio} onChange={(e) => change({ bio: e.target.value })} />
       </Field>
     </FieldGrid> },
-    { id: "documents", title: "Documents", description: `Secondary education level and the three required certificates. PDF, JPG or PNG up to ${MAX_DOCUMENT_MB} MB each.`, fieldNames: [...stepFields.documents], fieldCount: 5, content: <FieldGrid>
-      <Field className="sm:col-span-2"><FieldLabel htmlFor="vet-schoolLevelId" required>Secondary education level</FieldLabel>
+    { id: "documents", title: "Documents", description: props.vet
+      ? `Secondary education level and optional replacement certificates. PDF, JPG or PNG up to ${MAX_DOCUMENT_MB} MB each.`
+      : `Secondary education level and the three required certificates. PDF, JPG or PNG up to ${MAX_DOCUMENT_MB} MB each.`,
+      fieldNames: [...stepFields.documents], fieldCount: 5, content: <FieldGrid>
+      <Field className="sm:col-span-2"><FieldLabel htmlFor="vet-schoolLevelId" required={!props.vet}>Secondary education level</FieldLabel>
         {options.error ? <p role="alert" className="text-sm text-destructive">{options.error}</p> :
           <FormSelect id="vet-schoolLevelId" value={value.schoolLevelId} disabled={options.loading} invalid={field("schoolLevelId").invalid}
             placeholder={options.loading ? "Loading…" : "Choose the level"} onValueChange={(schoolLevelId) => change({ schoolLevelId })}
             options={options.data.schoolLevels.map((l) => ({ value: String(l.id), label: l.name }))} />}
         <FieldError>{errors.schoolLevelId}</FieldError>
       </Field>
-      {requiredVetDocuments.map((type) => <FileField key={type} id={`vet-doc-${type}`} label={vetDocumentLabel(type)} required
-        hint={`PDF, JPG or PNG • Up to ${MAX_DOCUMENT_MB} MB`} error={errors[`documents.${type}`]}
-        files={value.documents[type] ? [value.documents[type]!] : []} onChange={([file]) => change({ documents: { ...value.documents, [type]: file } })} />)}
+      {requiredVetDocuments.map((type) => {
+        const existingDoc = existingDocs.find((d) => d.type === type);
+        return <FileField key={type} id={`vet-doc-${type}`} label={vetDocumentLabel(type)} required={!props.vet}
+          hint={existingDoc
+            ? `Current: ${existingDoc.originalName} • Choose a file to replace (up to ${MAX_DOCUMENT_MB} MB)`
+            : `PDF, JPG or PNG • Up to ${MAX_DOCUMENT_MB} MB`}
+          error={errors[`documents.${type}`]}
+          files={value.documents[type] ? [value.documents[type]!] : []}
+          onChange={([file]) => change({ documents: { ...value.documents, [type]: file } })} />;
+      })}
       <FileField id="vet-doc-other" label="Supporting documents" multiple
-        hint={`Optional, up to 5 files (PDF, JPG or PNG • Up to ${MAX_DOCUMENT_MB} MB each).`} error={errors["documents.other"]}
+        hint={existingOthers.length
+          ? `${existingOthers.length} supporting document(s) already on file • Attach up to 5 more (PDF, JPG or PNG • Up to ${MAX_DOCUMENT_MB} MB each).`
+          : `Optional, up to 5 files (PDF, JPG or PNG • Up to ${MAX_DOCUMENT_MB} MB each).`}
+        error={errors["documents.other"]}
         files={value.otherDocuments} onChange={(otherDocuments) => change({ otherDocuments })} />
     </FieldGrid> },
     { id: "coverage", title: "Coverage", description: "Where the vet works and how far they travel.", fieldNames: [...stepFields.coverage], fieldCount: 7, content: <FieldGrid>
@@ -217,15 +245,21 @@ export function VetForm(props: FormProps) {
       {text("latitude", "Base latitude", { placeholder: "-6.7924", hint: "Optional GPS latitude (-90 to 90)." })}
       {text("longitude", "Base longitude", { placeholder: "39.2083", hint: "Optional GPS longitude (-180 to 180)." })}
     </FieldGrid> },
-    { id: "review", title: "Review", description: "Check the details. Credentials upload to object storage first, then the vet profile is created.", fieldCount: 0, content:
-      <Review value={value} schoolLevel={options.data.schoolLevels.find((l) => String(l.id) === value.schoolLevelId)?.name}
+    { id: "review", title: "Review", description: props.vet
+      ? "Check the changes below before saving."
+      : "Check the details. Credentials upload to object storage first, then the vet profile is created.",
+      fieldCount: 0, content:
+      <Review value={value} existing={props.vet} schoolLevel={options.data.schoolLevels.find((l) => String(l.id) === value.schoolLevelId)?.name}
         idTypeName={selectedIdType?.name}
         place={[places.data.districts.find((d) => d.value === value.districtId)?.label, places.data.regions.find((r) => r.value === value.regionId)?.label, selectedCountry?.name].filter(Boolean).join(", ")} /> },
   ];
 
-  return <FormDialog open={props.open} onOpenChange={props.onOpenChange} onSubmit={submit} submitLabel="Add vet" size="xl" steps={steps} errors={errors}
+  return <FormDialog open={props.open} onOpenChange={props.onOpenChange} onSubmit={submit} submitLabel={props.vet ? "Save changes" : "Add vet"} size="xl" steps={steps} errors={errors}
     onValidateStep={(_, step) => check(step.id as VetStepId)}
-    title="Add veterinarian" description="The vet is approved straight away. They sign in to the app with this phone number and set their own PIN." />;
+    title={props.vet ? `Edit ${props.vet.fullName}` : "Add veterinarian"}
+    description={props.vet
+      ? "Update veterinarian details, service coverage or replacement credentials."
+      : "The vet is approved straight away. They sign in to the app with this phone number and set their own PIN."} />;
 }
 
 function FileField({ id, label, required, multiple, hint, error, files, onChange }: {
@@ -256,7 +290,7 @@ function FileField({ id, label, required, multiple, hint, error, files, onChange
   </Field>;
 }
 
-function Review({ value: v, schoolLevel, idTypeName, place }: { value: VetRegistration; schoolLevel?: string; idTypeName?: string; place: string }) {
+function Review({ value: v, existing, schoolLevel, idTypeName, place }: { value: VetRegistration; existing?: VetRecord; schoolLevel?: string; idTypeName?: string; place: string }) {
   const show = (s: ReactNode) => s || "—";
   const day = (iso: string) => iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
   return <div className="grid gap-4">
@@ -273,7 +307,7 @@ function Review({ value: v, schoolLevel, idTypeName, place }: { value: VetRegist
       <DetailItem label="Licensing authority">{show(v.licenseAuthority)}</DetailItem>
       <DetailItem label="Licence expires">{day(v.licenseExpiryDate)}</DetailItem>
       <DetailItem label="Experience">{v.yearsOfExperience ? `${v.yearsOfExperience} years` : "—"}</DetailItem>
-      <DetailItem label="Specialisations" className="sm:col-span-2">{v.specializations.map((c) => specializationLabels[c] ?? c).join(", ")}</DetailItem>
+      <DetailItem label="Specialisations" className="sm:col-span-2">{v.specializations.map((c) => specializationLabels[c] ?? c).join(", ") || "—"}</DetailItem>
       <DetailItem label="Clinic">{show(v.clinicName)}</DetailItem>
       {v.bio.trim() && <DetailItem label="About" className="sm:col-span-2">{v.bio.trim()}</DetailItem>}
     </DetailSection>
@@ -281,7 +315,10 @@ function Review({ value: v, schoolLevel, idTypeName, place }: { value: VetRegist
       <DetailItem label="Secondary education">{show(schoolLevel)}</DetailItem>
       {requiredVetDocuments.map((type) => {
         const file = v.documents[type];
-        return <DetailItem key={type} label={vetDocumentLabel(type)}>{file ? `${file.name} (${formatDocumentSize(file.size)})` : "—"}</DetailItem>;
+        const existingDoc = (existing?.documents ?? []).find((d) => d.type === type);
+        return <DetailItem key={type} label={vetDocumentLabel(type)}>
+          {file ? `${file.name} (${formatDocumentSize(file.size)})` : existingDoc ? `Keep current: ${existingDoc.originalName}` : "—"}
+        </DetailItem>;
       })}
       {v.otherDocuments.length > 0 && <DetailItem label="Supporting documents" className="sm:col-span-2">
         {v.otherDocuments.map((f) => `${f.name} (${formatDocumentSize(f.size)})`).join(", ")}

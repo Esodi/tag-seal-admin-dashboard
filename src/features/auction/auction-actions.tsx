@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
-import { Ban, Check, Eye, MoreVertical, Pencil, RotateCcw, Trash2, UserX, X } from "lucide-react";
+import { Ban, Check, Eye, MoreVertical, Pencil, RotateCcw, Trash2, Users, UserX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { CustomViewDetailsDialog, DetailItem, DetailSection } from "@/components/ui/custom-view-details-dialog";
@@ -15,7 +16,7 @@ import { commerceDateTime, commerceLabel, commerceMoney } from "@/features/comme
 import { RegistryStatus } from "@/features/registry/registry-status";
 import { registryRun, registrySend } from "@/features/registry/registry-api";
 import { formatRecordDate } from "@/lib/resource-table";
-import { CentreDetails } from "./auction-centre-details";
+import { CentreMemberDialog } from "./auction-centre-details";
 import { CentreForm } from "./auction-forms";
 import { OfficerApproveForm, OfficerEditForm, OfficerLicence } from "./auction-officer-forms";
 import type { AuctionCentreRecord, AuctionOfficerRecord, AuctionSessionRecord } from "./types";
@@ -27,8 +28,8 @@ function Trigger({ name }: { name: string }) {
 }
 
 export function CentreActions({ row, onChanged }: ActionProps<AuctionCentreRecord>) {
-  const [viewing, setViewing] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [addingMember, setAddingMember] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const path = `/api/admin/auction/centres/${encodeURIComponent(row.uuid)}`;
 
@@ -36,14 +37,15 @@ export function CentreActions({ row, onChanged }: ActionProps<AuctionCentreRecor
     <DropdownMenu>
       <Trigger name={row.name} />
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => setViewing(true)}><Eye />View details and members</DropdownMenuItem>
+        <DropdownMenuItem asChild><Link href={`/dashboard/auction/centres/${encodeURIComponent(row.uuid)}`}><Eye />View details</Link></DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setEditing(true)}><Pencil />Edit</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setAddingMember(true)}><Users />Managers &amp; auctioneers</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem destructive onSelect={() => setDeleting(true)}><Trash2 />Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-    {viewing && <CentreDetails centre={row} open={viewing} onOpenChange={setViewing} onChanged={onChanged} />}
     {editing && <CentreForm centre={row} open={editing} onOpenChange={setEditing} onSaved={onChanged} />}
+    {addingMember && <CentreMemberDialog centre={row} open={addingMember} onOpenChange={setAddingMember} onSaved={onChanged} />}
     <ConfirmationAlertDialog open={deleting} onOpenChange={setDeleting} title={`Delete ${row.name}?`}
       description="A centre that already has auctions is deactivated instead, so its auction history is kept."
       confirmLabel="Delete" destructive onConfirm={async () => { await registryRun(() => registrySend(path, "DELETE"), "Centre removed.", onChanged); }} />

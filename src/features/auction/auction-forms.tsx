@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { RefreshCw } from "lucide-react";
 import { Field, FieldDescription, FieldError, FieldGrid, FieldLabel } from "@/components/ui/field";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
+import { MapLocationPicker } from "@/components/ui/map-location-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { registryRun, registrySend } from "@/features/registry/registry-api";
 import { roleOptions } from "./auction-config";
@@ -18,19 +20,38 @@ const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim()
 const number = (form: FormData, key: string) => { const value = text(form, key); return value === null ? null : Number(value); };
 const id = (value: string) => value ? Number(value) : null;
 
-function TextField({ name, label, prefix, required, defaultValue, type, hint, className, step, min, max }: {
+function randomFourDigits() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function buildCentreCode(name: string, digits: string) {
+  const base = name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24)
+    .replace(/-+$/g, "");
+  return base ? `${base}-${digits}` : "";
+}
+
+function TextField({ name, label, prefix, required, defaultValue, type, hint, className, step, min, max, placeholder }: {
   name: string; label: string; prefix: string; required?: boolean; defaultValue?: string | number | null; type?: string; hint?: string; className?: string;
-  step?: string; min?: number; max?: number;
+  step?: string; min?: number; max?: number; placeholder?: string;
 }) {
   return <Field className={className}>
     <FieldLabel htmlFor={`${prefix}-${name}`} required={required}>{label}</FieldLabel>
-    <Input id={`${prefix}-${name}`} name={name} type={type} defaultValue={defaultValue ?? ""} required={required} maxLength={255} step={step} min={min} max={max} />
+    <Input id={`${prefix}-${name}`} name={name} type={type} defaultValue={defaultValue ?? ""} placeholder={placeholder} required={required} maxLength={255} step={step} min={min} max={max} />
     {hint && <FieldDescription>{hint}</FieldDescription>}
   </Field>;
 }
 
 /** Adds a livestock market, or edits one when [centre] is given. */
 export function CentreForm({ centre, ...props }: FormProps & { centre?: AuctionCentreRecord }) {
+  const [name, setName] = useState(centre?.name ?? "");
+  const [digits, setDigits] = useState(randomFourDigits);
+  const [code, setCode] = useState(centre?.code ?? "");
+  const [codeCustomized, setCodeCustomized] = useState(Boolean(centre?.code));
   const [status, setStatus] = useState(centre?.status ?? "active");
   const [place, setPlace] = useState({ regionId: centre?.regionId ? String(centre.regionId) : "", districtId: centre?.districtId ? String(centre.districtId) : "" });
 
@@ -38,7 +59,8 @@ export function CentreForm({ centre, ...props }: FormProps & { centre?: AuctionC
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const body = {
-      code: text(form, "code"), name: text(form, "name"), phone: text(form, "phone"), address: text(form, "address"), description: text(form, "description"), status,
+      code: (text(form, "code") ?? code.trim()).toUpperCase() || null,
+      name: text(form, "name"), phone: text(form, "phone"), address: text(form, "address"), description: text(form, "description"), status,
       regionId: id(place.regionId), districtId: id(place.districtId), latitude: number(form, "latitude"), longitude: number(form, "longitude"),
     };
     const ok = await registryRun(
@@ -52,13 +74,74 @@ export function CentreForm({ centre, ...props }: FormProps & { centre?: AuctionC
 
   return <FormDialog open={props.open} onOpenChange={props.onOpenChange} onSubmit={submit} submitLabel={centre ? "Save changes" : "Add centre"} fieldsClassName="sm:grid-cols-2"
     title={centre ? `Edit ${centre.name}` : "Add auction centre"} description={centre ? undefined : "A livestock market where auctions are held."}>
-    <TextField prefix="centre" name="name" label="Centre name" required defaultValue={centre?.name} />
-    <TextField prefix="centre" name="code" label="Code" required defaultValue={centre?.code} hint="Short unique code, e.g. PUGU." />
-    <TextField prefix="centre" name="phone" label="Phone" type="tel" defaultValue={centre?.phone} />
+    <Field>
+      <FieldLabel htmlFor="centre-name" required>Centre name</FieldLabel>
+      <Input
+        id="centre-name"
+        name="name"
+        required
+        maxLength={150}
+        placeholder="e.g. Pugu"
+        value={name}
+        onChange={(event) => {
+          const nextName = event.target.value;
+          setName(nextName);
+          if (!codeCustomized) {
+            setCode(buildCentreCode(nextName, digits));
+          }
+        }}
+      />
+    </Field>
+    <Field>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor="centre-code" required>Code</FieldLabel>
+        <button
+          type="button"
+          onClick={() => {
+            const nextDigits = randomFourDigits();
+            setDigits(nextDigits);
+            setCodeCustomized(false);
+            setCode(buildCentreCode(name, nextDigits));
+          }}
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          title="Generate a new 4-digit code from the centre name"
+        >
+          <RefreshCw className="size-3" />
+          Auto-generate
+        </button>
+      </div>
+      <Input
+        id="centre-code"
+        name="code"
+        required
+        readOnly={false}
+        maxLength={30}
+        placeholder="e.g. PUGU-4821"
+        value={code}
+        onChange={(event) => {
+          const nextCode = event.target.value.toUpperCase();
+          setCode(nextCode);
+          setCodeCustomized(nextCode.trim().length > 0);
+        }}
+      />
+      <FieldDescription>Auto-filled from the centre name + 4 digits (e.g. PUGU-4821). Editable.</FieldDescription>
+    </Field>
+    <TextField
+      prefix="centre"
+      name="phone"
+      label="Centre office / enquiries phone"
+      type="tel"
+      placeholder="+255 7XX XXX XXX"
+      defaultValue={centre?.phone}
+      hint="Public market office or desk phone for buyer and seller enquiries."
+    />
     <RegionDistrictFields prefix="centre" open={props.open} regionId={place.regionId} districtId={place.districtId} onChange={setPlace} />
     <TextField prefix="centre" name="address" label="Address" defaultValue={centre?.address} />
-    <TextField prefix="centre" name="latitude" label="Latitude" type="number" step="any" min={-90} max={90} defaultValue={centre?.latitude} hint="Optional, e.g. -6.8235. Lets buyers find the market." />
-    <TextField prefix="centre" name="longitude" label="Longitude" type="number" step="any" min={-180} max={180} defaultValue={centre?.longitude} hint="Optional, e.g. 39.2695." />
+    <MapLocationPicker
+      prefix="centre"
+      defaultLatitude={centre?.latitude}
+      defaultLongitude={centre?.longitude}
+    />
     {centre && <Field><FieldLabel htmlFor="centre-status">Status</FieldLabel>
       <FormSelect id="centre-status" value={status} onValueChange={setStatus} options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }]} />
     </Field>}

@@ -550,8 +550,32 @@ export function FinanceResourceDashboard({
           </Badge>
         );
       case "farm":
+        if (record.scope === "vet") {
+          return (
+            <div className="min-w-36 max-w-56 whitespace-normal"><p className="font-medium">{record.vetName ?? "Veterinarian"}</p><p className="mt-0.5 text-xs text-muted-foreground">Vet practice expense</p></div>
+          );
+        }
         return (
           <div className="min-w-36 max-w-56 whitespace-normal"><p className="font-medium">{record.farmName ?? "—"}</p><p className="mt-0.5 text-xs text-muted-foreground">{record.farmerName || "—"}</p></div>
+        );
+      case "issuerName": {
+        const label = record.issuerName ?? record.vetName ?? record.extensionOfficerName ?? "—";
+        const isVet = record.issuerType === "vet" || Boolean(record.vetId);
+        return (
+          <div className="min-w-36 max-w-56 whitespace-normal">
+            <p className="font-medium">{label}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {isVet ? "Veterinarian" : "Extension Officer"}
+              {record.vetServiceRequestUuid ? ` · Req ${record.vetServiceRequestUuid.slice(0, 8).toUpperCase()}` : ""}
+            </p>
+          </div>
+        );
+      }
+      case "scope":
+        return (
+          <Badge variant="outline" className="uppercase">
+            {record.scope === "vet" ? "Vet Practice" : "Farm"}
+          </Badge>
         );
       case "subjectType":
         return record.subjectType ? (
@@ -890,8 +914,23 @@ export function FinanceResourceDashboard({
             <DetailItem label="Farm">{viewing.farmName ?? "—"}</DetailItem>
             <DetailItem label="Farmer">{viewing.farmerName ?? "—"}</DetailItem>
             {resource === "bills" ? (
-              <DetailItem label="Extension Officer">
-                {viewing.extensionOfficerName ?? "—"}
+              <>
+                <DetailItem label="Issued By">
+                  {viewing.issuerName ?? viewing.vetName ?? viewing.extensionOfficerName ?? "—"}
+                </DetailItem>
+                <DetailItem label="Provider Role">
+                  {viewing.issuerType === "vet" || viewing.vetId ? "Veterinarian" : "Extension Officer"}
+                </DetailItem>
+                {viewing.vetServiceRequestUuid ? (
+                  <DetailItem label="Service Request">
+                    {viewing.vetServiceRequestUuid}
+                  </DetailItem>
+                ) : null}
+              </>
+            ) : null}
+            {resource === "expenditure" && viewing.scope === "vet" ? (
+              <DetailItem label="Veterinarian">
+                {viewing.vetName ?? "—"}
               </DetailItem>
             ) : null}
             </DetailSection>
@@ -936,6 +975,21 @@ export function FinanceResourceDashboard({
             <DetailItem label="Status">
               <StatusBadge status={viewing.status ?? "pending"} />
             </DetailItem>
+            {viewing.paymentMethod ? (
+              <DetailItem label="Payment Method">
+                {viewing.paymentMethod.replaceAll("_", " ").toUpperCase()}
+              </DetailItem>
+            ) : null}
+            {viewing.paymentReference ? (
+              <DetailItem label="Payment Reference">
+                {viewing.paymentReference}
+              </DetailItem>
+            ) : null}
+            {viewing.paidAt ? (
+              <DetailItem label="Paid At">
+                {formatDateTime(viewing.paidAt)}
+              </DetailItem>
+            ) : null}
             </DetailSection>
             <DetailSection title="Notes & record history">
             <DetailItem className="sm:col-span-2" label="Notes">{viewing.notes ?? "—"}</DetailItem>
