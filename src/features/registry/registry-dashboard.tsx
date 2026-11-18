@@ -76,19 +76,35 @@ export function RegistryDashboard<T>({ parent, parentHref, config, records, colu
       </TableToolbar>
 
       <Table aria-label={config.title}>
-        <TableHeader><TableRow>
-          <TableHead className="w-12"><Checkbox aria-label="Select all records on this page for export" disabled={loading || Boolean(error) || !rows.length} checked={allSelected ? true : someSelected ? "indeterminate" : false} onCheckedChange={(checked) => setSelected(checked === true ? new Set(rows.map(rowKey)) : new Set())} /></TableHead>
-          <TableHead className="w-14">#</TableHead>
-          {columns.map((column) => <TableHead key={column.key} className={column.className}>{column.label}</TableHead>)}
-          <TableHead className="w-24 text-right"><span className="sr-only">Actions</span></TableHead>
-        </TableRow></TableHeader>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12"><Checkbox aria-label="Select all records on this page for export" disabled={loading || Boolean(error) || !rows.length} checked={allSelected ? true : someSelected ? "indeterminate" : false} onCheckedChange={(checked) => setSelected(checked === true ? new Set(rows.map(rowKey)) : new Set())} /></TableHead>
+            <TableHead className="w-14">#</TableHead>
+              {columns.map((column) => <TableHead key={column.key} className={column.className}>{column.label}</TableHead>)}
+            <TableHead className="w-24 text-right"><span className="sr-only">Actions</span></TableHead>
+          </TableRow>
+        </TableHeader>
+
         <TableBody>
-          {loading ? Array.from({ length: 5 }, (_, row) => <TableRow key={row}>{Array.from({ length: columns.length + 3 }, (_, cell) => <TableCell key={cell}><Skeleton className={cell < 2 ? "h-4 w-4" : "h-4 w-24"} /></TableCell>)}</TableRow>) : error ? (
-            <TableRow><TableCell colSpan={columns.length + 3} className="whitespace-normal p-5"><div role="alert"><EmptyCard icon={RefreshCw} title="Could not load records" description={error} action={<Button variant="outline" onClick={records.reload}>Try again</Button>} /></div></TableCell></TableRow>
+          {loading ? Array.from({ length: 5 }, 
+            (_, row) => <TableRow key={row}>{
+              Array.from({ length: columns.length + 3 }, (_, cell) => <TableCell key={cell}><Skeleton className={cell < 2 ? "h-4 w-4" : "h-4 w-24"} /></TableCell>)}</TableRow>) : error ? (
+            <TableRow>
+              <TableCell colSpan={columns.length + 3} className="whitespace-normal p-5">
+                <div role="alert">
+                  <EmptyCard icon={RefreshCw} title="Could not load records" description={error} action={<Button variant="outline" onClick={records.reload}>Try again</Button>} />
+                </div>
+              </TableCell>
+            </TableRow>
           ) : !rows.length ? (
-            <TableRow><TableCell colSpan={columns.length + 3} className="whitespace-normal p-5"><EmptyCard icon={emptyIcon} title={filtered ? "No matching records" : config.emptyTitle} description={filtered ? "Try a different search or clear the filters to see all records." : config.emptyDescription} action={filtered ? <Button variant="outline" onClick={records.reset}>Clear filters</Button> : undefined} /></TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={columns.length + 3} className="whitespace-normal p-5">
+                <EmptyCard icon={emptyIcon} title={filtered ? "No matching records" : config.emptyTitle} description={filtered ? "Try a different search or clear the filters to see all records." : config.emptyDescription} action={filtered ? <Button variant="outline" onClick={records.reset}>Clear filters</Button> : undefined} />
+              </TableCell>
+            </TableRow>
           ) : rows.map((row, index) => <TableRow key={rowKey(row)} data-state={selected.has(rowKey(row)) ? "selected" : undefined}>
-            <TableCell><Checkbox aria-label={`Select ${rowTitle(row)} for export`} checked={selected.has(rowKey(row))} onCheckedChange={(checked) => setSelected((current) => { const next = new Set(current); if (checked === true) next.add(rowKey(row)); else next.delete(rowKey(row)); return next; })} /></TableCell>
+            <TableCell>
+              <Checkbox aria-label={`Select ${rowTitle(row)} for export`} checked={selected.has(rowKey(row))} onCheckedChange={(checked) => setSelected((current) => { const next = new Set(current); if (checked === true) next.add(rowKey(row)); else next.delete(rowKey(row)); return next; })} /></TableCell>
             <TableCell className="text-muted-foreground tabular-nums">{from + index}</TableCell>
             {columns.map((column) => <TableCell key={column.key} className={column.className}>{column.render(row)}</TableCell>)}
             <TableCell className="text-right">{rowActions(row)}</TableCell>

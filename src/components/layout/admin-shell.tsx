@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { featureGroups } from "@/lib/features";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { CommandPalette } from "@/components/layout/command-palette";
 import { Logo } from "@/components/ui/logo";
 
 const groupIcons = { people: Users, events: Activity, animals: Beef, career: Briefcase, commerce: ShoppingBag, auction: Gavel, vet: Stethoscope, dairy: Warehouse, blueprints: PawPrint, finance: Landmark, reference: Settings2, locations: MapPinned, security: ShieldCheck } as const;
@@ -61,6 +62,7 @@ function NavLink({ href, label, icon: Icon, pathname, onClick }: { href: string;
 export function AdminShell({ children, user }: { children: React.ReactNode; user?: { username?: string; email?: string; firstname?: string; surname?: string } }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<NavCounts>({});
   const activeGroup = featureGroups.find((group) => pathname === `/dashboard/${group.slug}` || pathname.startsWith(`/dashboard/${group.slug}/`))?.slug;
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({ people: true, ...(activeGroup ? { [activeGroup]: true } : {}) }));
@@ -76,6 +78,16 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        setCommandOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
   const close = () => setMobileOpen(false);
 
@@ -122,12 +134,24 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   </div>;
 
   return <div className="min-h-screen bg-background">
+    <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[16.625rem] border-r bg-card lg:block">{sidebar}</aside>
     {mobileOpen && <><button className="fixed inset-0 z-40 bg-black/35 lg:hidden" aria-label="Close menu" onClick={close} /><aside className="fixed inset-y-0 left-0 z-50 w-[min(19rem,88vw)] border-r bg-card lg:hidden">{sidebar}</aside></>}
     <div className="lg:pl-[16.625rem]">
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/90 px-4 backdrop-blur-xl sm:px-6">
         <button className="rounded-xl p-2 hover:bg-muted lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu"><Menu className="size-5" /></button>
-        <div className="relative hidden max-w-md flex-1 md:block"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input className="h-10 w-full rounded-xl border bg-card pl-10 pr-16 text-sm outline-none transition focus:ring-2 focus:ring-primary/20" placeholder="Search animals, farms, people…" /><kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-muted px-2 py-1 text-[10px] text-muted-foreground">⌘ K</kbd></div>
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="relative hidden max-w-md flex-1 rounded-xl border bg-card text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 md:block"
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <span className="flex h-10 items-center pl-10 pr-16 text-sm text-muted-foreground">Search features, events, pages…</span>
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-muted px-2 py-1 text-[10px] text-muted-foreground">⌘ K</kbd>
+        </button>
+        <button type="button" className="grid size-10 place-items-center rounded-xl transition hover:bg-muted md:hidden" aria-label="Search" onClick={() => setCommandOpen(true)}>
+          <Search className="size-5" />
+        </button>
         <div className="ml-auto flex items-center gap-1"><Link href="/dashboard/help" aria-label="Help" title="Help" className="grid size-10 place-items-center rounded-xl transition hover:bg-muted"><CircleHelp className="size-5" /></Link><button className="relative rounded-xl p-2.5 hover:bg-muted" aria-label="Notifications"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-background" /></button><AccountMenu compact user={user} /></div>
       </header>
       <main className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">{children}</main>

@@ -5,9 +5,11 @@ export type VetDocument = { uuid: string; type: string; originalName: string; mi
 
 export type VetRecord = {
   id: number; uuid?: string | null; userId?: number | null; referenceNo?: string | null; fullName: string; clinicName?: string | null;
-  phoneNumber?: string | null; email?: string | null; address?: string | null; specializations?: string[]; yearsOfExperience?: number | null;
-  medicalLicenseNo?: string | null; licenseAuthority?: string | null; licenseExpiryDate?: string | null; schoolLevel?: string | null; gender?: string | null; dateOfBirth?: string | null; hasLicenseDocument?: boolean;
-  region?: { name?: string | null } | null; district?: { name?: string | null } | null;
+  phoneNumber?: string | null; email?: string | null; address?: string | null; bio?: string | null; specializations?: string[]; yearsOfExperience?: number | null;
+  medicalLicenseNo?: string | null; licenseAuthority?: string | null; licenseExpiryDate?: string | null; schoolLevel?: string | null;
+  gender?: string | null; dateOfBirth?: string | null; identityCardTypeId?: number | null; identityNo?: string | null; hasLicenseDocument?: boolean;
+  country?: { name?: string | null } | null; region?: { name?: string | null } | null; district?: { name?: string | null } | null;
+  serviceRadiusKm?: number | null; latitude?: number | null; longitude?: number | null;
   ratingAverage?: number | null; ratingCount?: number | null; completedRequestsCount?: number | null;
   verificationStatus: string; verificationNotes?: string | null; verifiedAt?: string | null; status: string; createdAt?: string | null;
   documents?: VetDocument[];
@@ -17,6 +19,8 @@ export type VetServiceRequestRecord = {
   id: number; uuid: string; status: string; problemCategory?: string | null; description?: string | null; urgency?: string | null;
   symptoms?: string[]; latitude?: number | null; longitude?: number | null; locationAddress?: string | null; contactPhone?: string | null; offersCount?: number | null;
   livestock?: { identificationNumber?: string | null; name?: string | null; species?: string | null; speciesName?: string | null } | null;
+  animals?: Array<{ uuid?: string | null; identificationNumber?: string | null; name?: string | null; species?: string | null; speciesName?: string | null }>;
+  livestockUuids?: string[];
   vet?: { fullName?: string | null; phoneNumber?: string | null; clinicName?: string | null } | null;
   farmer?: { name?: string | null; phone?: string | null } | null;
   timeline?: Record<string, string | null>;

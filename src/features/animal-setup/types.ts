@@ -18,13 +18,21 @@ export type FieldType =
 
 export type CaptureMode = "manual" | "scale" | "manual_or_scale";
 
+/** How the field appears on the farmer form. */
+export type FieldRequirement = "required" | "optional" | "not_shown";
+
 export type SetupField = {
   key?: string;
   label: Localized;
   type: FieldType;
   unit?: string | null;
   lookupCode?: string | null;
+  /** @deprecated Prefer `requirement`. Kept for older payloads. */
   required: boolean;
+  /** Farmer form mode: must fill / can skip / hide entirely. */
+  requirement?: FieldRequirement;
+  /** Role/constant fields keep system requirement; portal control is read-only. */
+  requirementLocked?: boolean;
   capture?: CaptureMode | null;
   locked?: boolean;
 };
@@ -105,3 +113,24 @@ export const APPLIES_TO: Array<{ value: AppliesTo; label: string }> = [
 ];
 
 export const typeLabel = (type: FieldType) => FIELD_TYPES.find((item) => item.value === type)?.label ?? "Built-in";
+
+export const FIELD_REQUIREMENTS: Array<{ value: FieldRequirement; label: string; hint: string }> = [
+  { value: "required", label: "Required", hint: "Farmers must fill this in" },
+  { value: "optional", label: "Optional", hint: "Shown, but can be left blank" },
+  { value: "not_shown", label: "Not shown", hint: "Hidden on the farmer form" },
+];
+
+export function fieldRequirement(field: Pick<SetupField, "required" | "requirement">): FieldRequirement {
+  if (field.requirement === "required" || field.requirement === "optional" || field.requirement === "not_shown") {
+    return field.requirement;
+  }
+  return field.required ? "required" : "optional";
+}
+
+export function requirementPayload(requirement: FieldRequirement) {
+  return {
+    requirement,
+    required: requirement === "required",
+    shown: requirement !== "not_shown",
+  };
+}

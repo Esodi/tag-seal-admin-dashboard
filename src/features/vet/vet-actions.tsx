@@ -64,15 +64,19 @@ export function VetActions({ row, onChanged }: ActionProps<VetRecord>) {
         <DetailItem label="Email">{row.email || "—"}</DetailItem>
         <DetailItem label="Sex"><span className="capitalize">{row.gender || "—"}</span></DetailItem>
         <DetailItem label="Date of birth">{formatRecordDate(row.dateOfBirth)}</DetailItem>
+        {row.identityNo && <DetailItem label="Identity number">{row.identityNo}</DetailItem>}
         <DetailItem label="Licence number">{row.medicalLicenseNo || "—"}</DetailItem>
         <DetailItem label="Licensing authority">{row.licenseAuthority || "—"}</DetailItem>
         <DetailItem label="Licence expires">{formatRecordDate(row.licenseExpiryDate)}</DetailItem>
         <DetailItem label="Secondary education">{row.schoolLevel || "—"}</DetailItem>
         <DetailItem label="Location">{location || "—"}</DetailItem>
+        {row.serviceRadiusKm != null && <DetailItem label="Service radius">{row.serviceRadiusKm} km</DetailItem>}
+        {row.latitude != null && row.longitude != null && <DetailItem label="Base GPS">{`${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}`}</DetailItem>}
         <DetailItem label="Experience">{row.yearsOfExperience ? `${row.yearsOfExperience} years` : "—"}</DetailItem>
         <DetailItem label="Visits done">{row.completedRequestsCount ?? 0}</DetailItem>
         <DetailItem label="Rating">{row.ratingCount ? `${Number(row.ratingAverage ?? 0).toFixed(1)} from ${row.ratingCount} reviews` : "No reviews yet"}</DetailItem>
         {row.specializations && row.specializations.length > 0 && <DetailItem label="Specializations" className="sm:col-span-2">{row.specializations.map(commerceLabel).join(", ")}</DetailItem>}
+        {row.bio && <DetailItem label="About" className="sm:col-span-2">{row.bio}</DetailItem>}
         {row.verificationNotes && <DetailItem label="Remarks" className="sm:col-span-2">{row.verificationNotes}</DetailItem>}
       </div>
       <VetDocumentsSection row={row} path={path} />

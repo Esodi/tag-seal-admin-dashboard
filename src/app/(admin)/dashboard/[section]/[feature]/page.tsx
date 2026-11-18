@@ -67,6 +67,12 @@ export default async function FeaturePage({
     redirect("/dashboard/people/farm-workers");
   }
   if (
+    section === "animals" &&
+    (feature === "animals" || feature === "livestocks" || feature === "livestock")
+  ) {
+    redirect("/dashboard/animals/legacy-livestock");
+  }
+  if (
     section === "people" &&
     (feature === "farm-workers" || feature === "farm-users" || feature === "workers")
   ) {

@@ -158,11 +158,11 @@ export const animalResourceConfigs: Record<
   },
   "legacy-livestock": {
     resource: "legacy-livestock",
-    title: "Legacy Livestock",
-    singular: "livestock record",
+    title: "Livestocks",
+    singular: "livestock",
     description:
-      "Existing livestock records, tags, classification, parentage and acquisition details.",
-    createLabel: "Add legacy record",
+      "Registered livestock records, identification tags, classification, parentage and acquisition details.",
+    createLabel: "Add livestock",
     searchPlaceholder:
       "Search by livestock name, ID number, tag, farm, species or breed...",
     softDeletable: true,

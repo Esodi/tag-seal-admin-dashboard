@@ -174,7 +174,11 @@ function EventCard({ event, editable, onEdit, onRemove }: { event: SetupEvent; e
       {hasScale && <Badge variant="outline"><Scale />Scale ready</Badge>}
     </div>
     <p className="text-xs text-muted-foreground">
-      {event.fields.slice(0, 4).map((field) => `${field.label.en}${field.required ? " *" : ""}`).join(" · ")}
+      {event.fields.slice(0, 4).map((field) => {
+        const mode = field.requirement ?? (field.required ? "required" : "optional");
+        if (mode === "not_shown") return `${field.label.en} (hidden)`;
+        return `${field.label.en}${mode === "required" ? " *" : ""}`;
+      }).join(" · ")}
       {event.fields.length > 4 ? ` · +${event.fields.length - 4} more` : ""}
       {event.fields.length === 0 ? "No fields" : ""}
     </p>

@@ -44,10 +44,16 @@ export function RequestForm({ open, onOpenChange, onSaved }: Props) {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return false;
 
+    const rawUuids = value.livestockUuid
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const body = {
       farmerUserId: Number(value.farmerUserId),
       farmUuid: value.farmUuid.trim(),
-      livestockUuid: value.livestockUuid.trim() || null,
+      livestockUuid: rawUuids[0] || null,
+      livestockUuids: rawUuids.length ? rawUuids : null,
       problemCategory: value.problemCategory,
       description: value.description.trim(),
       urgency: value.urgency,
@@ -87,8 +93,8 @@ export function RequestForm({ open, onOpenChange, onSaved }: Props) {
           <Input id="req-farm" value={value.farmUuid} onChange={(e) => change({ farmUuid: e.target.value })} aria-invalid={!!errors.farmUuid || undefined} />
         </Field>
         <Field>
-          <FieldLabel htmlFor="req-livestock">Livestock UUID</FieldLabel>
-          <Input id="req-livestock" value={value.livestockUuid} onChange={(e) => change({ livestockUuid: e.target.value })} />
+          <FieldLabel htmlFor="req-livestock">Livestock UUID(s)</FieldLabel>
+          <Input id="req-livestock" value={value.livestockUuid} onChange={(e) => change({ livestockUuid: e.target.value })} placeholder="Comma-separated UUIDs for multiple animals" />
         </Field>
         <Field>
           <FieldLabel htmlFor="req-phone">Contact phone</FieldLabel>

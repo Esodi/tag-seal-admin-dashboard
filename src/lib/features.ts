@@ -133,21 +133,34 @@ export const featureGroups: FeatureGroup[] = [
   {
     slug: "animals",
     label: "Animals & Livestock",
-    description: "Dynamic animal subjects and the legacy livestock registry.",
+    description: "Livestock registry, identification tags, breeds, and lifecycle status.",
     features: [
+      feature(
+        "legacy-livestock",
+        "Livestocks",
+        "Registered livestock records, identification tags, breeds, and lifecycle status.",
+        [
+          "Livestock Name",
+          "ID Number",
+          "Farm",
+          "Species",
+          "Breed",
+          "Type",
+          "Gender",
+          "DOB",
+          "Weight",
+          "Stage",
+          "Identified",
+          "Status",
+        ],
+        { primaryAction: "Add livestock" },
+      ),
       feature(
         "animals",
         "Animals",
         "Dynamic animal subjects, identifiers and timelines.",
         ["Animal", "Species", "Primary ID", "Farm", "Status"],
-        { status: "new", primaryAction: "Register animal" },
-      ),
-      feature(
-        "legacy-livestock",
-        "Legacy Livestock",
-        "Existing livestock records retained during ledger migration.",
-        ["Livestock", "Tag no.", "Type", "Farm", "Migration state"],
-        { status: "migration", primaryAction: "Add legacy record" },
+        { hidden: true },
       ),
       feature(
         "animal-types",

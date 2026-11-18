@@ -10,7 +10,14 @@ import { missingVetDocuments, requiredVetDocuments } from "./vet-document-rules"
 
 const twoLine = (title: string, note?: string | null) => <div className="min-w-44 max-w-64 whitespace-normal"><p className="font-medium leading-5 [overflow-wrap:anywhere]">{title}</p>{note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}</div>;
 
-export const animalLabel = (row: VetServiceRequestRecord) => [row.livestock?.identificationNumber, row.livestock?.name, row.livestock?.speciesName ?? row.livestock?.species].filter(Boolean).join(" · ") || "—";
+export const animalLabel = (row: VetServiceRequestRecord) => {
+  const animals = row.animals;
+  if (animals && animals.length > 1) {
+    const names = animals.map((a) => a.identificationNumber || a.name || a.speciesName).filter(Boolean);
+    return `${animals.length} animals (${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3}` : ""})`;
+  }
+  return [row.livestock?.identificationNumber, row.livestock?.name, row.livestock?.speciesName ?? row.livestock?.species].filter(Boolean).join(" · ") || "—";
+};
 
 export const vetColumns: RegistryColumn<VetRecord>[] = [
   registryColumn("vet", "Vet", (r) => r.fullName, (r) => twoLine(r.fullName, r.clinicName || r.referenceNo)),
@@ -30,7 +37,13 @@ export const requestColumns: RegistryColumn<VetServiceRequestRecord>[] = [
   registryColumn("problem", "Problem", (r) => commerceLabel(r.problemCategory), (r) => twoLine(commerceLabel(r.problemCategory), r.urgency ? `${commerceLabel(r.urgency)} urgency` : null)),
   registryColumn("farmer", "Farmer", (r) => r.farmer?.name || "—"),
   registryColumn("animal", "Animal", animalLabel),
-  registryColumn("vet", "Vet", (r) => r.vet?.fullName || "Not assigned"),
+  registryColumn("vet", "Vet", (r) => r.vet?.fullName || "Not assigned", (r) =>
+    r.vet?.fullName ? (
+      <span>{r.vet.fullName}</span>
+    ) : (
+      <span className="italic text-muted-foreground">Not assigned</span>
+    ),
+  ),
   registryColumn("location", "Location", (r) => requestLocationLabel(r), (r) => {
     const coords = requestCoordinatesLabel(r);
     const mapsHref = requestMapsHref(r);
@@ -38,17 +51,21 @@ export const requestColumns: RegistryColumn<VetServiceRequestRecord>[] = [
     const showAddress = Boolean(address && address !== coords);
     if (!coords && !address) return <span className="text-muted-foreground">—</span>;
     return (
-      <div className="flex max-w-64 items-start gap-1.5">
-        <div className="min-w-0 whitespace-normal">
-          <p className="font-medium tabular-nums leading-5 [overflow-wrap:anywhere]">{coords ?? address}</p>
-          {showAddress && coords ? <p className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{address}</p> : null}
+      <div className="max-w-64 whitespace-normal">
+        <div className="flex items-center gap-1.5">
+          <p className="min-w-0 font-medium tabular-nums leading-none [overflow-wrap:anywhere]">
+            {coords ?? address}
+          </p>
+          {mapsHref ? (
+            <Button variant="outline" size="icon-xs" className="size-6 shrink-0" asChild>
+              <a href={mapsHref} target="_blank" rel="noopener noreferrer" aria-label={`Open map at ${coords}`}>
+                <MapPin className="size-3.5" />
+              </a>
+            </Button>
+          ) : null}
         </div>
-        {mapsHref ? (
-          <Button variant="outline" size="icon-xs" className="mt-0.5 shrink-0" asChild>
-            <a href={mapsHref} target="_blank" rel="noopener noreferrer" aria-label={`Open map at ${coords}`}>
-              <MapPin />
-            </a>
-          </Button>
+        {showAddress && coords ? (
+          <p className="mt-1 text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{address}</p>
         ) : null}
       </div>
     );

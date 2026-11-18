@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Lock, Plus, Scale, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldGrid, FieldLabel } from "@/components/ui/field";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { FormSelect } from "@/components/ui/form-select";
@@ -13,15 +12,21 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { SetupError, setupSend } from "./animal-setup-api";
 import {
-  APPLIES_TO, CAPTURE_MODES, FIELD_TYPES, UNITS, WEIGHT_UNITS, typeLabel,
-  type AppliesTo, type FieldType, type SetupEvent, type SetupField, type Workspace,
+  APPLIES_TO, CAPTURE_MODES, FIELD_REQUIREMENTS, FIELD_TYPES, UNITS, WEIGHT_UNITS,
+  fieldRequirement, requirementPayload, typeLabel,
+  type AppliesTo, type FieldRequirement, type FieldType, type SetupEvent, type SetupField, type Workspace,
 } from "./types";
 
 export type EventDialogMode = { kind: "standard" } | { kind: "custom" } | { kind: "edit"; event: SetupEvent };
 
 type Errors = Record<string, string>;
 
-const blankField = (): SetupField => ({ label: { en: "", sw: "" }, type: "text", required: false });
+const blankField = (): SetupField => ({
+  label: { en: "", sw: "" },
+  type: "text",
+  required: false,
+  requirement: "optional",
+});
 
 /** Adds a standard or custom event to the draft, or edits one already in it. */
 export function EventDialog({ workspace, mode, open, onOpenChange, onSaved }: {
@@ -64,6 +69,10 @@ export function EventDialog({ workspace, mode, open, onOpenChange, onSaved }: {
     setFields(fields.map((field) => (field.locked && field.key === key ? { ...field, ...patch } : field)));
   }
 
+  function onChangeRequirement(key: string | undefined, requirement: FieldRequirement) {
+    updateLocked(key, { requirement, required: requirement === "required" });
+  }
+
   function validate() {
     const found: Errors = {};
     if (mode.kind === "standard" && !standardCode) found.standardCode = "Choose a standard event.";
@@ -86,9 +95,18 @@ export function EventDialog({ workspace, mode, open, onOpenChange, onSaved }: {
       ...(!isStandard ? { name } : {}),
       appliesTo,
       fields: [
-        ...locked.map((field) => ({ key: field.key, label: field.label, type: "system", required: field.required, capture: field.capture ?? null })),
+        ...locked.map((field) => ({
+          key: field.key,
+          label: field.label,
+          type: "system",
+          ...requirementPayload(fieldRequirement(field)),
+          capture: field.capture ?? null,
+        })),
         ...editable.map((field) => ({
-          key: field.key, label: field.label, type: field.type, required: field.required,
+          key: field.key,
+          label: field.label,
+          type: field.type,
+          ...requirementPayload(fieldRequirement(field)),
           unit: field.type === "measurement" ? field.unit : null,
           lookupCode: field.type === "choice" || field.type === "multi_choice" ? field.lookupCode : null,
           capture: field.type === "measurement" && WEIGHT_UNITS.includes(field.unit ?? "") ? field.capture ?? "manual_or_scale" : null,
@@ -153,13 +171,37 @@ export function EventDialog({ workspace, mode, open, onOpenChange, onSaved }: {
     {locked.length > 0 && <section className="space-y-2">
       <h3 className="text-sm font-semibold">Built-in fields</h3>
       <ul className="divide-y rounded-xl border">
-        {locked.map((field) => <li key={field.key} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-          <Lock className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="min-w-0 flex-1 font-medium">{field.label.en}</span>
-          <Badge variant="outline">{typeLabel(field.type)}{field.unit ? ` · ${field.unit}` : ""}</Badge>
-          <span className="text-xs text-muted-foreground">{field.required ? "Required" : "Optional"}</span>
-          {field.type === "measurement" && WEIGHT_UNITS.includes(field.unit ?? "") && <CaptureSelect value={field.capture ?? "manual_or_scale"} onChange={(capture) => updateLocked(field.key, { capture })} />}
-        </li>)}
+        {locked.map((field) => {
+          const mode = fieldRequirement(field);
+          const requirementLocked = Boolean(field.requirementLocked);
+          return (
+            <li key={field.key} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+              <Lock className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0 flex-1 font-medium">{field.label.en}</span>
+              <Badge variant="outline">{typeLabel(field.type)}{field.unit ? ` · ${field.unit}` : ""}</Badge>
+              {requirementLocked ? (
+                <span className="text-xs text-muted-foreground" title="Fixed by the event blueprint behaviour">
+                  {mode === "required" ? "Required (system)" : mode === "not_shown" ? "Not shown (system)" : "Optional (system)"}
+                </span>
+              ) : (
+                <div className="w-40">
+                  <FormSelect
+                    size="sm"
+                    value={mode}
+                    options={FIELD_REQUIREMENTS.map((item) => ({ value: item.value, label: item.label }))}
+                    onValueChange={(value) => {
+                      const requirement = value as FieldRequirement;
+                      onChangeRequirement(field.key, requirement);
+                    }}
+                  />
+                </div>
+              )}
+              {field.type === "measurement" && WEIGHT_UNITS.includes(field.unit ?? "") && (
+                <CaptureSelect value={field.capture ?? "manual_or_scale"} onChange={(capture) => updateLocked(field.key, { capture })} />
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>}
 
@@ -233,10 +275,21 @@ function FieldCard({ index, field, errors, lookupOptions, onChange, onRemove }: 
         <CaptureSelect id={`${id}-capture`} value={field.capture ?? "manual_or_scale"} onChange={(capture) => onChange({ capture })} wide />
       </Field>}
     </FieldGrid>
-    <label className={cn("flex w-fit cursor-pointer items-center gap-2 text-sm")}>
-      <Checkbox checked={field.required} onCheckedChange={(value) => onChange({ required: value === true })} />
-      Farmers must fill this in
-    </label>
+    <Field>
+      <FieldLabel htmlFor={`${id}-requirement`}>On farmer form</FieldLabel>
+      <FormSelect
+        id={`${id}-requirement`}
+        value={fieldRequirement(field)}
+        options={FIELD_REQUIREMENTS.map((item) => ({ value: item.value, label: item.label }))}
+        onValueChange={(value) => {
+          const requirement = value as FieldRequirement;
+          onChange({ requirement, required: requirement === "required" });
+        }}
+      />
+      <FieldDescription>
+        {FIELD_REQUIREMENTS.find((item) => item.value === fieldRequirement(field))?.hint}
+      </FieldDescription>
+    </Field>
   </div>;
 }
 
