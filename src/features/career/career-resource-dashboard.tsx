@@ -1215,7 +1215,6 @@ function RecordDetails({
                 "phone",
                 "feature",
                 "organization_name",
-                "farmer_id",
                 "registered_farms",
                 "account_role",
               ]}
@@ -1230,9 +1229,9 @@ function RecordDetails({
                   "name",
                   "type",
                   "phone",
-                  "countryId",
-                  "regionId",
-                  "districtId",
+                  "country",
+                  "region",
+                  "district",
                 ]}
               />
             </DetailSection>
@@ -1243,9 +1242,6 @@ function RecordDetails({
               {record.memberships?.map((membership) => (
                 <Badge key={membership.id} variant="outline" className="px-2.5 py-1">
                   {label(membership.feature)}
-                  {membership.farmer_id
-                    ? ` · Farmer #${membership.farmer_id}`
-                    : ""}
                 </Badge>
               ))}
             </div>

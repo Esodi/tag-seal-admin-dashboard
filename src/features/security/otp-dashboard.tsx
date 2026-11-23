@@ -3,9 +3,9 @@
 import { BulkRecordAction } from "@/components/ui/bulk-record-action";
 import { DashboardStatCard } from "@/components/ui/dashboard";
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Clock, Eye, KeyRound, MoreVertical, Plus, RefreshCw, Search, ShieldAlert, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, Eye, KeyRound, MoreVertical, Plus, Search, ShieldAlert, Trash2 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { Button, Card, CardContent, ConfirmationAlertDialog, CustomViewDetailsDialog, DataTable, DetailItem, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Field, FieldLabel, FormDialog, FormSelect, Input, StatNumber, StatusBadge, toast } from "@/components/ui";
+import { Button, Card, CardContent, ConfirmationAlertDialog, CustomViewDetailsDialog, DataTable, DetailItem, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Field, FieldLabel, FormDialog, FormSelect, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, StatNumber, StatusBadge, toast } from "@/components/ui";
 import { authenticatedFetch } from "@/lib/auth/session";
 
 type OtpRecord = {
@@ -94,10 +94,7 @@ export function OtpDashboard() {
   }
   const stats = result?.stats;
   return <div className="mx-auto max-w-7xl space-y-6">
-    <DashboardHeader parent="Security" parentHref="/dashboard/security" title="OTP Verifications" description="Monitor phone verification and password recovery codes across the platform." actions={<>
-      <Button variant="outline" disabled={loading} onClick={() => void load()}><RefreshCw className={loading ? "animate-spin" : ""} />Refresh</Button>
-      {result?.canManage && <Button onClick={() => setCreating(true)}><Plus />Create OTP</Button>}
-    </>} />
+    <DashboardHeader parent="Security" parentHref="/dashboard/security" title="OTP Verifications" description="Monitor phone verification and password recovery codes across the platform." actions={result?.canManage ? <Button onClick={() => setCreating(true)}><Plus />Create OTP</Button> : undefined} />
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[
         { label: "Total OTPs", value: stats?.total, note: "All verification records", icon: KeyRound },
@@ -109,12 +106,36 @@ export function OtpDashboard() {
     {error && <Card role="alert"><CardContent className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-danger">{error}</p><Button variant="outline" onClick={() => void load()}>Try again</Button></CardContent></Card>}
     <DataTable rowNumberStart={(page - 1) * Number(pageSize) + 1} selection={result?.canManage ? { ids: selected, onChange: setSelected } : undefined} rows={loading || error ? [] : result?.data ?? []} getRowId={(row) => `${row.source}-${row.id}`} emptyTitle={loading ? "Loading OTP records…" : error ? "OTP records unavailable" : "No OTP records found"} emptyDescription={loading ? "Fetching verification activity." : error ? "Try loading the records again." : "Try another search or filter. New verification requests will appear here."} toolbar={<div className="flex flex-col gap-3 lg:flex-row lg:items-center">
       <div className="relative min-w-0 flex-1 lg:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search OTP records" className="pl-9" placeholder="Search recipient or purpose…" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></div>
-      <div className="flex flex-wrap gap-2 lg:ml-auto">
+      <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
         {result?.canManage && <BulkRecordAction ids={[...selected]} disabled={loading || busy} getRequest={(id) => { const [source, recordId] = String(id).split("-"); return { url: `/api/admin/otp-verifications/${source}/${recordId}`, method: "DELETE" }; }} onComplete={() => load()} />}
-        <FormSelect value={pageSize} onValueChange={(value) => { setPageSize(value); setPage(1); }} options={[10, 30, 50, 100].map((value) => ({ value: String(value), label: `Show ${value}` }))} />
-        <FormSelect value={status} onValueChange={(value) => { setStatus(value); setPage(1); }} options={[{ value: "all", label: "All statuses" }, ...["pending", "verified", "expired", "locked"].map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))]} />
-        <FormSelect value={channel} onValueChange={(value) => { setChannel(value); setPage(1); }} options={[{ value: "all", label: "All channels" }, { value: "sms", label: "SMS" }, { value: "email", label: "Email" }]} />
-        <FormSelect value={sort} onValueChange={(value) => { setSort(value); setPage(1); }} options={[{ value: "desc", label: "Newest first" }, { value: "asc", label: "Oldest first" }]} />
+        <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1); }}>
+          <SelectTrigger aria-label="Filter by status" size="sm" className="h-8 w-auto min-w-[8rem] font-normal"><SelectValue /></SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="all">All statuses</SelectItem>
+            {["pending", "verified", "expired", "locked"].map((value) => <SelectItem key={value} value={value}>{value[0].toUpperCase() + value.slice(1)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={channel} onValueChange={(value) => { setChannel(value); setPage(1); }}>
+          <SelectTrigger aria-label="Filter by channel" size="sm" className="h-8 w-auto min-w-[7.5rem] font-normal"><SelectValue /></SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="all">All channels</SelectItem>
+            <SelectItem value="sms">SMS</SelectItem>
+            <SelectItem value="email">Email</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sort} onValueChange={(value) => { setSort(value); setPage(1); }}>
+          <SelectTrigger aria-label="Sort OTP records" size="sm" className="h-8 w-auto min-w-[8.5rem] font-normal"><SelectValue /></SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="desc">Newest first</SelectItem>
+            <SelectItem value="asc">Oldest first</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={pageSize} onValueChange={(value) => { setPageSize(value); setPage(1); }}>
+          <SelectTrigger aria-label="Rows per page" size="sm" className="h-8 w-auto min-w-[6.25rem] font-normal"><span className="text-muted-foreground">Show</span><SelectValue /></SelectTrigger>
+          <SelectContent align="end">
+            {[10, 30, 50, 100].map((size) => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
     </div>} columns={[
       { key: "recipient", header: "Recipient", cell: (row) => <span className="font-medium">{row.recipient || "—"}</span> },

@@ -7,7 +7,8 @@ export type AccountProfile = {
   phone: string;
   phoneReadOnly: boolean;
   role: string;
-  platformRole: "admin" | "superAdmin";
+  platformRole: "admin" | "superAdmin" | "appUser";
+  cooperativeRoles?: string[];
   status: string;
   permissions: string[];
   createdAt: string | null;

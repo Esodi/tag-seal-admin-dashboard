@@ -281,9 +281,8 @@ export function DairyResourceDashboard({
           <RecordPagination from={rawItems.length ? ((data?.current_page ?? 1) - 1) * pageSize + 1 : 0} to={Math.min((data?.current_page ?? 1) * pageSize, data?.total ?? 0)} total={data?.total ?? 0} page={data?.current_page ?? 1} pageCount={data?.last_page ?? 1} onPageChange={setPage} disabled={loading || Boolean(error)} />
         </div>
       </TablePanel>
-      <CustomViewDetailsDialog open={Boolean(selectedItem)} onOpenChange={(open) => !open && setSelectedItem(null)} title={`${meta.title} Details`} description={`Record UUID: ${selectedItem?.uuid ?? ""}`}>
+      <CustomViewDetailsDialog open={Boolean(selectedItem)} onOpenChange={(open) => !open && setSelectedItem(null)} title={`${meta.title} Details`} description="Cooperative dairy record details">
         {selectedItem && <div className="grid gap-3 sm:grid-cols-2">
-          <DetailItem label="UUID">{selectedItem.uuid}</DetailItem>
           {resource === "intakes" && <>
             <DetailItem label="Receipt">{selectedItem.receipt_number ?? "—"}</DetailItem>
             <DetailItem label="Farmer">{[selectedItem.farmer_name, selectedItem.member_number].filter(Boolean).join(" · ") || "—"}</DetailItem>

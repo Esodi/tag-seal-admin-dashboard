@@ -4,13 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Activity, BarChart3, Beef, Bell, Briefcase, ChevronDown, CircleHelp,
+  Activity, BarChart3, Beef, Briefcase, ChevronDown, CircleHelp,
   Gavel, Landmark, LayoutDashboard, MapPinned, Menu, PawPrint, Warehouse, Search, Settings,
   Settings2, ShieldCheck, ShoppingBag, Stethoscope, Users, X,
 } from "lucide-react";
 import { featureGroups } from "@/lib/features";
+import { canAccessFeature, canAccessSection, hasPermission } from "@/lib/permissions";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { NotificationsSheet } from "@/components/layout/notifications-sheet";
+import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { Logo } from "@/components/ui/logo";
 
 const groupIcons = { people: Users, events: Activity, animals: Beef, career: Briefcase, commerce: ShoppingBag, auction: Gavel, vet: Stethoscope, dairy: Warehouse, blueprints: PawPrint, finance: Landmark, reference: Settings2, locations: MapPinned, security: ShieldCheck } as const;
@@ -18,7 +21,7 @@ const managementSlugs = ["people", "events", "animals", "career", "commerce", "a
 /** Sections that show per-item count badges in the sidebar. */
 const badgedSections = new Set(["people", "events", "animals", "career", "commerce", "auction", "vet", "dairy"]);
 const groupLabels: Record<string, string> = {
-  people: "People", events: "Events", animals: "Animals", career: "Careers",
+  people: "People", events: "Events", animals: "Animals & Farms", career: "Careers",
   commerce: "Commerce", auction: "Auctions", vet: "Veterinary", dairy: "Cooperatives", blueprints: "Animal Setup",
   finance: "Finance", reference: "Reference Data", locations: "Locations",
 };
@@ -29,8 +32,8 @@ const featureLabels: Record<string, string> = {
   "dairy/transporters": "Transporters",
   "dairy/factories": "Factories",
   "people/system-user-profiles": "Admin Profiles",
+  "people/memberships": "Memberships",
   "animals/acquisition-methods": "Acquisition",
-  "career/memberships": "Memberships",
   "career/onboardings": "Onboarding",
   "commerce/listings": "Listings",
   "reference/tail-docking-methods": "Tail Docking",
@@ -59,8 +62,10 @@ function NavLink({ href, label, icon: Icon, pathname, onClick }: { href: string;
   return <Link href={href} onClick={onClick} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${active ? "bg-accent font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Icon className="size-[18px]" strokeWidth={active ? 2.2 : 1.8} /><span>{label}</span></Link>;
 }
 
-export function AdminShell({ children, user }: { children: React.ReactNode; user?: { username?: string; email?: string; firstname?: string; surname?: string } }) {
+export function AdminShell({ children, user }: { children: React.ReactNode; user?: { username?: string; email?: string; firstname?: string; surname?: string; platformRole?: string; cooperativeRoles?: string[]; permissions?: string[] } }) {
   const pathname = usePathname();
+  const { session } = useAuthSession();
+  const currentUser = session?.user ?? user;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<NavCounts>({});
@@ -92,8 +97,12 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   const close = () => setMobileOpen(false);
 
   const accordion = (slug: string) => {
+    if (!canAccessSection(currentUser, slug)) return null;
     const group = featureGroups.find((item) => item.slug === slug)!;
-    const visibleFeatures = group.features.filter((item) => !item.hidden);
+    const visibleFeatures = group.features.filter(
+      (item) => !item.hidden && canAccessFeature(currentUser, group.slug, item.slug),
+    );
+    if (visibleFeatures.length === 0) return null;
     const GroupIcon = groupIcons[group.slug as keyof typeof groupIcons];
     const open = Boolean(openGroups[group.slug]);
     const groupActive = activeGroup === group.slug;
@@ -119,16 +128,27 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
     </div>;
   };
 
+  const visibleManagementSlugs = managementSlugs.filter((slug) => canAccessSection(currentUser, slug));
+  const canViewReports = hasPermission(currentUser, "reports.view");
+
   const sidebar = <div className="flex h-full flex-col">
     <div className="flex h-16 items-center justify-between px-4"><Brand /><button className="rounded-lg p-2 lg:hidden" onClick={close} aria-label="Close menu"><X className="size-5" /></button></div>
     <nav className="min-h-0 flex-1 overflow-y-auto px-3 pb-5">
       <p className="mb-2 mt-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Workspace</p>
       <NavLink href="/dashboard" label="Overview" icon={LayoutDashboard} pathname={pathname} onClick={close} />
-      <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Management</p>
-      <div className="space-y-1">{managementSlugs.map(accordion)}</div>
+      {visibleManagementSlugs.length > 0 && (
+        <>
+          <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Management</p>
+          <div className="space-y-1">{visibleManagementSlugs.map(accordion)}</div>
+        </>
+      )}
     </nav>
     <div className="border-t p-3">
-      <div className="mb-2 space-y-1"><NavLink href="/dashboard/analytics" label="Reports & Analysis" icon={BarChart3} pathname={pathname} onClick={close} /><NavLink href="/dashboard/help" label="Help Center" icon={CircleHelp} pathname={pathname} onClick={close} /><NavLink href="/dashboard/settings" label="Settings" icon={Settings} pathname={pathname} onClick={close} /></div>
+      <div className="mb-2 space-y-1">
+        {canViewReports && <NavLink href="/dashboard/analytics" label="Reports & Analysis" icon={BarChart3} pathname={pathname} onClick={close} />}
+        <NavLink href="/dashboard/help" label="Help Center" icon={CircleHelp} pathname={pathname} onClick={close} />
+        <NavLink href="/dashboard/settings" label="Settings" icon={Settings} pathname={pathname} onClick={close} />
+      </div>
       <AccountMenu user={user} onNavigate={close} />
     </div>
   </div>;
@@ -152,7 +172,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
         <button type="button" className="grid size-10 place-items-center rounded-xl transition hover:bg-muted md:hidden" aria-label="Search" onClick={() => setCommandOpen(true)}>
           <Search className="size-5" />
         </button>
-        <div className="ml-auto flex items-center gap-1"><Link href="/dashboard/help" aria-label="Help" title="Help" className="grid size-10 place-items-center rounded-xl transition hover:bg-muted"><CircleHelp className="size-5" /></Link><button className="relative rounded-xl p-2.5 hover:bg-muted" aria-label="Notifications"><Bell className="size-5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-background" /></button><AccountMenu compact user={user} /></div>
+        <div className="ml-auto flex items-center gap-1"><Link href="/dashboard/help" aria-label="Help" title="Help" className="grid size-10 place-items-center rounded-xl transition hover:bg-muted"><CircleHelp className="size-5" /></Link><NotificationsSheet /><AccountMenu compact user={user} /></div>
       </header>
       <main className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">{children}</main>
     </div>

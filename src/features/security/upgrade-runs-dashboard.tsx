@@ -112,25 +112,13 @@ export function UpgradeRunsDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <DashboardHeader
         eyebrow="System & Security"
         parent="Security"
         parentHref="/dashboard/security"
         title="Platform Upgrade Runs"
         description="Audit execution logs, environment schema upgrades and platform deployments."
-
-        actions={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void load()}
-            className="gap-1.5"
-          >
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-        }
       />
 
       {/* KPI Stats Grid */}
@@ -326,11 +314,10 @@ export function UpgradeRunsDashboard() {
           open={Boolean(viewing)}
           onOpenChange={(open) => !open && setViewing(null)}
           title={`Upgrade Run: ${viewing.release}`}
-          description={`Execution metadata and schema migration report for ${viewing.uuid}.`}
+          description="Execution metadata and schema migration report."
         >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <DetailItem label="Run UUID">{viewing.uuid}</DetailItem>
               <DetailItem label="Release Version">{viewing.release}</DetailItem>
               <DetailItem label="Environment">{viewing.environment}</DetailItem>
               <DetailItem label="State">{viewing.state}</DetailItem>

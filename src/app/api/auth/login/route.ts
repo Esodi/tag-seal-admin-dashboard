@@ -1,5 +1,6 @@
 import { SESSION_SETTINGS } from "@/lib/constant_values";
 import { adminCookieOptions } from "@/lib/auth/cookie-options";
+import { canEnterPortal } from "@/lib/permissions";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     const { user } = payload.data;
-    if (!["admin", "superAdmin"].includes(user?.platformRole)) {
+    if (!canEnterPortal(user)) {
       await fetch(`${apiUrl}/api/auth/logout`, {
         method: "POST",
         headers: {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           message:
-            "Only active system administrators can access this dashboard.",
+            "Only SuperAdmins, Admins, MCU Admins, and AMCOS Users can access this portal.",
         },
         { status: 403 },
       );
@@ -75,6 +76,8 @@ export async function POST(request: Request) {
         email: user.email,
         role: user.role,
         platformRole: user.platformRole,
+        cooperativeRoles: user.cooperativeRoles ?? [],
+        permissions: user.permissions ?? [],
         firstname: user.firstname,
         surname: user.surname,
       },

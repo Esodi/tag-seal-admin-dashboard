@@ -47,7 +47,7 @@ export function CommerceDetailsContent({ record }: { record: CommerceRecord }) {
       <Items items={record.items} currency={record.currency} order={false} />
       <DetailSection title="Publication & record information">
         <DetailItem label="Published (EAT)">{commerceDateTime(record.published_at)}</DetailItem><DetailItem label="Expires (EAT)">{commerceDateTime(record.expires_at)}</DetailItem>
-        <DetailItem label="Created (EAT)">{commerceDateTime(record.created_at)}</DetailItem><DetailItem label="Listing reference"><span className="font-mono text-[12px]">{record.uuid}</span></DetailItem>
+        <DetailItem label="Created (EAT)">{commerceDateTime(record.created_at)}</DetailItem>
       </DetailSection>
     </> : isOrder(record) ? <>
       <DetailSection title="Buyer & seller">
@@ -68,18 +68,16 @@ export function CommerceDetailsContent({ record }: { record: CommerceRecord }) {
         {record.cancellation_reason && <DetailItem label="Cancellation reason" className="sm:col-span-2">{record.cancellation_reason}</DetailItem>}
       </DetailSection>
       <Items items={record.items} currency={record.currency} order />
-      <DetailItem label="Order reference"><span className="font-mono text-[12px]">{record.uuid}</span></DetailItem>
     </> : <>
       <DetailSection title="Animal & reservation">
         <DetailItem label="Animal">{record.livestock?.name || "—"}</DetailItem><DetailItem label="Animal tag">{record.livestock?.identificationNumber || "—"}</DetailItem>
-        <DetailItem label="Hold type">{commerceLabel(record.reservation_type)}</DetailItem><DetailItem label="Animal reference">{record.livestock_uuid}</DetailItem>
+        <DetailItem label="Hold type">{commerceLabel(record.reservation_type)}</DetailItem>
         <DetailItem label="Held by">{personName(record.held_by)}</DetailItem><DetailItem label="Holder email">{record.held_by?.email || "—"}</DetailItem>
       </DetailSection>
       <DetailSection title="Timing & release">
         <DetailItem label="Created (EAT)">{commerceDateTime(record.created_at)}</DetailItem><DetailItem label="Expires (EAT)">{commerceDateTime(record.expires_at)}</DetailItem>
         <DetailItem label="Released (EAT)">{commerceDateTime(record.released_at)}</DetailItem><DetailItem label="Release reason">{record.release_reason || "—"}</DetailItem>
       </DetailSection>
-      <DetailSection title="References"><DetailItem label="Reservation reference">{record.uuid}</DetailItem><DetailItem label="Related transaction">{record.reference_uuid}</DetailItem></DetailSection>
     </>}
   </>;
 }

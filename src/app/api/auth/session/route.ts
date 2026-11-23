@@ -1,5 +1,6 @@
 import { SESSION_SETTINGS } from "@/lib/constant_values";
 import { adminCookieOptions } from "@/lib/auth/cookie-options";
+import { canEnterPortal } from "@/lib/permissions";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -36,18 +37,20 @@ export async function GET() {
 
     if (upstream.status === 401 || upstream.status === 403) return unauthorized();
     if (!upstream.ok) {
-      return ["admin", "superAdmin"].includes(cachedUser?.platformRole)
+      return canEnterPortal(cachedUser)
         ? NextResponse.json({ user: cachedUser, profile: null, expiresAt, verified: false })
         : unauthorized();
     }
 
     const payload = await upstream.json();
     const source = payload?.data;
-    if (!["admin", "superAdmin"].includes(source?.platformRole)) return unauthorized();
+    if (!canEnterPortal(source)) return unauthorized();
 
     const profile = payload?.data ?? null;
     const user = {
       ...source,
+      cooperativeRoles: source?.cooperativeRoles ?? cachedUser?.cooperativeRoles ?? [],
+      permissions: source?.permissions ?? cachedUser?.permissions ?? [],
       firstname: profile?.firstName ?? profile?.firstname ?? source.firstname ?? cachedUser?.firstname ?? "",
       surname: profile?.lastName ?? profile?.surname ?? source.surname ?? cachedUser?.surname ?? "",
       phone1: profile?.phone ?? profile?.phone1 ?? cachedUser?.phone1 ?? "",
@@ -55,7 +58,7 @@ export async function GET() {
 
     return NextResponse.json({ user, profile, expiresAt, verified: true });
   } catch {
-    return ["admin", "superAdmin"].includes(cachedUser?.platformRole)
+    return canEnterPortal(cachedUser)
       ? NextResponse.json({ user: cachedUser, profile: null, expiresAt, verified: false })
       : NextResponse.json({ message: "Session service unavailable" }, { status: 503 });
   }

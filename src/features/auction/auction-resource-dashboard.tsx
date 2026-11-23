@@ -5,11 +5,20 @@ import { Gavel } from "lucide-react";
 import { RegistryDashboard } from "@/features/registry/registry-dashboard";
 import type { RegistryResponse } from "@/features/registry/types";
 import { useRegistryRecords } from "@/features/registry/use-registry-records";
-import { CentreActions, OfficerActions, SessionActions } from "./auction-actions";
-import { centreColumns, officerColumns, sessionColumns } from "./auction-columns";
+import { BidActions, CentreActions, IntakeActions, OfficerActions, SaleActions, SessionActions } from "./auction-actions";
+import { bidColumns, centreColumns, intakeColumns, officerColumns, saleColumns, sessionColumns } from "./auction-columns";
 import { auctionAddLabel, auctionConfig, auctionEndpoint } from "./auction-config";
 import { CentreForm, OfficerForm } from "./auction-forms";
-import type { AuctionCentreRecord, AuctionOfficerRecord, AuctionRecord, AuctionResource, AuctionSessionRecord } from "./types";
+import type {
+  AuctionBidRecord,
+  AuctionCentreRecord,
+  AuctionIntakeRecord,
+  AuctionOfficerRecord,
+  AuctionRecord,
+  AuctionResource,
+  AuctionSaleRecord,
+  AuctionSessionRecord,
+} from "./types";
 
 type Props<T> = { initialData: RegistryResponse<T> | null; initialError?: string };
 const shared = { parent: "Auction", parentHref: "/dashboard/auction", emptyIcon: Gavel };
@@ -42,8 +51,32 @@ function Sessions({ initialData, initialError }: Props<AuctionSessionRecord>) {
     rowKey={(row) => row.uuid} rowTitle={(row) => row.title} rowActions={(row) => <SessionActions row={row} onChanged={records.reload} />} />;
 }
 
+function Intakes({ initialData, initialError }: Props<AuctionIntakeRecord>) {
+  const records = useRegistryRecords(auctionEndpoint("intakes"), initialData, initialError);
+  return <RegistryDashboard {...shared} config={auctionConfig.intakes} records={records} columns={intakeColumns} exportName="auction-intakes"
+    rowKey={(row) => row.uuid} rowTitle={(row) => row.livestock?.name || row.livestock?.identificationNumber || row.livestockUuid}
+    rowActions={(row) => <IntakeActions row={row} onChanged={records.reload} />} />;
+}
+
+function Bids({ initialData, initialError }: Props<AuctionBidRecord>) {
+  const records = useRegistryRecords(auctionEndpoint("bids"), initialData, initialError);
+  return <RegistryDashboard {...shared} config={auctionConfig.bids} records={records} columns={bidColumns} exportName="auction-bids"
+    rowKey={(row) => row.uuid} rowTitle={(row) => row.lotTitle || row.bidderName || row.uuid}
+    rowActions={(row) => <BidActions row={row} />} />;
+}
+
+function Sales({ initialData, initialError }: Props<AuctionSaleRecord>) {
+  const records = useRegistryRecords(auctionEndpoint("sales"), initialData, initialError);
+  return <RegistryDashboard {...shared} config={auctionConfig.sales} records={records} columns={saleColumns} exportName="auction-sales"
+    rowKey={(row) => row.uuid} rowTitle={(row) => row.receiptNo || row.buyerName || row.uuid}
+    rowActions={(row) => <SaleActions row={row} onChanged={records.reload} />} />;
+}
+
 export function AuctionResourceDashboard({ resource, initialData, initialError }: Props<AuctionRecord> & { resource: AuctionResource }) {
   if (resource === "centres") return <Centres initialData={initialData as RegistryResponse<AuctionCentreRecord> | null} initialError={initialError} />;
   if (resource === "officers") return <Officers initialData={initialData as RegistryResponse<AuctionOfficerRecord> | null} initialError={initialError} />;
-  return <Sessions initialData={initialData as RegistryResponse<AuctionSessionRecord> | null} initialError={initialError} />;
+  if (resource === "sessions") return <Sessions initialData={initialData as RegistryResponse<AuctionSessionRecord> | null} initialError={initialError} />;
+  if (resource === "intakes") return <Intakes initialData={initialData as RegistryResponse<AuctionIntakeRecord> | null} initialError={initialError} />;
+  if (resource === "bids") return <Bids initialData={initialData as RegistryResponse<AuctionBidRecord> | null} initialError={initialError} />;
+  return <Sales initialData={initialData as RegistryResponse<AuctionSaleRecord> | null} initialError={initialError} />;
 }

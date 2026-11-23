@@ -1,15 +1,16 @@
 "use client";
 
 import { DashboardStatCard } from "@/components/ui/dashboard";
-import { TablePanel } from "@/components/ui/table-layout";
+import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRightLeft, RefreshCw, ShieldAlert } from "lucide-react";
+import { ArrowRightLeft, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { EmptyCard } from "@/components/ui/empty-card";
 import { FormDialog } from "@/components/ui/form-dialog";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatNumber } from "@/components/ui/stat-number";
 import {
@@ -59,6 +60,8 @@ export function LedgerMigrationDashboard() {
   const [transitionTarget, setTransitionTarget] = useState<FamilyMigrationRecord | null>(null);
   const [nextAuthority, setNextAuthority] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState("");
+  const [authorityFilter, setAuthorityFilter] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,22 +113,21 @@ export function LedgerMigrationDashboard() {
   const fullyMigrated = families.filter((f) => f.authority === "ledger" || f.authority === "retired").length;
   const inShadow = families.filter((f) => f.authority === "ledger_shadow").length;
   const legacyOnly = families.filter((f) => f.authority === "legacy").length;
+  const filteredFamilies = families.filter((f) => {
+    const matchesAuthority = authorityFilter === "all" || f.authority === authorityFilter;
+    const term = query.trim().toLowerCase();
+    const matchesQuery = !term || f.label.toLowerCase().includes(term) || f.family.toLowerCase().includes(term) || f.tables.some((t) => t.toLowerCase().includes(term));
+    return matchesAuthority && matchesQuery;
+  });
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       <DashboardHeader
         eyebrow="System & Security"
         parent="Security"
         parentHref="/dashboard/security"
         title="Ledger Migration & Authority"
         description="Monitor the transition of operational event families from legacy tables to the dynamic event ledger."
-
-        actions={
-          <Button size="sm" variant="outline" onClick={() => void load()} className="gap-1.5 font-medium">
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-        }
       />
 
       {/* KPI Stats Grid */}
@@ -139,14 +141,31 @@ export function LedgerMigrationDashboard() {
 
       {/* Main Container Card */}
       <TablePanel className="mt-4">
-        <div className="flex items-center justify-between border-b p-4">
-          <div>
-            <h3 className="font-semibold text-foreground">Operational Event Families</h3>
-            <p className="text-xs text-muted-foreground">
-              Transition authorities family-by-family without service downtime. Mobile sync automatically adopts changes.
-            </p>
+        <TableToolbar>
+          <div className="relative min-w-0 flex-1 lg:max-w-sm">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-9"
+              placeholder="Search family or table name…"
+            />
           </div>
-        </div>
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            <Select value={authorityFilter} onValueChange={setAuthorityFilter}>
+              <SelectTrigger aria-label="Filter by authority" size="sm" className="h-8 w-auto min-w-[9rem] font-normal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">All authorities</SelectItem>
+                <SelectItem value="legacy">Legacy</SelectItem>
+                <SelectItem value="ledger_shadow">Ledger Shadow</SelectItem>
+                <SelectItem value="ledger">Ledger</SelectItem>
+                <SelectItem value="retired">Retired</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </TableToolbar>
 
         {error ? (
           <div className="p-4">
@@ -166,6 +185,7 @@ export function LedgerMigrationDashboard() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">#</TableHead>
                 <TableHead>Family</TableHead>
                 <TableHead>Current Authority</TableHead>
                 <TableHead>Legacy Records</TableHead>
@@ -175,7 +195,20 @@ export function LedgerMigrationDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {families.map((fam) => {
+              {loading && filteredFamilies.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
+                    Loading ledger migration status...
+                  </TableCell>
+                </TableRow>
+              ) : filteredFamilies.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
+                    No matching event families.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredFamilies.map((fam, index) => {
                 const authorityColors: Record<string, string> = {
                   legacy: "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
                   ledger_shadow: "border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
@@ -185,6 +218,7 @@ export function LedgerMigrationDashboard() {
 
                 return (
                   <TableRow key={fam.family} className="transition hover:bg-muted/30">
+                    <TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-semibold text-foreground">{fam.label}</p>
@@ -242,7 +276,7 @@ export function LedgerMigrationDashboard() {
                     </TableCell>
                   </TableRow>
                 );
-              })}
+              }))}
             </TableBody>
           </Table>
         )}

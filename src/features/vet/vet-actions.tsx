@@ -178,7 +178,7 @@ export function RequestActions({ row, onChanged }: ActionProps<VetServiceRequest
       </DropdownMenuContent>
     </DropdownMenu>
 
-    <CustomViewDetailsDialog open={viewing} onOpenChange={setViewing} title={commerceLabel(row.problemCategory)} description={`Service request · ${row.uuid.slice(0, 8).toUpperCase()}`} size="lg"
+    <CustomViewDetailsDialog open={viewing} onOpenChange={setViewing} title={commerceLabel(row.problemCategory)} description="Service request" size="lg"
       actions={canCancel ? <Button variant="destructive" onClick={() => { setViewing(false); setCancelling(true); }}><X />Cancel</Button> : undefined}>
       <div className="grid gap-3 sm:grid-cols-2">
         <DetailItem label="Status"><RegistryStatus status={row.status} /></DetailItem>

@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Activity, BarChart3, Beef, Briefcase, CircleHelp, Gavel, Landmark,
-  LayoutDashboard, MapPinned, PawPrint, Search, Settings, Settings2,
+  Activity, Beef, Briefcase, Gavel, Landmark,
+  LayoutDashboard, MapPinned, PawPrint, Search, Settings2,
   ShieldCheck, ShoppingBag, Stethoscope, Users, Warehouse,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogTitle,
 } from "@/components/ui/dialog";
 import { featureGroups } from "@/lib/features";
+import { useAuthSession } from "@/components/providers/auth-session-provider";
+import { canAccessFeature, canAccessSection, hasPermission, type PortalUserLike } from "@/lib/permissions";
 
 const groupIcons = {
   people: Users,
@@ -32,7 +34,7 @@ const groupIcons = {
 const groupLabels: Record<string, string> = {
   people: "People",
   events: "Events",
-  animals: "Animals",
+  animals: "Animals & Farms",
   career: "Careers",
   commerce: "Commerce",
   auction: "Auctions",
@@ -53,8 +55,8 @@ const featureLabels: Record<string, string> = {
   "dairy/transporters": "Transporters",
   "dairy/factories": "Factories",
   "people/system-user-profiles": "Admin Profiles",
+  "people/memberships": "Memberships",
   "animals/acquisition-methods": "Acquisition",
-  "career/memberships": "Memberships",
   "career/onboardings": "Onboarding",
   "commerce/listings": "Listings",
   "reference/tail-docking-methods": "Tail Docking",
@@ -70,39 +72,44 @@ type CommandItem = {
   keywords: string;
 };
 
-function buildCommandItems(): CommandItem[] {
+function buildCommandItems(user?: PortalUserLike | null): CommandItem[] {
   const workspace: CommandItem[] = [
     { id: "workspace/overview", label: "Overview", group: "Workspace", groupSlug: "workspace", href: "/dashboard", keywords: "home dashboard" },
-    { id: "workspace/analytics", label: "Reports & Analysis", group: "Workspace", groupSlug: "workspace", href: "/dashboard/analytics", keywords: "reports analytics charts" },
+    ...(hasPermission(user, "reports.view")
+      ? [{ id: "workspace/analytics", label: "Reports & Analysis", group: "Workspace", groupSlug: "workspace", href: "/dashboard/analytics", keywords: "reports analytics charts" }]
+      : []),
     { id: "workspace/help", label: "Help Center", group: "Workspace", groupSlug: "workspace", href: "/dashboard/help", keywords: "help docs support" },
     { id: "workspace/settings", label: "Settings", group: "Workspace", groupSlug: "workspace", href: "/dashboard/settings", keywords: "settings profile account" },
   ];
 
-  const features = featureGroups.flatMap((group) => {
-    const groupLabel = groupLabels[group.slug] ?? group.label;
-    const section: CommandItem = {
-      id: `section/${group.slug}`,
-      label: groupLabel,
-      group: groupLabel,
-      groupSlug: group.slug,
-      href: `/dashboard/${group.slug}`,
-      keywords: `${group.description ?? ""} ${group.slug}`,
-    };
-    const items = group.features
-      .filter((feature) => !feature.hidden)
-      .map((feature) => {
-        const path = `${group.slug}/${feature.slug}`;
-        return {
-          id: path,
-          label: featureLabels[path] ?? feature.label,
-          group: groupLabel,
-          groupSlug: group.slug,
-          href: `/dashboard/${group.slug}/${feature.slug}`,
-          keywords: `${feature.description ?? ""} ${feature.slug} ${group.slug === "events" ? "event log" : ""}`,
-        } satisfies CommandItem;
-      });
-    return [section, ...items];
-  });
+  const features = featureGroups
+    .filter((group) => canAccessSection(user, group.slug))
+    .flatMap((group) => {
+      const groupLabel = groupLabels[group.slug] ?? group.label;
+      const items = group.features
+        .filter((feature) => !feature.hidden && canAccessFeature(user, group.slug, feature.slug))
+        .map((feature) => {
+          const path = `${group.slug}/${feature.slug}`;
+          return {
+            id: path,
+            label: featureLabels[path] ?? feature.label,
+            group: groupLabel,
+            groupSlug: group.slug,
+            href: `/dashboard/${group.slug}/${feature.slug}`,
+            keywords: `${feature.description ?? ""} ${feature.slug} ${group.slug === "events" ? "event log" : ""}`,
+          } satisfies CommandItem;
+        });
+      if (items.length === 0) return [];
+      const section: CommandItem = {
+        id: `section/${group.slug}`,
+        label: groupLabel,
+        group: groupLabel,
+        groupSlug: group.slug,
+        href: `/dashboard/${group.slug}`,
+        keywords: `${group.description ?? ""} ${group.slug}`,
+      };
+      return [section, ...items];
+    });
 
   return [...workspace, ...features];
 }
@@ -114,8 +121,9 @@ type Props = {
 
 export function CommandPalette({ open, onOpenChange }: Props) {
   const router = useRouter();
+  const { session } = useAuthSession();
   const [query, setQuery] = useState("");
-  const items = useMemo(() => buildCommandItems(), []);
+  const items = useMemo(() => buildCommandItems(session?.user), [session?.user]);
 
   useEffect(() => {
     if (!open) setQuery("");

@@ -68,9 +68,9 @@ export default async function FeaturePage({
   }
   if (
     section === "animals" &&
-    (feature === "animals" || feature === "livestocks" || feature === "livestock")
+    (feature === "livestocks" || feature === "livestock")
   ) {
-    redirect("/dashboard/animals/legacy-livestock");
+    redirect("/dashboard/animals/animals");
   }
   if (
     section === "people" &&
@@ -115,6 +115,16 @@ export default async function FeaturePage({
         <UserAccountsPage />
       </Suspense>
     );
+  if (section === "people" && feature === "memberships")
+    return (
+      <Suspense fallback={<UsersDashboardSkeleton />}>
+        <CareerResourcePage
+          resource="memberships"
+          parent="People"
+          parentHref="/dashboard/people"
+        />
+      </Suspense>
+    );
   if (
     section === "people" &&
     peopleResources.includes(feature as PeopleResource)
@@ -131,6 +141,16 @@ export default async function FeaturePage({
     return (
       <Suspense fallback={<UsersDashboardSkeleton />}>
         <LocationResourcePage resource={feature as LocationResource} />
+      </Suspense>
+    );
+  if (section === "animals" && feature === "farms")
+    return (
+      <Suspense fallback={<UsersDashboardSkeleton />}>
+        <PeopleResourcePage
+          resource="farms"
+          parent="Animals & Farms"
+          parentHref="/dashboard/animals"
+        />
       </Suspense>
     );
   if (

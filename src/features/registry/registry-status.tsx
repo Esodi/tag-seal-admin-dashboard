@@ -2,9 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { commerceLabel } from "@/features/commerce/commerce-config";
 import { cn } from "@/lib/utils";
 
-const good = ["active", "verified", "approved", "completed", "live", "ended"];
-const bad = ["rejected", "inactive", "notActive", "cancelled", "expired"];
-const waiting = ["pending", "scheduled", "accepted", "travelling", "arrived", "in_progress"];
+const good = ["active", "verified", "approved", "completed", "live", "ended", "paid", "won"];
+const bad = ["rejected", "inactive", "notActive", "cancelled", "expired", "defaulted", "withdrawn"];
+const waiting = ["pending", "scheduled", "accepted", "travelling", "arrived", "in_progress", "pending_payment", "return_requested"];
 
 /** The Commerce status pill, with the auction and vet statuses. */
 export function RegistryStatus({ status }: { status?: string | null }) {

@@ -46,11 +46,16 @@ import styles from "@/features/dairy/factory-details-page.module.css";
 import { RegistryStatus } from "@/features/registry/registry-status";
 import { registryRun, registrySend } from "@/features/registry/registry-api";
 import { formatRecordDate } from "@/lib/resource-table";
-import { SessionActions } from "./auction-actions";
+import { IntakeActions, SessionActions } from "./auction-actions";
 import { centreLocation } from "./auction-columns";
 import { roleOptions } from "./auction-config";
 import { CentreForm } from "./auction-forms";
-import type { AuctionCentreMemberRecord, AuctionCentreRecord, AuctionSessionRecord } from "./types";
+import type {
+  AuctionCentreMemberRecord,
+  AuctionCentreRecord,
+  AuctionIntakeRecord,
+  AuctionSessionRecord,
+} from "./types";
 
 /** Dialog to add or edit a member (manager, auctioneer, or clerk) at an auction centre. */
 export function CentreMemberDialog({
@@ -618,6 +623,162 @@ function CentreSessionsTable({
   );
 }
 
+function CentreIntakesTable({
+  intakes,
+  onChanged,
+}: {
+  intakes: AuctionIntakeRecord[];
+  onChanged: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState("all");
+  const [pageSize, setPageSize] = useState(10);
+
+  const filtered = intakes.filter((item) => {
+    if (status !== "all" && item.status !== status) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [
+      item.livestock?.name,
+      item.livestock?.identificationNumber,
+      item.farmerName,
+      item.farmerPhone,
+      item.farmName,
+    ].some((v) => v?.toLowerCase().includes(q));
+  });
+
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, pages);
+  const rows = filtered.slice((current - 1) * pageSize, current * pageSize);
+
+  return (
+    <TablePanel>
+      <TableToolbar>
+        <div className="relative min-w-0 flex-1 lg:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            aria-label="Search linked livestock"
+            placeholder="Search animal, tag, farmer or farm…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+          <Select
+            value={status}
+            onValueChange={(value) => {
+              setStatus(value);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger aria-label="Filter livestock by status" size="sm" className="h-8 w-auto min-w-36 font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="return_requested">Return requested</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="returned">Returned</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              setPage(1);
+            }}
+          >
+            <SelectTrigger aria-label="Rows per page" size="sm" className="h-8 w-auto min-w-24 font-normal">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {[10, 25, 50].map((size) => (
+                <SelectItem key={size} value={String(size)}>
+                  {size} / page
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </TableToolbar>
+
+      {rows.length > 0 ? (
+        <Table aria-label="Linked livestock">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">#</TableHead>
+              <TableHead>Animal</TableHead>
+              <TableHead>Farmer / Farm</TableHead>
+              <TableHead className="text-right">Asking price</TableHead>
+              <TableHead>Created at</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-12" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((intake, index) => (
+              <TableRow key={intake.uuid}>
+                <TableCell className="tabular-nums text-muted-foreground">
+                  {(current - 1) * pageSize + index + 1}
+                </TableCell>
+                <TableCell className="font-medium">
+                  <div>
+                    <p>{intake.livestock?.name || intake.livestock?.identificationNumber || "—"}</p>
+                    {intake.livestock?.identificationNumber && (
+                      <p className="text-xs text-muted-foreground">{intake.livestock.identificationNumber}</p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <p>{intake.farmerName || "—"}</p>
+                    {(intake.farmName || intake.farmerPhone) && (
+                      <p className="text-xs text-muted-foreground">{intake.farmName || intake.farmerPhone}</p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  {intake.askingPrice != null ? commerceMoney(intake.askingPrice, "TZS") : "—"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{formatRecordDate(intake.createdAt)}</TableCell>
+                <TableCell>
+                  <RegistryStatus status={intake.status} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <IntakeActions row={intake} onChanged={onChanged} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="p-5">
+          <EmptyCard
+            icon={Gavel}
+            title="No linked livestock found"
+            description="Animals sent by farmers to this auction centre will appear here."
+          />
+        </div>
+      )}
+      <RecordPagination
+        from={rows.length ? (current - 1) * pageSize + 1 : 0}
+        to={Math.min(current * pageSize, filtered.length)}
+        total={filtered.length}
+        page={current}
+        pageCount={pages}
+        onPageChange={setPage}
+      />
+    </TablePanel>
+  );
+}
+
 /**
  * Full-page Auction Centre details view, following the exact design pattern of FactoryDetailsPage.
  */
@@ -678,9 +839,8 @@ export function AuctionCentreDetailsPage({ uuid }: { uuid: string }) {
 
   const members = centre.members ?? [];
   const sessions = centre.sessions ?? [];
+  const intakes = centre.intakes ?? [];
   const managers = members.filter((m) => m.role === "manager");
-  const officersAndClerks = members.filter((m) => m.role !== "manager");
-  const activeMembers = members.filter((m) => m.status === "active");
   const initials = centre.name
     .trim()
     .split(/\s+/)
@@ -759,8 +919,8 @@ export function AuctionCentreDetailsPage({ uuid }: { uuid: string }) {
         <dl className={styles.totals}>
           {[
             ["Managers", managers.length],
-            ["Auctioneers & clerks", officersAndClerks.length],
-            ["Active members", activeMembers.length],
+            ["Linked livestock", intakes.length],
+            ["Auction sessions", sessions.length],
           ].map(([label, value]) => (
             <div key={label}>
               <dt className={styles.totalLabel}>{label}</dt>
@@ -781,8 +941,8 @@ export function AuctionCentreDetailsPage({ uuid }: { uuid: string }) {
           <TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="managers">
             Managers ({managers.length})
           </TabsTrigger>
-          <TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="users">
-            Auctioneers &amp; clerks ({officersAndClerks.length})
+          <TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="livestock">
+            Linked livestock ({intakes.length})
           </TabsTrigger>
         </TabsList>
 
@@ -808,13 +968,8 @@ export function AuctionCentreDetailsPage({ uuid }: { uuid: string }) {
           <CentreMembersTable members={managers} title="managers" centre={centre} onChanged={reload} />
         </TabsContent>
 
-        <TabsContent value="users">
-          <CentreMembersTable
-            members={officersAndClerks}
-            title="auctioneers and clerks"
-            centre={centre}
-            onChanged={reload}
-          />
+        <TabsContent value="livestock">
+          <CentreIntakesTable intakes={intakes} onChanged={reload} />
         </TabsContent>
       </Tabs>
 

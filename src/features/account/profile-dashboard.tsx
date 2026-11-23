@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { authenticatedFetch } from "@/lib/auth/session";
 import { formatRecordDate } from "@/lib/resource-table";
-import { profileValues, validateProfile, type AccountProfile, type DeletionCheck, type ProfileValues } from "./types";
+import { profileValues, validateProfile, type AccountProfile, type DeletionCheck } from "./types";
 
 const fields = [
   { key: "firstName", label: "First name", icon: UserRound, type: "text", autoComplete: "given-name", placeholder: "First name" },
@@ -78,7 +78,15 @@ export function ProfileEditor({ initialProfile }: { initialProfile: AccountProfi
   const initials = fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const dirty = fields.some(({ key }) => values[key] !== profile[key]);
   const busy = saving || checking || deleting || signingOut;
-  const roleLabel = profile.platformRole === "superAdmin" ? "Super administrator" : "Administrator";
+  const roleLabel = profile.platformRole === "superAdmin"
+    ? "SuperAdmin"
+    : profile.cooperativeRoles?.includes("mcu_admin")
+      ? "MCU Admin"
+      : profile.cooperativeRoles?.includes("amcos_admin")
+        ? "AMCOS Admin"
+        : profile.cooperativeRoles?.includes("amcos_user")
+          ? "AMCOS User"
+          : "Administrator";
 
   async function save(event: FormEvent) {
     event.preventDefault();

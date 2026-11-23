@@ -921,11 +921,6 @@ export function FinanceResourceDashboard({
                 <DetailItem label="Provider Role">
                   {viewing.issuerType === "vet" || viewing.vetId ? "Veterinarian" : "Extension Officer"}
                 </DetailItem>
-                {viewing.vetServiceRequestUuid ? (
-                  <DetailItem label="Service Request">
-                    {viewing.vetServiceRequestUuid}
-                  </DetailItem>
-                ) : null}
               </>
             ) : null}
             {resource === "expenditure" && viewing.scope === "vet" ? (

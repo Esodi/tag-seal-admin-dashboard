@@ -97,6 +97,8 @@ type Props = {
   initialRecords: PeopleResponse | null;
   initialOptions: PeopleOptions | null;
   initialError: string | null;
+  parent?: string;
+  parentHref?: string;
 };
 
 export function PeopleResourceDashboard({
@@ -104,6 +106,8 @@ export function PeopleResourceDashboard({
   initialRecords,
   initialOptions,
   initialError,
+  parent = "People & Organization",
+  parentHref = "/dashboard/people",
 }: Props) {
   const config = getPeopleResourceConfig(resource);
   const [result, setResult] = useState<PeopleResponse | null>(initialRecords);
@@ -367,8 +371,8 @@ export function PeopleResourceDashboard({
   return (
     <div className="mx-auto max-w-7xl">
       <DashboardHeader
-        parent="People & Organization"
-        parentHref="/dashboard/people"
+        parent={parent}
+        parentHref={parentHref}
         title={config.title}
         description={config.description}
         actions={

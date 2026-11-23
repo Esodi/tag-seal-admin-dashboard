@@ -2,7 +2,14 @@ import { commerceDateTime, commerceLabel, commerceMoney } from "@/features/comme
 import { RegistryStatus } from "@/features/registry/registry-status";
 import { registryColumn, type RegistryColumn } from "@/features/registry/types";
 import { formatRecordDate } from "@/lib/resource-table";
-import type { AuctionCentreRecord, AuctionOfficerRecord, AuctionSessionRecord } from "./types";
+import type {
+  AuctionBidRecord,
+  AuctionCentreRecord,
+  AuctionIntakeRecord,
+  AuctionOfficerRecord,
+  AuctionSaleRecord,
+  AuctionSessionRecord,
+} from "./types";
 
 const twoLine = (title: string, note?: string | null) => <div className="min-w-44 max-w-64 whitespace-normal"><p className="font-medium leading-5 [overflow-wrap:anywhere]">{title}</p>{note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}</div>;
 
@@ -36,4 +43,77 @@ export const sessionColumns: RegistryColumn<AuctionSessionRecord>[] = [
   registryColumn("sales", "Gross sales", (r) => commerceMoney(r.grossSales, r.currency ?? "TZS"), undefined, "text-right font-medium tabular-nums"),
   registryColumn("status", "Status", (r) => commerceLabel(r.status), (r) => <RegistryStatus status={r.status} />),
   registryColumn("created", "Created at", (r) => formatRecordDate(r.createdAt ?? undefined), undefined, "text-muted-foreground"),
+];
+
+export const intakeColumns: RegistryColumn<AuctionIntakeRecord>[] = [
+  registryColumn(
+    "animal",
+    "Animal",
+    (r) => r.livestock?.name || r.livestock?.identificationNumber || r.livestockUuid,
+    (r) => twoLine(r.livestock?.name || r.livestock?.identificationNumber || "—", r.livestock?.identificationNumber || r.livestockUuid),
+  ),
+  registryColumn("centre", "Centre", (r) => r.centreName || "—"),
+  registryColumn(
+    "farmer",
+    "Farmer / Farm",
+    (r) => r.farmerName || r.farmName || "—",
+    (r) => twoLine(r.farmerName || "—", r.farmName || r.farmerPhone),
+  ),
+  registryColumn(
+    "askingPrice",
+    "Asking price",
+    (r) => (r.askingPrice != null ? commerceMoney(r.askingPrice, "TZS") : "—"),
+    undefined,
+    "text-right font-medium tabular-nums",
+  ),
+  registryColumn("created", "Created at", (r) => formatRecordDate(r.createdAt ?? undefined), undefined, "text-muted-foreground"),
+  registryColumn("status", "Status", (r) => commerceLabel(r.status), (r) => <RegistryStatus status={r.status} />),
+];
+
+export const bidColumns: RegistryColumn<AuctionBidRecord>[] = [
+  registryColumn(
+    "lot",
+    "Lot / Animal",
+    (r) => r.lotTitle || r.livestock?.name || r.livestock?.identificationNumber || "—",
+    (r) => twoLine(r.lotTitle || r.livestock?.name || "—", r.lotNumber != null ? `Lot #${r.lotNumber}` : undefined),
+  ),
+  registryColumn(
+    "session",
+    "Auction",
+    (r) => r.sessionTitle || "—",
+    (r) => twoLine(r.sessionTitle || "—", r.centreName),
+  ),
+  registryColumn(
+    "bidder",
+    "Bidder",
+    (r) => r.bidderName || (r.bidderNumber != null ? `Bidder #${r.bidderNumber}` : "—"),
+    (r) => twoLine(r.bidderName || "—", r.bidderNumber != null ? `Bidder #${r.bidderNumber}${r.bidderPhone ? ` · ${r.bidderPhone}` : ""}` : r.bidderPhone),
+  ),
+  registryColumn("amount", "Bid amount", (r) => commerceMoney(r.amount, r.currency ?? "TZS"), undefined, "text-right font-medium tabular-nums"),
+  registryColumn("created", "Created at", (r) => commerceDateTime(r.createdAt), undefined, "text-muted-foreground"),
+  registryColumn("status", "Status", (r) => commerceLabel(r.status), (r) => <RegistryStatus status={r.status} />),
+];
+
+export const saleColumns: RegistryColumn<AuctionSaleRecord>[] = [
+  registryColumn(
+    "receipt",
+    "Receipt",
+    (r) => r.receiptNo || r.uuid,
+    (r) => twoLine(r.receiptNo || "—", commerceLabel(r.channel ?? "live")),
+  ),
+  registryColumn(
+    "animal",
+    "Animal / Lot",
+    (r) => r.livestock?.name || r.livestock?.identificationNumber || "—",
+    (r) => twoLine(r.livestock?.name || r.livestock?.identificationNumber || "—", r.sessionTitle),
+  ),
+  registryColumn(
+    "buyer",
+    "Buyer",
+    (r) => r.buyerName || "—",
+    (r) => twoLine(r.buyerName || "—", r.buyerPhone),
+  ),
+  registryColumn("amount", "Amount", (r) => commerceMoney(r.amount, r.currency ?? "TZS"), undefined, "text-right font-medium tabular-nums"),
+  registryColumn("created", "Created at", (r) => commerceDateTime(r.createdAt), undefined, "text-muted-foreground"),
+  registryColumn("status", "Payment", (r) => commerceLabel(r.status), (r) => <RegistryStatus status={r.status} />),
 ];

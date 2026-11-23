@@ -6,6 +6,8 @@ const allowed: Record<string, Record<string, string[]>> = {
   centres: { members: ["GET", "POST"] },
   officers: { approve: ["POST"], reject: ["POST"] },
   sessions: { cancel: ["POST"], republish: ["POST"] },
+  intakes: { review: ["POST"], "approve-return": ["POST"] },
+  sales: { "mark-paid": ["POST"] },
 };
 
 async function forward(request: Request, { params }: Context) {

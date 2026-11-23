@@ -10,7 +10,9 @@ export type AdminUser = {
   username?: string;
   email?: string;
   role: string;
-  platformRole?: "admin" | "superAdmin";
+  platformRole?: "admin" | "superAdmin" | "appUser";
+  cooperativeRoles?: string[];
+  permissions?: string[];
   status?: string;
   firstname?: string;
   surname?: string;

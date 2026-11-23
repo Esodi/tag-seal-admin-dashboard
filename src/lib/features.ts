@@ -39,15 +39,8 @@ export const featureGroups: FeatureGroup[] = [
   {
     slug: "people",
     label: "People & Organization",
-    description: "Farms, people, accounts and access relationships.",
+    description: "People, accounts and access relationships.",
     features: [
-      feature(
-        "farms",
-        "Farms",
-        "Farm registry, ownership and geographical coverage.",
-        ["Farm", "Owner", "Location", "Animals", "Status"],
-        { primaryAction: "Add farm" },
-      ),
       feature(
         "farmers",
         "Farmers",
@@ -89,6 +82,12 @@ export const featureGroups: FeatureGroup[] = [
         "Authentication accounts, roles and account state.",
         ["Username", "Email", "Role", "Last active", "Status"],
         { primaryAction: "Create account" },
+      ),
+      feature(
+        "memberships",
+        "Feature Memberships",
+        "Account memberships across all services, verified identities and farmer relationships.",
+        ["Member", "Feature", "Organization", "Verified phone", "Status"],
       ),
     ],
   },
@@ -132,9 +131,16 @@ export const featureGroups: FeatureGroup[] = [
   },
   {
     slug: "animals",
-    label: "Animals & Livestock",
-    description: "Livestock registry, identification tags, breeds, and lifecycle status.",
+    label: "Animals & Farms",
+    description: "Livestock registry, farms, identification tags, breeds, and lifecycle status.",
     features: [
+      feature(
+        "farms",
+        "Farms",
+        "Farm registry, ownership and geographical coverage.",
+        ["Farm", "Owner", "Location", "Animals", "Status"],
+        { primaryAction: "Add farm" },
+      ),
       feature(
         "legacy-livestock",
         "Livestocks",
@@ -153,14 +159,14 @@ export const featureGroups: FeatureGroup[] = [
           "Identified",
           "Status",
         ],
-        { primaryAction: "Add livestock" },
+        { primaryAction: "Add livestock", hidden: true },
       ),
       feature(
         "animals",
         "Animals",
         "Dynamic animal subjects, identifiers and timelines.",
         ["Animal", "Species", "Primary ID", "Farm", "Status"],
-        { hidden: true },
+        { primaryAction: "Add animal" },
       ),
       feature(
         "animal-types",
@@ -263,12 +269,6 @@ export const featureGroups: FeatureGroup[] = [
           "Status",
         ],
         { status: "new", primaryAction: "View employers" },
-      ),
-      feature(
-        "memberships",
-        "Feature Memberships",
-        "Account memberships, verified identities and explicit farmer relationships.",
-        ["Member", "Feature", "Organization", "Verified phone", "Status"],
       ),
       feature(
         "onboardings",
@@ -432,6 +432,27 @@ export const featureGroups: FeatureGroup[] = [
         "Scheduled, live and past auctions with their lots.",
         ["Auction", "Centre", "Officer", "Scheduled", "Status"],
         { status: "new", primaryAction: "View auctions" },
+      ),
+      feature(
+        "intakes",
+        "Linked Livestock",
+        "Animals sent by farmers to auction centres, intake approvals, and return requests.",
+        ["Animal", "Centre", "Farmer", "Asking Price", "Status"],
+        { status: "new", primaryAction: "Review intakes" },
+      ),
+      feature(
+        "bids",
+        "Biddings",
+        "All bids placed across auction sessions and lots.",
+        ["Lot", "Session", "Bidder", "Amount", "Status"],
+        { status: "new", primaryAction: "View bids" },
+      ),
+      feature(
+        "sales",
+        "Purchases & Sales",
+        "Auction sales, buyer receipts, and payment settlements.",
+        ["Receipt", "Animal", "Buyer", "Amount", "Status"],
+        { status: "new", primaryAction: "Manage payments" },
       ),
     ],
   },

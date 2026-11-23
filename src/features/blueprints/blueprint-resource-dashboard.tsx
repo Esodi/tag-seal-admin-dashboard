@@ -1004,7 +1004,6 @@ export function BlueprintResourceDashboard({
               <DetailItem label="Code">{selectedRecord.code}</DetailItem>
               <DetailItem label="Version">{getRecordVersion(selectedRecord)}</DetailItem>
               <DetailItem label="Status">{selectedRecord.status}</DetailItem>
-              <DetailItem label="UUID">{selectedRecord.uuid}</DetailItem>
               <DetailItem label="Created (EAT)">{reportDate(selectedRecord.created_at, true)}</DetailItem>
               <DetailItem label="Updated (EAT)">{reportDate(selectedRecord.updated_at, true)}</DetailItem>
             </div>

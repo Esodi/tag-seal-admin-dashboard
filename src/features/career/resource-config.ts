@@ -248,9 +248,9 @@ export const careerConfig: Record<CareerResource, ResourceConfig> = {
       { key: "organization_name", label: "Organization" },
       { key: "phone_verified", label: "Phone identity", kind: "verified" },
       {
-        key: "farmer_id",
-        label: "Farmer profile",
-        secondaryKey: "account_role",
+        key: "account_role",
+        label: "Account Role",
+        kind: "badge",
       },
       statusCol,
       { key: "created_at", label: "Joined", kind: "date" },

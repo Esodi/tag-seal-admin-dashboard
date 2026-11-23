@@ -7,10 +7,11 @@ import { ChevronDown, Languages, LogOut, Moon, Sun, UserRound } from "lucide-rea
 import { useAuthSession } from "@/components/providers/auth-session-provider";
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getRoleDisplayLabel } from "@/lib/permissions";
 
 export function AccountMenu({ compact = false, user, onNavigate }: {
   compact?: boolean;
-  user?: { username?: string; email?: string; firstname?: string; surname?: string; platformRole?: string };
+  user?: { username?: string; email?: string; firstname?: string; surname?: string; platformRole?: string; cooperativeRoles?: string[] };
   onNavigate?: () => void;
 }) {
   const { session, signOut } = useAuthSession();
@@ -20,7 +21,7 @@ export function AccountMenu({ compact = false, user, onNavigate }: {
   const currentUser = session?.user ?? user;
   const displayName = [currentUser?.firstname, currentUser?.surname].filter(Boolean).join(" ") || currentUser?.username || "Administrator";
   const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-  const role = currentUser?.platformRole === "superAdmin" ? "Super administrator" : "Administrator";
+  const role = getRoleDisplayLabel(currentUser);
   const avatar = <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">{initials}</span>;
 
   async function handleSignOut() {
