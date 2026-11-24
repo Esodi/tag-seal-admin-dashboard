@@ -128,9 +128,9 @@ export function IdleTimeoutDialog() {
         setOpen(false);
         toast.success("Session refreshed. You're still signed in.", { id: "session-refreshed" });
       } else {
-        markSessionExpired();
         setOpen(false);
-        router.push("/login?expired=1");
+        await fetch("/api/auth/logout", { method: "POST", cache: "no-store" }).catch(() => undefined);
+        window.location.replace("/login?expired=1");
       }
     } finally {
       setRefreshing(false);

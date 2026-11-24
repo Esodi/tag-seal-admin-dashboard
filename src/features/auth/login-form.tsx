@@ -24,7 +24,7 @@ import { toast } from "@/components/ui/toast";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status } = useAuthSession();
+  const { status, refresh } = useAuthSession();
   const [showPassword, setShowPassword] = useState(false);
   const method = "password";
   const [pending, setPending] = useState(false);
@@ -95,6 +95,7 @@ export function LoginForm() {
       }
       window.sessionStorage.setItem("tagseal:login-success", "1");
       markSessionRestored();
+      await refresh();
 
       const savedReturnTo = consumeReturnTo();
       const rawTarget = savedReturnTo || returnToParam || "/dashboard";

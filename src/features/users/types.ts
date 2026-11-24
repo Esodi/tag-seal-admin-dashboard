@@ -7,16 +7,21 @@ export type SelectOption = {
   parent?: string;
 };
 
+export type CooperativeRoleBadge = { role: string; status: string };
+
 export type UserAccount = {
   id: number;
   uuid: string;
   username: string;
   email: string;
+  phone?: string | null;
   role: string;
   roleLabel: string;
   roleId: number;
   profile: UserProfile | null;
   profileDetails?: Record<string, unknown> | null;
+  cooperativeRoles?: CooperativeRoleBadge[];
+  featureMemberships?: string[];
   status: string;
   statusLabel: string;
   permissions: UserPermission[];

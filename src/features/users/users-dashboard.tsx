@@ -663,6 +663,7 @@ function UsersTable({
             <TableHead>Username</TableHead>
             <TableHead>Email address</TableHead>
             <TableHead>User role</TableHead>
+            <TableHead>Roles &amp; Memberships</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12" />
@@ -756,6 +757,7 @@ function UsersTable({
             <TableHead>Username</TableHead>
             <TableHead>Email address</TableHead>
             <TableHead>User role</TableHead>
+            <TableHead>Roles &amp; Memberships</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12">
@@ -800,6 +802,23 @@ function UsersTable({
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary">{user.roleLabel}</Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {(user.cooperativeRoles ?? []).map((coop) => (
+                      <Badge key={`${coop.role}-${coop.status}`} variant="outline" className="text-[11px]">
+                        {coop.role.replace(/_/g, " ")}
+                      </Badge>
+                    ))}
+                    {(user.featureMemberships ?? []).map((feature) => (
+                      <Badge key={feature} variant="secondary" className="text-[11px]">
+                        {feature}
+                      </Badge>
+                    ))}
+                    {!(user.cooperativeRoles?.length || user.featureMemberships?.length) ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={user.status} />
@@ -1506,13 +1525,34 @@ function UserDetailsDialog({
           </DetailItem>
           <DetailItem label="Username">{user.username}</DetailItem>
           <DetailItem label="Email address">{user.email}</DetailItem>
-          <DetailItem label="Phone">{user.profile?.phone ?? "—"}</DetailItem>
+          <DetailItem label="Phone">{user.phone ?? user.profile?.phone ?? "—"}</DetailItem>
           <DetailItem label="Role">
             <Badge variant="secondary">{user.roleLabel}</Badge>
           </DetailItem>
           <DetailItem label="Status">
             <StatusBadge status={user.status} />
           </DetailItem>
+          <div className="sm:col-span-2">
+            <DetailItem label="Cooperative roles &amp; memberships">
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {(user.cooperativeRoles ?? []).map((coop) => (
+                  <Badge key={`${coop.role}-${coop.status}`} variant="outline">
+                    {coop.role.replace(/_/g, " ")} ({coop.status})
+                  </Badge>
+                ))}
+                {(user.featureMemberships ?? []).map((feature) => (
+                  <Badge key={feature} variant="secondary">
+                    {feature}
+                  </Badge>
+                ))}
+                {!(user.cooperativeRoles?.length || user.featureMemberships?.length) ? (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    No cooperative roles or service memberships.
+                  </span>
+                ) : null}
+              </div>
+            </DetailItem>
+          </div>
           {user.profileDetails?.farmerNo ? (
             <DetailItem label="Farmer number">
               <Badge variant="outline" className="font-mono">

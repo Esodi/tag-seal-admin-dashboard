@@ -25,6 +25,7 @@ import { FactoryMemberActions } from "./factory-member-actions";
 import { BulkRecordAction } from "@/components/ui/bulk-record-action";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FactoryHandovers } from "./factory-handovers";
+import { FactoryTransactions } from "./factory-transactions";
 import styles from "./factory-details-page.module.css";
 import type { RegistryRow } from "./cooperative-registry-types";
 
@@ -95,13 +96,14 @@ export function FactoryDetailsPage({ uuid }: { uuid: string }) {
       </dl>}
     </section>
     <Tabs value={tab} onValueChange={setTab}>
-      <TabsList className={styles.tabs} style={{ gridTemplateColumns: `repeat(${members ? 4 : 2}, minmax(0, 1fr))` }}><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="details">Factory details</TabsTrigger><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="handovers">Handover approvals</TabsTrigger>{members && <><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="managers">Managers ({managers.length})</TabsTrigger><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="users">Factory users ({operators.length})</TabsTrigger></>}</TabsList>
+      <TabsList className={styles.tabs} style={{ gridTemplateColumns: `repeat(${members ? 5 : 3}, minmax(0, 1fr))` }}><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="details">Factory details</TabsTrigger><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="handovers">Handover approvals</TabsTrigger><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="transactions">Transactions</TabsTrigger>{members && <><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="managers">Managers ({managers.length})</TabsTrigger><TabsTrigger className="w-full min-w-0 justify-self-stretch" style={{ width: "100%" }} value="users">Factory users ({operators.length})</TabsTrigger></>}</TabsList>
       <TabsContent value="details"><section className="rounded-2xl border bg-card p-5 sm:p-7"><h3 className="mb-5 text-lg font-semibold">Details</h3><dl className="divide-y border-t">{details.map(([label, value]) => <div key={label} className="grid gap-2 py-4 text-sm sm:grid-cols-2"><dt className="font-medium text-muted-foreground">{label}</dt><dd className="break-words font-medium">{value || "—"}</dd></div>)}</dl>
         <h3 className="mb-3 mt-6 text-lg font-semibold">Documents</h3>
         <MediaPreviewList items={mediaSourcesFrom(row.document_urls)} emptyText="No registration certificates or licences on file." />
       </section></TabsContent>
       {members && <><TabsContent value="managers"><MembersTable members={managers} title="managers" factory={row} canManage={meta.canManage} onChanged={reload} /></TabsContent><TabsContent value="users"><MembersTable members={operators} title="factory users" factory={row} canManage={meta.canManage} onChanged={reload} /></TabsContent></>}
       <TabsContent value="handovers"><FactoryHandovers factoryUuid={uuid} /></TabsContent>
+      <TabsContent value="transactions"><FactoryTransactions factoryUuid={uuid} /></TabsContent>
     </Tabs>
     {editing && <CooperativeRegistryForm type="factories" record={row} open={editing} onOpenChange={setEditing} onSaved={reload} />}
     {managing && <FactoryMembersDialog factory={row} open={managing} onOpenChange={(open) => { setManaging(open); if (!open) reload(); }} />}

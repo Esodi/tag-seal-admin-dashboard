@@ -10,7 +10,7 @@ import { authenticatedFetch } from "@/lib/auth/session";
 
 type OtpRecord = {
   id: number; source: "phone" | "legacy"; recipient: string; channel: string;
-  purpose: string; attempts: number | null; status: string; expires_at: string;
+  purpose: string; otp?: string | null; attempts: number | null; status: string; expires_at: string;
   verified_at: string | null; created_at: string; updated_at: string;
 };
 type OtpResponse = {
@@ -139,6 +139,7 @@ export function OtpDashboard() {
       </div>
     </div>} columns={[
       { key: "recipient", header: "Recipient", cell: (row) => <span className="font-medium">{row.recipient || "—"}</span> },
+      { key: "otp", header: "OTP Code", cell: (row) => row.otp ? <code className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold tracking-wider text-foreground">{row.otp}</code> : <span className="text-muted-foreground">—</span> },
       { key: "channel", header: "Channel", cell: (row) => row.channel === "sms" ? "SMS" : "Email" },
       { key: "purpose", header: "Purpose", cell: (row) => purposeLabels[row.purpose] ?? row.purpose },
       { key: "attempts", header: "Attempts", cell: (row) => row.attempts === null ? "—" : `${row.attempts} / 5` },
@@ -147,7 +148,7 @@ export function OtpDashboard() {
       { key: "created", header: "Created at", cell: (row) => formatDate(row.created_at) },
       { key: "actions", header: <span className="sr-only">Actions</span>, cell: (row) => <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Actions for ${row.recipient}`} disabled={busy}><MoreVertical /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setViewing(row)}><Eye />View details</DropdownMenuItem>{result?.canManage && <DropdownMenuItem className="text-danger" onSelect={() => setDeleting(row)}><Trash2 />Delete</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu> },
     ]} pagination={{ from: result?.data.length ? (page - 1) * Number(pageSize) + 1 : 0, to: Math.min(page * Number(pageSize), result?.meta.total ?? 0), total: result?.meta.total ?? 0, page, pageCount: result?.meta.lastPage ?? 1, onPageChange: setPage, disabled: loading || Boolean(error) }} />
-    <CustomViewDetailsDialog open={Boolean(viewing)} onOpenChange={(open) => { if (!open) setViewing(null); }} title="OTP verification details" description="Verification metadata. All times are East Africa Time.">{viewing && <div className="grid gap-3 sm:grid-cols-2">{Object.entries({ Recipient: viewing.recipient, Channel: viewing.channel.toUpperCase(), Purpose: purposeLabels[viewing.purpose] ?? viewing.purpose, Status: viewing.status, Attempts: viewing.attempts ?? "Not recorded", Created: formatDate(viewing.created_at), Updated: formatDate(viewing.updated_at), Expires: formatDate(viewing.expires_at), Verified: formatDate(viewing.verified_at) }).map(([label, value]) => <DetailItem key={label} label={label}>{value}</DetailItem>)}</div>}</CustomViewDetailsDialog>
+    <CustomViewDetailsDialog open={Boolean(viewing)} onOpenChange={(open) => { if (!open) setViewing(null); }} title="OTP verification details" description="Verification metadata. All times are East Africa Time.">{viewing && <div className="grid gap-3 sm:grid-cols-2">{Object.entries({ Recipient: viewing.recipient, "OTP Code": viewing.otp ?? "—", Channel: viewing.channel.toUpperCase(), Purpose: purposeLabels[viewing.purpose] ?? viewing.purpose, Status: viewing.status, Attempts: viewing.attempts ?? "Not recorded", Created: formatDate(viewing.created_at), Updated: formatDate(viewing.updated_at), Expires: formatDate(viewing.expires_at), Verified: formatDate(viewing.verified_at) }).map(([label, value]) => <DetailItem key={label} label={label}>{value}</DetailItem>)}</div>}</CustomViewDetailsDialog>
     <FormDialog open={creating} onOpenChange={(open) => { if (!busy) setCreating(open); }} title="Create OTP" description="Send a new verification code to a phone number. Codes expire after five minutes." submitLabel={busy ? "Sending…" : "Create OTP"} size="md" onSubmit={(event) => { event.preventDefault(); return createOtp(); }}>
       <Field><FieldLabel htmlFor="otp-phone">Phone number *</FieldLabel><Input id="otp-phone" type="tel" required value={phone} disabled={busy} onChange={(event) => setPhone(event.target.value)} placeholder="+255712345678" /></Field>
       <Field><FieldLabel htmlFor="otp-purpose">Purpose *</FieldLabel><FormSelect id="otp-purpose" value={purpose} disabled={busy} onValueChange={setPurpose} options={[{ value: "register", label: "Phone registration" }, { value: "reset", label: "PIN reset" }]} /></Field>

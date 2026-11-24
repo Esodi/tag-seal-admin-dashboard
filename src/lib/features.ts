@@ -88,6 +88,7 @@ export const featureGroups: FeatureGroup[] = [
         "Feature Memberships",
         "Account memberships across all services, verified identities and farmer relationships.",
         ["Member", "Feature", "Organization", "Verified phone", "Status"],
+        { hidden: true },
       ),
     ],
   },
