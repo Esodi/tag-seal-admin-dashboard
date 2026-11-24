@@ -1,4 +1,4 @@
-export const dairyResources = ["centres", "intakes", "dispatches", "deliveries", "transporters", "factories", "trips"] as const;
+export const dairyResources = ["centres", "intakes", "dispatches", "deliveries", "transporters", "factories", "trips", "seasons", "ledger"] as const;
 export type DairyResource = (typeof dairyResources)[number];
 export type DairyResponse = {
   data: Array<Record<string, unknown>>;

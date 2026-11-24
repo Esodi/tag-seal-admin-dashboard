@@ -6,3 +6,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ reso
   if (!dairyResources.includes(resource as DairyResource)) return Response.json({ message: "Unsupported dairy resource." }, { status: 404 });
   return proxyAdminRequest(request, `/dairy/${resource}`);
 }
+
+export async function POST(request: Request, { params }: { params: Promise<{ resource: string }> }) {
+  const { resource } = await params;
+  if (resource !== "seasons") return Response.json({ message: "Unsupported dairy action." }, { status: 404 });
+  return proxyAdminRequest(request, `/dairy/${resource}`);
+}

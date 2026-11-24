@@ -11,7 +11,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Database, Eye, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Database, Eye, LineChart, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
+import {
+  FarmerMilkLineGraphDialog,
+  FarmerMilkTable,
+  groupMilkingsByFarmer,
+} from "./farmer-milk-analysis";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,7 +86,8 @@ function formatDate(value?: string | null) {
   if (!value) return "—";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-TZ", {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Dar_es_Salaam",
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -92,13 +98,19 @@ function formatDateTime(value?: string | null) {
   if (!value) return "—";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-TZ", {
+  const datePart = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Dar_es_Salaam",
     day: "numeric",
     month: "short",
     year: "numeric",
+  }).format(parsed);
+  const timePart = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Dar_es_Salaam",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   }).format(parsed);
+  return `${datePart}, ${timePart}`;
 }
 
 function formatNumber(value?: string | number | null, suffix = "") {
@@ -122,7 +134,9 @@ export function EventResourceDashboard({
   const [error, setError] = useState(initialError);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "deleted">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "deleted" | "farmer-milk">("all");
+  const [milkGraphOpen, setMilkGraphOpen] = useState(false);
+  const [selectedFarmerKey, setSelectedFarmerKey] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [perPage, setPerPage] = useState(initialData?.meta.perPage ?? 10);
@@ -169,11 +183,11 @@ export function EventResourceDashboard({
       activeRequest.current = controller;
       if (!background) { setLoading(true); setError(undefined); }
       const params = new URLSearchParams({
-        page: String(nextPage),
-        per_page: String(nextPerPage),
+        page: String(nextTab === "farmer-milk" ? 1 : nextPage),
+        per_page: String(nextTab === "farmer-milk" ? 200 : nextPerPage),
         search: nextSearch,
         status: nextStatus,
-        tab: nextTab,
+        tab: nextTab === "farmer-milk" ? "all" : nextTab,
         sort: nextSort === "asc" ? "oldest" : "latest",
       });
       try {
@@ -984,7 +998,7 @@ export function EventResourceDashboard({
               <Tabs
                 value={activeTab}
                 onValueChange={(next) => {
-                  setActiveTab(next as "all" | "deleted");
+                  setActiveTab(next as "all" | "deleted" | "farmer-milk");
                   setPage(1);
                   setSelected(new Set());
                 }}
@@ -1008,6 +1022,17 @@ export function EventResourceDashboard({
                       {deletedCount}
                     </Badge>
                   </TabsTrigger>
+                  {resource === "milkings" ? (
+                    <TabsTrigger value="farmer-milk">
+                      Farmer Milk
+                      <Badge
+                        variant="secondary"
+                        className="ml-2 px-1.5 py-0 text-[10px]"
+                      >
+                        {groupMilkingsByFarmer(items, debouncedSearch).length}
+                      </Badge>
+                    </TabsTrigger>
+                  ) : null}
                 </TabsList>
               </Tabs>
             </TableTabSection>
@@ -1025,6 +1050,19 @@ export function EventResourceDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {resource === "milkings" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedFarmerKey("all");
+                    setMilkGraphOpen(true);
+                  }}
+                >
+                  <LineChart className="size-4" />
+                  Line-Graph Analysis
+                </Button>
+              ) : null}
               {selected.size > 0 ? (
                 activeTab === "deleted" ? (
                   <>
@@ -1157,6 +1195,14 @@ export function EventResourceDashboard({
                 </TableBody>
               </Table>
             </div>
+          ) : activeTab === "farmer-milk" && resource === "milkings" ? (
+            <FarmerMilkTable
+              groups={groupMilkingsByFarmer(items, debouncedSearch)}
+              onOpenGraph={(key) => {
+                setSelectedFarmerKey(key ?? "all");
+                setMilkGraphOpen(true);
+              }}
+            />
           ) : items.length === 0 ? (
             <EmptyCard
               icon={activeTab === "deleted" ? Trash2 : Database}
@@ -1404,6 +1450,17 @@ export function EventResourceDashboard({
           </div>
         ) : null}
       </CustomViewDetailsDialog>
+
+      {resource === "milkings" ? (
+        <FarmerMilkLineGraphDialog
+          open={milkGraphOpen}
+          onOpenChange={setMilkGraphOpen}
+          records={items}
+          groups={groupMilkingsByFarmer(items)}
+          selectedFarmerKey={selectedFarmerKey}
+          onSelectFarmerKey={setSelectedFarmerKey}
+        />
+      ) : null}
 
       {activeTab === "deleted" && config.supportsTabs ? (
         <TypedConfirmationAlertDialog

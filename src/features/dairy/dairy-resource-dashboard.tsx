@@ -10,15 +10,20 @@ import { formatRecordDate } from "@/lib/resource-table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TablePanel, TableToolbar } from "@/components/ui/table-layout";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { useMemo, useState } from "react";
-import { Eye, MoreVertical, Milk, RefreshCw, Search, Truck, Warehouse } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Eye, MoreVertical, Milk, Plus, RefreshCw, Search, Truck, Warehouse } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { CustomViewDetailsDialog, DetailItem } from "@/components/ui/custom-view-details-dialog";
 import { EmptyCard } from "@/components/ui/empty-card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
+import { authenticatedFetch } from "@/lib/auth/session";
+import { toast } from "sonner";
 import type { DairyResource, DairyResponse } from "@/features/dairy/types";
 
 const resourceMeta: Record<DairyResource, { title: string; description: string }> = {
@@ -49,6 +54,14 @@ const resourceMeta: Record<DairyResource, { title: string; description: string }
   trips: {
     title: "Driver Trips",
     description: "Journeys a driver creates from dispatches assigned to them and drives to the factory.",
+  },
+  seasons: {
+    title: "Season Milk Prices",
+    description: "Seasonal milk prices per litre or kilogram configured for MCU and AMCOS cooperatives.",
+  },
+  ledger: {
+    title: "Farmer Ledger & Debts",
+    description: "Farmer delivery credits, payouts received, expenses/debts, and running account balances.",
   },
 };
 
@@ -130,7 +143,24 @@ type DairyDashboardItem = {
   rejected_quantity?: string;
   delivery_session?: string | null;
   payable_amount?: string;
+  expected_amount?: string | null;
+  price_per_unit?: string | number | null;
   payment_status?: string;
+  return_outcome?: string | null;
+  return_note?: string | null;
+  source?: string | null;
+  season_code?: string | null;
+  amcos_name?: string | null;
+  mcu_name?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  entry_type?: string | null;
+  credit_amount?: string | number | null;
+  debit_amount?: string | number | null;
+  balance_after?: string | number | null;
+  reference_number?: string | null;
+  description?: string | null;
+  entry_date?: string | null;
   document_urls?: Record<string, string> | null;
 };
 
@@ -163,20 +193,77 @@ export function DairyResourceDashboard({
     description: "Dairy logistics and collection management.",
   };
   const [selectedItem, setSelectedItem] = useState<DairyDashboardItem | null>(null);
+  const [addingSeason, setAddingSeason] = useState(false);
+  const [amcosOptions, setAmcosOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [seasonAmcos, setSeasonAmcos] = useState("");
+  const [seasonUnit, setSeasonUnit] = useState("l");
   const { data, error, loading, pageSize, setPageSize, setPage, reload, search, setSearch, sort, setSort, status, setStatus } = useDairyRecords(resource, initialData, initialError, Boolean(selectedItem));
+
+  useEffect(() => {
+    if (!addingSeason || amcosOptions.length > 0) return;
+    authenticatedFetch("/api/admin/dairy/cooperatives/amcos?per_page=100", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((payload) => {
+        const list = (payload?.data?.data ?? payload?.data ?? []) as Array<{ uuid?: string; name?: string }>;
+        setAmcosOptions(
+          list
+            .filter((a) => a.uuid && a.name)
+            .map((a) => ({ value: String(a.uuid), label: String(a.name) })),
+        );
+      })
+      .catch(() => undefined);
+  }, [addingSeason, amcosOptions.length]);
+
+  async function saveSeason(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const body = {
+      amcos_uuid: seasonAmcos,
+      name: String(form.get("name") ?? "").trim(),
+      price_per_unit: Number(form.get("price_per_unit") ?? 0),
+      unit: seasonUnit,
+      start_date: String(form.get("start_date") ?? "").trim(),
+      end_date: String(form.get("end_date") ?? "").trim() || null,
+      is_active: true,
+    };
+    const res = await authenticatedFetch("/api/admin/dairy/seasons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.status === false) {
+      toast.error(payload?.message ?? "Could not save season price.");
+      return false;
+    }
+    toast.success("Season milk price saved.");
+    setAddingSeason(false);
+    reload();
+    return true;
+  }
+
   const rawItems = useMemo(() => (data?.data ?? []) as unknown as DairyDashboardItem[], [data?.data]);
   const statuses = resource === "intakes" ? [["accepted", "Fully accepted"], ["rejected", "With rejected milk"]]
     : resource === "dispatches" ? [["dispatched", "Dispatched"], ["on_trip", "On trip"], ["in_transit", "In transit"], ["arrived", "Arrived"], ["delivered", "Delivered"], ["reconciled", "Reconciled"]]
     : resource === "deliveries" ? [["accepted_full", "Fully accepted"], ["accepted_with_deduction", "Accepted with deduction"], ["rejected_spoiled", "Rejected"]]
-    : resource === "trips" ? [["PREPARING", "Preparing"], ["IN_TRANSIT", "In transit"], ["ARRIVED", "Arrived"], ["COMPLETED", "Completed"]] : [];
+    : resource === "trips" ? [["PREPARING", "Preparing"], ["IN_TRANSIT", "In transit"], ["ARRIVED", "Arrived"], ["COMPLETED", "Completed"]]
+    : resource === "seasons" ? [["active", "Active"], ["inactive", "Inactive"]]
+    : resource === "ledger" ? [["credit_intake", "Delivery credit"], ["debit_payout", "Farmer payout"], ["debit_expense", "Expense / debt"]]
+    : [];
   const columns = resource === "intakes" ? ["Farmer / Intake", "Collection centre", "Delivered", "Accepted / Rejected", "Temperature", "Quality"]
     : resource === "dispatches" ? ["Dispatch / Batch", "Centre / Destination", "Driver / Vehicle", "Volume", "Loading temperature", "Status"]
     : resource === "deliveries" ? ["Delivery / Trip", "Factory", "Received / Accepted", "Variance", "Arrival temperature", "Quality"]
+    : resource === "seasons" ? ["Season", "Cooperative", "Price / Unit", "Period", "Status"]
+    : resource === "ledger" ? ["Farmer / Ref", "Cooperative", "Entry", "Balance After", "Status"]
     : ["Trip / Vehicle", "Driver / Transporter", "Destination", "Volume", "Dispatches", "Status"];
   const temperature = (value?: string | null) => value == null || value === "" ? "—" : `${value} °C`;
   const pair = (primary?: string | null, secondary?: string | null) => <><p className="font-medium">{primary || "—"}</p>{secondary && <p className="text-xs text-muted-foreground">{secondary}</p>}</>;
-  const recordStatus = (item: DairyDashboardItem) => resource === "intakes" ? Number(item.rejected_quantity) > 0 ? "With rejected milk" : "Accepted" : item.phase || item.status || item.factory_qa_status || "Unknown";
-  const badge = (value: string) => ["accepted", "completed", "delivered", "reconciled", "accepted_full"].includes(value.toLowerCase()) ? <Badge className="capitalize">{value.toLowerCase().replaceAll("_", " ")}</Badge> : <StatusBadge status={value} />;
+  const recordStatus = (item: DairyDashboardItem) => resource === "intakes"
+    ? (item.approval_status && item.approval_status !== "approved" ? item.approval_status : Number(item.rejected_quantity) > 0 ? "With rejected milk" : "Accepted")
+    : resource === "seasons" ? (item.is_active ? "active" : "inactive")
+    : resource === "ledger" ? (item.entry_type ?? "entry")
+    : item.phase || item.status || item.factory_qa_status || "Unknown";
+  const badge = (value: string) => ["accepted", "completed", "delivered", "reconciled", "accepted_full", "active", "credit_intake"].includes(value.toLowerCase()) ? <Badge className="capitalize">{value.toLowerCase().replaceAll("_", " ")}</Badge> : <StatusBadge status={value} />;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -184,6 +271,12 @@ export function DairyResourceDashboard({
         parent="Cooperative Operations" parentHref="/dashboard/dairy"
         title={meta.title}
         description={meta.description}
+        actions={resource === "seasons" ? (
+          <Button onClick={() => setAddingSeason(true)}>
+            <Plus />
+            Set season price
+          </Button>
+        ) : undefined}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -193,6 +286,9 @@ export function DairyResourceDashboard({
         {resource === "trips" && <DashboardStatCard label="In transit" value={data?.meta?.in_transit ?? "—"} note="Trips currently on the road" />}
         {resource === "dispatches" && <DashboardStatCard label="Reconciled dispatches" value={data?.meta?.reconciled ?? "—"} note="Matched against factory receipt" />}
         {resource === "deliveries" && <DashboardStatCard label={<>Net variance (received − dispatched)</>} value={data?.meta ? signedLitres(data.meta.total_variance_liters) : "—"} note="Across all factory receipts" />}
+        {resource === "seasons" && <DashboardStatCard label="Active seasons" value={data?.meta?.active_seasons ?? "—"} note="Currently applying to deliveries" />}
+        {resource === "ledger" && <DashboardStatCard label="Total credits" value={data?.meta?.total_credits != null ? `TZS ${Number(data.meta.total_credits).toLocaleString("en-TZ")}` : "—"} note="Earned from accepted milk" />}
+        {resource === "ledger" && <DashboardStatCard label="Net balance owed" value={data?.meta?.net_balance != null ? `TZS ${Number(data.meta.net_balance).toLocaleString("en-TZ")}` : "—"} note="Credits minus payouts & debts" />}
       </div>
 
       <TablePanel aria-busy={loading}>
@@ -262,6 +358,20 @@ export function DairyResourceDashboard({
                         <TableCell>{pair(litres(item.received_volume_liters), `${litres(item.accepted_volume_liters)} accepted`)}</TableCell>
                         <TableCell className="tabular-nums">{signedLitres(item.discrepancy_liters)}</TableCell>
                         <TableCell>{temperature(item.arrival_temperature_celsius)}</TableCell>
+                      </> : resource === "seasons" ? <>
+                        <TableCell>{pair(item.name, item.season_code)}</TableCell>
+                        <TableCell>{pair(item.amcos_name, item.mcu_name)}</TableCell>
+                        <TableCell className="font-medium tabular-nums">{item.price_per_unit != null ? `TZS ${Number(item.price_per_unit).toLocaleString("en-TZ")} / ${item.unit ?? "l"}` : "—"}</TableCell>
+                        <TableCell>{pair(item.start_date, item.end_date ?? "Ongoing")}</TableCell>
+                      </> : resource === "ledger" ? <>
+                        <TableCell>{pair(item.farmer_name, item.reference_number)}</TableCell>
+                        <TableCell>{pair(item.amcos_name, item.centre_name)}</TableCell>
+                        <TableCell className="font-medium tabular-nums">
+                          {Number(item.credit_amount ?? 0) > 0
+                            ? `+TZS ${Number(item.credit_amount).toLocaleString("en-TZ")}`
+                            : `-TZS ${Number(item.debit_amount ?? 0).toLocaleString("en-TZ")}`}
+                        </TableCell>
+                        <TableCell className="tabular-nums">{`TZS ${Number(item.balance_after ?? 0).toLocaleString("en-TZ")}`}</TableCell>
                       </> : <>
                         <TableCell>{pair(item.trip_number, item.vehicle_plate_number)}</TableCell>
                         <TableCell>{pair(item.driver?.name, item.transporter?.name)}</TableCell>
@@ -291,8 +401,11 @@ export function DairyResourceDashboard({
             <DetailItem label="Delivered">{litres(selectedItem.gross_quantity)}</DetailItem>
             <DetailItem label="Accepted">{litres(selectedItem.accepted_quantity)}</DetailItem>
             <DetailItem label="Rejected">{litres(selectedItem.rejected_quantity)}</DetailItem>
+            <DetailItem label="Season price">{selectedItem.price_per_unit == null ? "—" : `TZS ${Number(selectedItem.price_per_unit).toLocaleString("en-TZ")}`}</DetailItem>
+            <DetailItem label="Expected amount">{selectedItem.expected_amount == null ? "—" : `TZS ${Number(selectedItem.expected_amount).toLocaleString("en-TZ")}`}</DetailItem>
             <DetailItem label="Payable">{selectedItem.payable_amount == null ? "—" : `TZS ${Number(selectedItem.payable_amount).toLocaleString("en-TZ")}`}</DetailItem>
             <DetailItem label="Payment">{selectedItem.payment_status ?? "—"}</DetailItem>
+            <DetailItem label="Return outcome">{selectedItem.return_outcome ? selectedItem.return_outcome.replaceAll("_", " ") : "—"}</DetailItem>
             <DetailItem label="Rejection reason">{selectedItem.rejection_reason || "—"}</DetailItem>
             <DetailItem label="Temperature">{temperature(selectedItem.temperature_celsius)}</DetailItem>
             <DetailItem label="Fat content">{selectedItem.fat_percentage == null ? "—" : `${selectedItem.fat_percentage}%`}</DetailItem>
@@ -335,8 +448,65 @@ export function DairyResourceDashboard({
             <DetailItem label="Total">{litres(selectedItem.total_liters)}</DetailItem>
             {selectedItem.dispatches?.map((d) => <DetailItem key={d.uuid} label={`${d.dispatch_code}${d.batch_number && d.batch_number !== d.dispatch_code ? ` · ${d.batch_number}` : ""}`}>{`${d.centre_name ?? "—"} · ${litres(d.quantity)} · ${d.status}`}</DetailItem>)}
           </>}
+          {resource === "seasons" && <>
+            <DetailItem label="Season">{selectedItem.name ?? "—"}</DetailItem>
+            <DetailItem label="Code">{selectedItem.season_code ?? "—"}</DetailItem>
+            <DetailItem label="Cooperative">{selectedItem.amcos_name ?? "—"}</DetailItem>
+            <DetailItem label="Union (MCU)">{selectedItem.mcu_name ?? "—"}</DetailItem>
+            <DetailItem label="Price">{selectedItem.price_per_unit != null ? `TZS ${Number(selectedItem.price_per_unit).toLocaleString("en-TZ")} / ${selectedItem.unit ?? "l"}` : "—"}</DetailItem>
+            <DetailItem label="Period">{[selectedItem.start_date, selectedItem.end_date ?? "Ongoing"].filter(Boolean).join(" → ")}</DetailItem>
+          </>}
+          {resource === "ledger" && <>
+            <DetailItem label="Farmer">{selectedItem.farmer_name ?? "—"}</DetailItem>
+            <DetailItem label="Reference">{selectedItem.reference_number ?? "—"}</DetailItem>
+            <DetailItem label="Cooperative">{selectedItem.amcos_name ?? "—"}</DetailItem>
+            <DetailItem label="Entry type">{selectedItem.entry_type ?? "—"}</DetailItem>
+            <DetailItem label="Credit">{`TZS ${Number(selectedItem.credit_amount ?? 0).toLocaleString("en-TZ")}`}</DetailItem>
+            <DetailItem label="Debit">{`TZS ${Number(selectedItem.debit_amount ?? 0).toLocaleString("en-TZ")}`}</DetailItem>
+            <DetailItem label="Balance after">{`TZS ${Number(selectedItem.balance_after ?? 0).toLocaleString("en-TZ")}`}</DetailItem>
+            <DetailItem label="Description" className="sm:col-span-2">{selectedItem.description ?? "—"}</DetailItem>
+          </>}
         </div>}
       </CustomViewDetailsDialog>
+      {addingSeason && (
+        <FormDialog
+          open={addingSeason}
+          onOpenChange={setAddingSeason}
+          title="Set Season Milk Price"
+          description="Sets the active seasonal price per litre or kg for this AMCOS cooperative."
+          onSubmit={saveSeason}
+          submitLabel="Save season price"
+        >
+          <Field>
+            <FieldLabel htmlFor="season-amcos" required>Cooperative (AMCOS)</FieldLabel>
+            <FormSelect id="season-amcos" value={seasonAmcos} onValueChange={setSeasonAmcos} options={amcosOptions} placeholder="Select AMCOS" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="season-name" required>Season name</FieldLabel>
+            <Input id="season-name" name="name" required maxLength={255} placeholder="e.g. Dry Season 2026" />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="season-price" required>Price per unit (TZS)</FieldLabel>
+              <Input id="season-price" name="price_per_unit" type="number" min={1} step="0.01" required placeholder="1500" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="season-unit">Unit</FieldLabel>
+              <FormSelect id="season-unit" value={seasonUnit} onValueChange={setSeasonUnit} options={[{ value: "l", label: "Litres (L)" }, { value: "kg", label: "Kilograms (kg)" }]} />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="season-start" required>Start date</FieldLabel>
+              <Input id="season-start" name="start_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="season-end">End date (optional)</FieldLabel>
+              <Input id="season-end" name="end_date" type="date" />
+            </Field>
+          </div>
+        </FormDialog>
+      )}
     </div>
   );
 }

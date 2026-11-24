@@ -520,6 +520,20 @@ export const featureGroups: FeatureGroup[] = [
         { status: "new" },
       ),
       feature(
+        "seasons",
+        "Season Milk Prices",
+        "Seasonal milk prices per litre or kg set by MCU and AMCOS cooperatives.",
+        ["Season", "Cooperative", "Price", "Period", "Status"],
+        { status: "new", primaryAction: "Set season price" },
+      ),
+      feature(
+        "ledger",
+        "Farmer Ledger & Debts",
+        "Farmer milk credits, payouts received, expenses/debts, and net balances.",
+        ["Farmer", "Cooperative", "Type", "Amount", "Balance"],
+        { status: "new" },
+      ),
+      feature(
         "dispatches",
         "Milk Dispatches",
         "Milk sent from a collection centre to a factory: batch, loading time and temperature, seals, driver and vehicle.",
